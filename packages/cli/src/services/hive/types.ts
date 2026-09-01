@@ -333,6 +333,26 @@ export interface AdminResultMsg {
   error?: string;
 }
 
+/**
+ * Client → hub: hive-object operation (create/update/get/list/history/delete).
+ * Params are validated hub-side by hiveObjects.applyObjectOp; mutations
+ * require a full-trust peer, private objects are owner-only.
+ */
+export interface ObjMsg {
+  t: 'obj';
+  ref: string;
+  params: Record<string, unknown>;
+}
+
+export interface ObjResultMsg {
+  t: 'obj-result';
+  ref: string;
+  ok: boolean;
+  record?: unknown;
+  records?: unknown;
+  error?: string;
+}
+
 export interface PingMsg {
   t: 'ping';
 }
@@ -352,6 +372,7 @@ export type ClientToHubMsg =
   | AckMsg
   | CardMsg
   | AdminMsg
+  | ObjMsg
   | PingMsg;
 
 export type HubToClientMsg =
@@ -364,6 +385,7 @@ export type HubToClientMsg =
   | EventMsg
   | RosterMsg
   | AdminResultMsg
+  | ObjResultMsg
   | PongMsg
   | SystemMsg;
 
@@ -400,6 +422,12 @@ export interface HiveNodeConfig {
   trustPolicy?: TrustPolicy;
   /** Rejoin on every start (quiet best-effort, like Telegram autostart). */
   autoconnect?: boolean;
+  /**
+   * Whether this instance participates as a PEER (set by /hive join, cleared
+   * by /hive leave). Hosting the hub (/hive start) no longer implies joining;
+   * undefined is grandfathered as "joined" for configs from before the split.
+   */
+  joined?: boolean;
   /** Set when this machine last ran the hub — /hive start reuses it. */
   hub?: {
     port?: number;

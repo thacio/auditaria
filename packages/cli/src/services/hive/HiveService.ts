@@ -35,6 +35,7 @@ import type {
   HiveStatusParams,
   HiveCheckParams,
   HiveFetchParams,
+  HiveObjectParams,
 } from '@google/gemini-cli-core';
 import {
   GeminiEventType,
@@ -87,6 +88,11 @@ import {
 } from './HiveStore.js';
 import { HiveWireClient, type HiveClientState } from './HiveWireClient.js';
 import { isToolGatedForConsult, hubInfoFallbackUrls } from './hivePolicy.js';
+import {
+  formatObjectOpResult,
+  type HiveObjectOpParams,
+  type HiveObjectRecord,
+} from './hiveObjects.js';
 import {
   isStreamingIdle,
   onStreamingIdle,
@@ -801,7 +807,10 @@ export class HiveService implements HiveTransport {
     // head until the backoff elapses so transient contention can't burn the
     // whole ladder in seconds (the 5s drain timer re-polls; FIFO order kept).
     const priorAttempt = this.deliveryAttempts.get(head.value.env.id);
-    if (priorAttempt && Date.now() - priorAttempt.lastAt < HIVE_RETRY_BACKOFF_MS) {
+    if (
+      priorAttempt &&
+      Date.now() - priorAttempt.lastAt < HIVE_RETRY_BACKOFF_MS
+    ) {
       return;
     }
 
@@ -1443,6 +1452,29 @@ export class HiveService implements HiveTransport {
    * the model exactly, with no truncation. (Encrypt-on-hold / decrypt here is
    * the natural next step, giving the model a trusted, tamper-evident channel.)
    */
+  // AUDITARIA_HIVE_FEATURE: hive objects (hub-authoritative state records).
+  async object(params: HiveObjectParams): Promise<string> {
+    if (!this.client.isOnline()) {
+      throw new Error(
+        'hive connection is offline — retry shortly (reconnect runs automatically)',
+      );
+    }
+    const res = await this.client.object(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      params as unknown as Record<string, unknown>,
+    );
+    if (!res.ok) throw new Error(res.error ?? 'object operation failed');
+    const nickOf = (id: string) => this.nicknameOf(id) ?? id;
+    return formatObjectOpResult(
+       
+      params as HiveObjectOpParams,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      res as { record?: HiveObjectRecord; records?: HiveObjectRecord[] },
+      nickOf,
+      this.savedConfig.nodeId,
+    );
+  }
+
   async fetch(params: HiveFetchParams): Promise<string> {
     const id = (params.message_id ?? '').trim();
     const held = this.deliveryContent.get(id);
@@ -1459,7 +1491,10 @@ export class HiveService implements HiveTransport {
     // totals and the range so the model knows whether to page for more.
     const lines = held.block.split('\n');
     const total = lines.length;
-    const start = Math.min(Math.max(1, Math.floor(params.offset ?? 1)) - 1, total);
+    const start = Math.min(
+      Math.max(1, Math.floor(params.offset ?? 1)) - 1,
+      total,
+    );
     const limit =
       params.limit != null && params.limit > 0
         ? Math.floor(params.limit)
@@ -1614,12 +1649,41 @@ export class HiveService implements HiveTransport {
 
     if (params.waitForReplySec && params.waitForReplySec > 0) {
       const waitSec = Math.min(params.waitForReplySec, MAX_WAIT_FOR_REPLY_SEC);
+      const expectedFrom = recipient === '*' ? undefined : recipient;
+      // A reply may ALREADY be in the inbox: the waiter is only registered
+      // after sendEnvelope's relay round-trip resolves, and a fast peer's
+      // answer (or a retry landing between calls) can be delivered during
+      // that await. Without this scan the waiter would time out while the
+      // reply sat one drain away — consume it exactly like the waiter would.
+      let preReply: HiveEnvelope | undefined;
+      for (const { seq, value } of this.inbox.entries()) {
+        const cand = value.env;
+        if (this.inProgress.has(cand.id)) continue;
+        const isReplyKind = cand.kind !== 'status' && cand.kind !== 'system';
+        if (
+          isReplyKind &&
+          cand.thread === env.thread &&
+          (expectedFrom === undefined || cand.from === expectedFrom)
+        ) {
+          this.processedSeen.add(cand.id);
+          this.client.ack(cand.id, 'processed');
+          this.inbox.ack(seq);
+          this.lastConsumedTs = Date.now();
+          this.client.updateCard({ lastConsumedTs: this.lastConsumedTs });
+          preReply = cand;
+          break;
+        }
+      }
+      if (preReply) {
+        result.reply = preReply;
+        return result;
+      }
       const reply = await new Promise<HiveEnvelope | undefined>((resolve) => {
         const waiter: ReplyWaiter = {
           thread: env.thread,
           // For a direct send, only the addressed peer's reply counts; a
           // broadcast wait accepts any peer's reply on the thread.
-          expectedFrom: recipient === '*' ? undefined : recipient,
+          expectedFrom,
           resolve: (replyEnv) => resolve(replyEnv),
           timer: setTimeout(() => {
             this.replyWaiters.delete(waiter);
@@ -1690,12 +1754,29 @@ export class HiveService implements HiveTransport {
   // HiveTransport implementation (backing the core hive_* tools)
   // =====================================================================
 
-  async connect(_params: HiveConnectParams): Promise<string> {
-    // A live service means we are already joined.
-    return (
-      `Already connected to a hive as "${this.getNickname()}". ` +
-      `Use hive_status for the roster. To join a different hive, the user must run /hive leave first.`
-    );
+  async connect(params: HiveConnectParams): Promise<string> {
+    // A live service means we are already joined — and these bridged tools
+    // speak AS the node, so a caller trying to "re-join with its own name"
+    // is usually a separate agent wanting its own identity. Route it well
+    // instead of dead-ending it.
+    const wantsOwnIdentity = !!(params.nickname || params.description);
+    let text =
+      `Already connected to a hive as "${this.getNickname()}" — that is this Auditaria NODE's identity, ` +
+      `and every agent using this node's hive tools shares it.`;
+    if (wantsOwnIdentity) {
+      text +=
+        `\nYou asked for a different nickname/description. Do NOT take over the node's identity for that ` +
+        `(and no need to ask the user for /hive leave). Options:\n` +
+        `- To appear as YOURSELF in the hive (own nickname, own inbox), use the standalone hive-mcp shim: ` +
+        `ask the user to run "/hive invite --mcp" for the one-line setup; once the shim is registered you ` +
+        `just call its hive_join_local tool — it discovers this machine's hive automatically, no invite or ` +
+        `passphrase needed — and you get your own identity, hive_wait and mail watcher, independent of this node.\n` +
+        `- To just tell peers what this node is working on, update the node's roster line with ` +
+        `hive_status {update_description: "..."} — no reconnect needed.`;
+    } else {
+      text += ` Use hive_status for the roster. To move this node to a DIFFERENT hive, the user must run /hive leave first.`;
+    }
+    return text;
   }
 
   async send(params: HiveSendParams): Promise<string> {
@@ -1782,7 +1863,8 @@ export class HiveService implements HiveTransport {
           // auto-consuming, and a stale last-consume hints it isn't polling.
           c.deliveryMode === 'manual' ? 'delivery=manual' : undefined,
           c.deliveryMode === 'manual' &&
-          (!c.lastConsumedTs || Date.now() - c.lastConsumedTs > CONSUME_STALE_MS)
+          (!c.lastConsumedTs ||
+            Date.now() - c.lastConsumedTs > CONSUME_STALE_MS)
             ? 'not actively consuming'
             : undefined,
         ]

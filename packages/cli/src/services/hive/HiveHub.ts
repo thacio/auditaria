@@ -44,12 +44,19 @@ import {
   type EventMsg,
   type HiveEnvelope,
   type HubToClientMsg,
+  type ObjMsg,
+  type ObjResultMsg,
   type RosterEntry,
   type SendMsg,
   type SendState,
   type TrustLevel,
   type TrustPolicy,
 } from './types.js';
+import {
+  applyObjectOp,
+  type HiveObjectOpParams,
+  type HiveObjectRecord,
+} from './hiveObjects.js';
 import {
   CHALLENGE_LEN,
   PBKDF2_ITERATIONS,
@@ -183,6 +190,11 @@ export async function startHiveHub(
     PBKDF2_ITERATIONS,
   );
   const hubFingerprint = fingerprintOfPublicKey(state.hubPublicKeyPem);
+
+  // ---------------- hive objects (shared/private state records) ----------------
+  const objectsPath = path.join(dataDir, 'objects.json');
+  const objects =
+    readJsonFile<Record<string, HiveObjectRecord>>(objectsPath) ?? {};
 
   // ---------------- per-peer durable queues ----------------
   const queues = new Map<string, JsonlQueueStore<QueuedEnvelope>>();
@@ -621,6 +633,32 @@ export async function startHiveHub(
     }
   }
 
+  // AUDITARIA_HIVE_FEATURE: hive objects — hub-authoritative state records.
+  function handleObj(conn: PeerConn, msg: ObjMsg): void {
+    const reply = (r: Omit<ObjResultMsg, 't' | 'ref'>) =>
+      send(conn.ws, { t: 'obj-result', ref: msg.ref, ...r });
+    if (!takeTokens(conn, 1)) {
+      reply({
+        ok: false,
+        error: 'rate limit reached — pace object operations',
+      });
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const params = (msg.params ?? {}) as unknown as HiveObjectOpParams;
+    const res = applyObjectOp(objects, params, {
+      nodeId: conn.nodeId,
+      trust: conn.trust,
+    });
+    if (res.changed) writeJsonFile(objectsPath, objects);
+    reply({
+      ok: res.ok,
+      error: res.error,
+      record: res.record,
+      records: res.records,
+    });
+  }
+
   function handleAdmin(conn: PeerConn, msg: AdminMsg): void {
     const reply = (res: Omit<AdminResultMsg, 't' | 'ref'>) =>
       send(conn.ws, { t: 'admin-result', ref: msg.ref, ...res });
@@ -923,6 +961,9 @@ export async function startHiveHub(
                 return;
               case 'admin':
                 handleAdmin(conn, m);
+                return;
+              case 'obj':
+                handleObj(conn, m);
                 return;
               default:
                 return;

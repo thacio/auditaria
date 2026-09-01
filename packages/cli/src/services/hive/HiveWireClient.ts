@@ -26,6 +26,7 @@ import {
   type HelloMsg,
   type HiveEnvelope,
   type HubToClientMsg,
+  type ObjResultMsg,
   type RosterEntry,
   type SendStateMsg,
   type TrustLevel,
@@ -493,7 +494,8 @@ export class HiveWireClient extends EventEmitter {
         this.emit('receipt', msg);
         return;
       case 'send-state':
-      case 'admin-result': {
+      case 'admin-result':
+      case 'obj-result': {
         const ref = msg.ref;
         const pending = this.pendingRefs.get(ref);
         if (pending) {
@@ -598,6 +600,39 @@ export class HiveWireClient extends EventEmitter {
       });
       try {
         ws.send(JSON.stringify({ t: 'admin', ref, op, ...fields }));
+      } catch (e) {
+        this.pendingRefs.delete(ref);
+        clearTimeout(timer);
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
+    });
+  }
+
+  /** Hive-object operation (create/update/get/list/history/delete). */
+  object(
+    params: Record<string, unknown>,
+    timeoutMs = 15_000,
+  ): Promise<ObjResultMsg> {
+    return new Promise<ObjResultMsg>((resolve, reject) => {
+      const ws = this.ws;
+      if (!this.isOnline() || !ws) {
+        reject(new Error('hive connection is offline'));
+        return;
+      }
+      const ref = this.nextRef();
+      const timer = setTimeout(() => {
+        this.pendingRefs.delete(ref);
+        reject(new Error('timed out waiting for the relay object result'));
+      }, timeoutMs);
+      timer.unref?.();
+      this.pendingRefs.set(ref, {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+        resolve: (v) => resolve(v as ObjResultMsg),
+        reject,
+        timer,
+      });
+      try {
+        ws.send(JSON.stringify({ t: 'obj', ref, params }));
       } catch (e) {
         this.pendingRefs.delete(ref);
         clearTimeout(timer);

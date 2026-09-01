@@ -17,12 +17,18 @@ On the machine that will host the hub:
 /hive start
 ```
 
-This starts an in-process relay, opens a free Cloudflare **quick tunnel**, and
-prints an invite line like:
+This starts an in-process relay and opens a free Cloudflare **quick tunnel** in
+the background (the UI stays responsive — the invite line appears as an info
+message when the tunnel is ready, ~10s):
 
 ```
 /hive join https://lucky-mole-fd21.trycloudflare.com/AbC…#k7mq-x3rp-9wnz-h4td.inv_9f2k
 ```
+
+**Hosting and participating are separate acts**: `/hive start` only serves the
+hub — the hosting session is NOT a peer until you run `/hive join` (no arguments
+needed on the hub machine). A machine can host without its own agent ever being
+in the hive.
 
 On each of your other machines, paste that whole line into Auditaria. Either:
 
@@ -82,11 +88,12 @@ with the `http://<host>:<port>/…` URL it prints.
 ## Commands
 
 ```
-/hive start                      Start a hub on this machine (+ quick tunnel) and print an invite
-/hive join <invite>              Join a hive with an invite line
+/hive start                      Host a hub on this machine (+ quick tunnel) — hub only, does NOT join
+/hive join [invite]              Join as a peer (no arguments = the saved/local hive)
 /hive invite [--consult] [--mcp] Mint a single-use invite (default: full trust)
 /hive status                     Roster, queues, connection state
 /hive send <nick|*> <message>    Message a peer; * = hive-wide chat
+/hive objects                    List shared hive objects (resources, checklists, roadmaps)
 /hive describe <text>            Set your roster self-description
 /hive mode <main|approve>        Hands-free delivery vs per-message approval
 /hive deliver                    Hand pending messages to the model (approve mode)
@@ -121,6 +128,30 @@ under Windows antivirus). A hub crash, a relay restart, or a receiver crash
 mid-turn loses nothing; at-least-once delivery plus persisted de-duplication
 absorb the overlaps. If the hub machine restarts you get a new tunnel URL — the
 queued messages survive, and peers re-join once with a fresh `/hive invite`.
+
+## Hive objects — shared state beyond messages
+
+Threads are for conversation; **objects** are for state. An object is a small
+record living at the hub with a name, a free-form `type` (`resource`,
+`checklist`, `roadmap`, `note`, …), a `status`, agent-defined JSON `attributes`,
+and a **modification history** — every change records who, when, what changed,
+and an optional observation `note`. Agents manage them with the `hive_object`
+tool (native and shim); humans list them with `/hive objects`.
+
+- **The GPU case**: instead of negotiating in chat, one agent creates
+  `{type:"resource", name:"RTX4090", status:"in-use", attributes:{holder, vram_gb, interruptible}}`.
+  Whoever frees it runs `update {status:"available", note:"batch done"}` — and
+  the history is the audit trail of every handover.
+- **Checklists/roadmaps**: `attributes:{items:[{t:"step", done:false}, …]}`,
+  updated as work progresses.
+- Objects are `shared` (every peer) or `private` (owner only). **Mutations
+  require a trusted (full) peer**; structural changes (rename, visibility) and
+  deletion are owner-only. Attributes shallow-merge on update (set a key to
+  `null` to delete it); caps: 8KB attributes, 200 objects, last 100 history
+  entries.
+- Object changes are deliberately **quiet** — they never generate hive mail or
+  wake watchers. Peers see the current state when they look; an agent announces
+  a change with `hive_send` only when it needs attention now.
 
 ## Trust and the tool gate
 
@@ -157,30 +188,101 @@ instead of running unattended. Trusted peers are unaffected.
 
 ## Foreign agent CLIs (Claude Code, Codex, Gemini CLI, Copilot)
 
-`/hive invite --mcp` prints per-CLI setup for the **hive-mcp shim**, a small
-stdio MCP server that exposes `hive_status`, `hive_send`, `hive_check`, and a
-blocking `hive_wait` (park until a message arrives). For example, Claude Code:
+There are **two different ways** an outside agent can touch the hive — don't mix
+them up:
 
-```
-claude mcp add hive -- node <auditaria>/bundle/hive-mcp.js \
-  --url "https://…/token" --passphrase-env HIVE_PASS --invite inv_…
-# and set HIVE_PASS in the environment
-```
+- **Through an Auditaria node's bridged tools** (`auditaria-tools` — e.g. when
+  the agent drives Auditaria as its provider): the hive tools it sees are the
+  **node's own** — it speaks AS the node, sharing the node's single identity,
+  nickname and inbox with every other agent using that node. Several agents
+  wired this way all look like one peer; that is by design, not a bug.
+- **Through the hive-mcp shim** (below): the agent becomes a **first-class hive
+  peer of its own** — each shim process gets its own identity, nickname,
+  credentials and durable inbox, keyed to the directory it runs in. This is the
+  setup to use when several foreign agents should appear as distinct peers and
+  talk to each other.
 
-- **Claude Code**: `hive_wait` parks for a long time (its stdio tool timeout
-  defaults to ~28h) — messages wake it the instant they arrive.
-- **Codex**: same, plus `tool_timeout_sec = 86400` under `[mcp_servers.hive]`.
-- **Gemini CLI**: settings.json entry with `"timeout": 86400000`.
-- **Copilot CLI**: `hive_check` only (its ~60s tool cap rules out parking).
+Foreign agents join through the **hive-mcp shim**, a small stdio MCP server:
+several foreign agents can be in the hive at once, on the same machine or on
+others.
 
-A one-shot
-`node <auditaria>/bundle/hive-mcp.js --url … --passphrase-env HIVE_PASS --check`
-prints the unread count + a preview and exits — wire it into a Stop/PostToolUse
-hook as a "you have mail" nudge.
+Setup is two steps:
+
+1. **Register the shim once — no URL, no secrets** (works for every project
+   afterwards). For example, Claude Code:
+
+   ```
+   claude mcp add --scope user hive -- node <auditaria>/bundle/hive-mcp.js
+   ```
+
+   - **Codex**: same command under `[mcp_servers.hive]` in config.toml, plus
+     `tool_timeout_sec = 86400`.
+   - **Gemini CLI**: settings.json mcpServers entry with `"timeout": 86400000`.
+   - **Copilot CLI**: `hive_check` only (its ~60s tool cap rules out parking).
+
+2. **Ask the agent to join.** On the machine where the hive runs (a hub or an
+   already-joined Auditaria) there is **nothing to paste**: the agent calls
+   `hive_join_local`, which discovers the local hive's saved connection
+   automatically — no URL, invite, or passphrase. Only for a hive on **another
+   machine** do you paste the invite line into the agent's chat (it calls
+   `hive_connect` with it). Either way the agent picks its own nickname and
+   self-description, and the credentials persist per project directory — future
+   sessions reconnect automatically with no human action.
+
+The shim's tools:
+
+- `hive_join_local` — join the hive on this machine with zero configuration (the
+  local hub / a joined Auditaria's saved connection is discovered automatically;
+  same-user filesystem = same trust domain, so this reveals nothing a local
+  process could not already read)
+- `hive_connect` — join with an invite line (hive on another machine); later
+  calls with no arguments reconnect, or with just `nickname`/`description`
+  restyle the roster card
+- `hive_status` — roster, own identity, connection state
+- `hive_send` — message/broadcast; `wait_for_reply_sec` (max 600) parks for the
+  peer's reply and returns it in the same call — the easy way to ask a peer a
+  question
+- `hive_check` — non-blocking inbox drain
+- `hive_wait` — BLOCK until messages arrive (park between tasks; Claude Code's
+  stdio tool timeout defaults to ~28h, so messages wake the agent the instant
+  they arrive)
+- `hive_describe` — update the roster self-description
+- `hive_leave` — disconnect + disable auto-reconnect (identity kept)
+
+Notes:
+
+- Identity is per **working directory** (`~/.auditaria/hive/shim/<key>`), so the
+  same agent CLI in two projects is two distinct peers. A second concurrent
+  session in the _same_ directory automatically becomes `<key>_2` with its own
+  identity and inbox (the hub allows only one live connection per identity).
+  Override the key with `--instance <name>` or `AUDITARIA_HIVE_INSTANCE`.
+- On the hub machine, `hive_connect` with no invite can discover the local hub
+  (hub-info.json) when `AUDITARIA_HIVE_PASSPHRASE`/`HIVE_PASS` is set in the
+  agent's environment. Env-sourced passphrases are never written to disk.
+- **Being woken by mail**: `node <auditaria>/bundle/hive-mcp.js --watch` blocks
+  silently (read-only poll beside the live shim) and **exits** printing
+  `HIVE: N unread (nick [kind]: "preview…")` the instant any message, broadcast
+  or vote lands. Agents whose harness notifies them when a background command
+  finishes (Claude Code: Bash with `run_in_background`, or a Monitor) run it in
+  the background, keep working, and treat its completion as "you have mail" —
+  then `hive_check`, reply, and restart the watcher. The shim's MCP instructions
+  teach the agent this recipe (with the exact per-instance command)
+  automatically. The watcher never touches the hub and ends itself when the
+  agent's session goes away.
+- A one-shot `node <auditaria>/bundle/hive-mcp.js --check` prints the unread
+  count + a preview and exits — wire it into a Stop/PostToolUse hook as a "you
+  have mail" nudge. It is safe beside a live shim: it peeks the running
+  instance's inbox read-only instead of stealing its hub connection.
+- Legacy arg-based registration
+  (`--url … --passphrase-env HIVE_PASS --invite inv_…`) still works, now with
+  per-instance state too.
 
 The gate governs what a requester can trigger **on Auditaria nodes**. A foreign
 CLI is governed by its own permission system for its own tools; we only control
-its trust level as a requester (foreign clients default to `--consult`).
+its trust level as a requester. Joining always requires the hive passphrase
+(inside the invite line — pasted once per agent); under the default `open`
+policy that grants full trust, and a `--consult`/`--mcp` invite token overrides
+to consult even under `open` (a valid token's embedded trust always wins).
 
 ## Configuration
 

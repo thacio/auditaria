@@ -28,14 +28,18 @@ import {
   getActiveHiveService,
   setActiveHiveService,
   getHiveInstanceDir,
-  hiveInstanceKey,
   HiveService,
 } from '../../services/hive/HiveService.js';
 import {
   getHiveHubDir,
   getHubInfoPath,
+  checkPidLock,
+  acquirePidLock,
+  releasePidLock,
 } from '../../services/hive/hivePaths.js';
-import { writeJsonFile } from '../../services/hive/HiveStore.js';
+import { hubInfoFallbackUrls } from '../../services/hive/hivePolicy.js';
+import { pushHiveToCliDisplay } from '../../services/hive/HiveBridge.js';
+import { readJsonFile, writeJsonFile } from '../../services/hive/HiveStore.js';
 import type { HiveHubHandle } from '../../services/hive/HiveHub.js';
 import type { TunnelHandle } from '../../services/hive/HiveTunnel.js';
 import type { TrustLevel, HubInfoFile } from '../../services/hive/types.js';
@@ -64,57 +68,11 @@ function getHubLockPath(): string {
   return path.join(os.homedir(), '.auditaria', 'hive', 'hub.lock');
 }
 
-/** PID held by a live process on this lock, or undefined (stale locks pruned). */
-function checkLockAt(lockPath: string): number | undefined {
-  try {
-    if (!fs.existsSync(lockPath)) return undefined;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    const data = JSON.parse(fs.readFileSync(lockPath, 'utf-8')) as {
-      pid: number;
-    };
-    if (!data.pid) return undefined;
-    try {
-      process.kill(data.pid, 0);
-      return data.pid;
-    } catch {
-      fs.unlinkSync(lockPath);
-      return undefined;
-    }
-  } catch {
-    return undefined;
-  }
-}
-
-function acquireLockAt(lockPath: string): boolean {
-  const existing = checkLockAt(lockPath);
-  if (existing && existing !== process.pid) return false;
-  try {
-    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
-    fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid }), 'utf-8');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function releaseLockAt(lockPath: string): void {
-  try {
-    if (fs.existsSync(lockPath)) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      const data = JSON.parse(fs.readFileSync(lockPath, 'utf-8')) as {
-        pid: number;
-      };
-      if (data.pid === process.pid) fs.unlinkSync(lockPath);
-    }
-  } catch {
-    /* ignore cleanup errors */
-  }
-}
-
-const checkLock = (): number | undefined => checkLockAt(getInstanceLockPath());
-const acquireFileLock = (): boolean => acquireLockAt(getInstanceLockPath());
+// Lock primitives live in hivePaths.ts (shared with the hive-mcp shim).
+const checkLock = (): number | undefined => checkPidLock(getInstanceLockPath());
+const acquireFileLock = (): boolean => acquirePidLock(getInstanceLockPath());
 function releaseFileLock(): void {
-  releaseLockAt(getInstanceLockPath());
+  releasePidLock(getInstanceLockPath());
 }
 
 function msg(
@@ -136,10 +94,14 @@ function composeInvite(baseUrl: string, passphrase: string, token?: string) {
 // Start / join internals (shared with autoconnect)
 // -------------------------------------------------------------------
 
-async function startHubAndSelfJoin(
-  config: Config,
+/**
+ * Start the hub (relay + tunnel) WITHOUT joining as a peer. Hosting and
+ * participating are separate acts: /hive start serves, /hive join enrolls —
+ * the hub machine's session only becomes a peer when it explicitly joins.
+ */
+async function startHubOnly(
   onProgress?: (text: string) => void,
-): Promise<{ inviteLine: string; nickname: string }> {
+): Promise<{ inviteLine: string; baseUrl: string }> {
   const saved = loadHiveConfig();
   const passphrase = effectivePassphrase(saved) ?? makeStrongPassphrase();
   if (!process.env['AUDITARIA_HIVE_PASSPHRASE'] && !saved.passphrase) {
@@ -194,27 +156,32 @@ async function startHubAndSelfJoin(
 
   saved.url = baseUrl;
   saved.hub = { port: hub.port };
-  // Explicit start re-enables autoconnect (e.g. after a /hive reset set it
-  // off) — you started a hub, so you want it back next launch.
+  // Explicit start re-enables autoconnect (bring the HUB back next launch).
   saved.autoconnect = true;
+  // Hosting ≠ participating: an undefined joined flag would be grandfathered
+  // as "joined" (pre-split configs), so pin it to false on a fresh hub-only
+  // start. An earlier explicit join stays respected.
+  if (saved.joined === undefined) saved.joined = false;
   saveHiveConfig(saved);
-
-  // Self-join over loopback. An explicit full-trust invite guarantees the
-  // creator's node is trusted under every trustPolicy.
-  const selfInvite = hub.mintInvite('full');
-  const service = new HiveService(config, {
-    url: `http://127.0.0.1:${hub.port}/${hub.urlToken}`,
-    passphrase,
-    inviteToken: selfInvite,
-  });
-  service.start();
-  setActiveHiveService(service);
 
   const inviteToken = hub.mintInvite('full');
   return {
     inviteLine: composeInvite(baseUrl, passphrase, inviteToken),
-    nickname: service.getNickname(),
+    baseUrl,
   };
+}
+
+/**
+ * Prefer this machine's loopback address for a URL that points at the LOCAL
+ * hub (token-matched via hub-info.json) — no tunnel hairpin, immune to
+ * quick-tunnel rotation. Any other URL passes through unchanged.
+ */
+function preferLocalUrl(url: string): string {
+  const candidates = hubInfoFallbackUrls(
+    url,
+    readJsonFile<HubInfoFile>(getHubInfoPath()),
+  );
+  return candidates[0] ?? url;
 }
 
 async function joinHive(
@@ -232,7 +199,8 @@ async function joinHive(
   // Connecting (explicitly, or via autoconnect which only runs when already
   // enabled) means we want this hive back next launch.
   saved.autoconnect = true;
-  delete saved.hub; // this machine is a plain peer now
+  saved.joined = true; // participation is explicit — set by join, not by start
+  if (!activeHub) delete saved.hub; // hosting elsewhere → plain peer now
   saveHiveConfig(saved);
 
   const service = new HiveService(config, {
@@ -251,64 +219,82 @@ async function joinHive(
 // Subcommand actions
 // -------------------------------------------------------------------
 
+// Guards the async background start against a double /hive start.
+let hubStartInProgress = false;
+
 async function startAction(
-  context: CommandContext,
+  _context: CommandContext,
 ): Promise<void | SlashCommandActionReturn> {
-  if (getActiveHiveService()) {
-    return msg('info', 'The hive is already running. Use /hive status.');
+  if (activeHub) {
+    return msg(
+      'info',
+      'This machine already hosts the hive hub. /hive status shows it; /hive join makes this session a peer.',
+    );
   }
-  const config = getConfig(context);
-  if (!config) return msg('error', 'Config not available yet.');
-  // Only one node hosts the relay per machine.
-  const hubHolder = checkLockAt(getHubLockPath());
+  if (hubStartInProgress) {
+    return msg(
+      'info',
+      'A hive start is already in progress — watch for the invite line.',
+    );
+  }
+  if (getActiveHiveService()) {
+    return msg(
+      'info',
+      'This session is already joined to a hive. /hive leave first to host a new one here.',
+    );
+  }
+  // Only one node hosts the relay per machine. No instance lock here:
+  // hosting the hub does NOT make this session a peer (/hive join does).
+  const hubHolder = checkPidLock(getHubLockPath());
   if (hubHolder && hubHolder !== process.pid) {
     return msg(
       'error',
       `A hive hub is already running on this machine (PID ${hubHolder}).\n` +
-        `To add another peer here, use /hive join <invite> from a DIFFERENT working directory, ` +
-        `or set AUDITARIA_HIVE_INSTANCE to a distinct value and /hive join in this one.`,
+        `Join it as a peer with /hive join (no arguments needed on this machine).`,
     );
   }
-  // This peer instance (identity + queues) must be free.
-  if (!acquireFileLock()) {
-    return msg(
-      'error',
-      `This Auditaria instance (PID ${checkLock()}, key "${hiveInstanceKey()}") is already in a hive. ` +
-        `Run a second peer from another directory or set AUDITARIA_HIVE_INSTANCE.`,
-    );
-  }
-  if (!acquireLockAt(getHubLockPath())) {
-    releaseFileLock();
+  if (!acquirePidLock(getHubLockPath())) {
     return msg(
       'error',
       'Could not acquire the hub lock — another start is in progress.',
     );
   }
-  try {
-    const { inviteLine, nickname } = await startHubAndSelfJoin(config, (text) =>
-      context.ui.addItem({ type: 'info', text }, Date.now()),
-    );
-    return msg(
-      'info',
-      `Hive hub is up. You joined as "${nickname}" (trusted).\n\n` +
-        `Invite (single-use token, full trust, 24h) — works from ANY machine, or another Auditaria on THIS machine:\n` +
-        `  ${inviteLine}\n\n` +
-        `Paste that line in another Auditaria (/hive join …) or into its chat for the agent to join itself.\n` +
-        `On this same machine, run the other Auditaria from a different folder (or set AUDITARIA_HIVE_INSTANCE) so it is a separate peer.\n` +
-        `Mint more with /hive invite (add --consult for a gated peer, --mcp for foreign CLI setup).`,
-    );
-  } catch (e) {
-    // Tear the partially-started hub/tunnel/service down BEFORE freeing the
-    // locks, so there's no window where a lock is free but the port is still
-    // bound (a concurrent /hive start could otherwise double-bind).
-    await teardown();
-    releaseLockAt(getHubLockPath());
-    releaseFileLock();
-    return msg(
-      'error',
-      `Failed to start the hive: ${e instanceof Error ? e.message : String(e)}`,
-    );
-  }
+  hubStartInProgress = true;
+  const progress = (text: string) =>
+    pushHiveToCliDisplay({ type: 'info', text });
+  // The tunnel takes ~10s (and can hang on locked-down networks) — never
+  // block the UI on it. Progress + the invite line arrive as async info
+  // lines; /hive status shows the state at any time.
+  void (async () => {
+    try {
+      const { inviteLine } = await startHubOnly(progress);
+      pushHiveToCliDisplay({
+        type: 'info',
+        text:
+          `Hive hub is up. This session is NOT a peer yet — run /hive join (no arguments) if it should participate.\n\n` +
+          `Invite (single-use token, full trust, 24h) — works from ANY machine:\n` +
+          `  ${inviteLine}\n\n` +
+          `Paste it in another Auditaria (/hive join …) or into an agent's chat.\n` +
+          `Mint more with /hive invite (add --consult for a gated peer, --mcp for foreign CLI setup).`,
+      });
+    } catch (e) {
+      // Tear the partially-started hub/tunnel down BEFORE freeing the lock,
+      // so there's no window where the lock is free but the port is bound.
+      await teardown();
+      releasePidLock(getHubLockPath());
+      pushHiveToCliDisplay({
+        type: 'error',
+        text: `Failed to start the hive: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    } finally {
+      hubStartInProgress = false;
+    }
+  })();
+  return msg(
+    'info',
+    'Starting the hive hub in the background — the invite line will appear here when the tunnel is ready (~10s).\n' +
+      'Note: /hive start only HOSTS the hub. Run /hive join afterwards if this session should also participate as a peer.',
+  );
 }
 
 async function joinAction(
@@ -320,6 +306,20 @@ async function joinAction(
   const saved = loadHiveConfig();
   const savedPass = effectivePassphrase(saved);
   let invite = parseInvite(args);
+  // No-argument form: join the saved/local hive — the natural follow-up to
+  // /hive start on this machine (start hosts, join participates). Prefers
+  // the loopback address when the URL points at this machine's own hub.
+  if (!invite && !args.trim()) {
+    if (saved.url && savedPass) {
+      invite = { url: preferLocalUrl(saved.url), passphrase: savedPass };
+    } else {
+      return msg(
+        'error',
+        'No saved hive on this machine. Usage: /hive join <url>#<passphrase>[.<token>]\n' +
+          '(On the hub machine, /hive start first — then a bare /hive join works.)',
+      );
+    }
+  }
   // URL-only form: an enrolled peer can re-point at the hive's NEW address
   // (quick-tunnel hostnames rotate on every hub restart) with just
   // "/hive join <url>" — the saved passphrase is reused.
@@ -337,7 +337,7 @@ async function joinAction(
       'error',
       'Could not parse the invite. Expected: /hive join <url>#<passphrase>[.<token>]' +
         (savedPass
-          ? '\nAlready enrolled here — a bare "/hive join <url>" also works (reuses the saved passphrase).'
+          ? '\nAlready enrolled here — a bare "/hive join" (or with just the url) also works (reuses saved credentials).'
           : ''),
     );
   }
@@ -347,7 +347,7 @@ async function joinAction(
     if (activeHub) {
       return msg(
         'info',
-        `This machine hosts the hive hub — peers join it at ${activeBaseUrl ?? '(unknown)'}. ` +
+        `Already hosting AND joined — peers join this hive at ${activeBaseUrl ?? '(unknown)'}. ` +
           'Use /hive invite to mint invites, or /hive leave first to join a different hive.',
       );
     }
@@ -425,7 +425,8 @@ async function inviteAction(
   args: string,
 ): Promise<void | SlashCommandActionReturn> {
   const service = getActiveHiveService();
-  if (!service) {
+  // Minting works joined OR hub-only (the hub mints directly).
+  if (!service && !activeHub) {
     return msg(
       'error',
       'The hive is not running. /hive start or /hive join first.',
@@ -445,6 +446,8 @@ async function inviteAction(
   let token: string;
   if (activeHub) {
     token = activeHub.mintInvite(trust);
+  } else if (!service) {
+    return msg('error', 'The hive is not running.');
   } else {
     try {
       const res = await serviceAdmin(service, 'invite', { trust });
@@ -465,13 +468,21 @@ async function inviteAction(
     `  ${inviteLine}`;
   if (wantsMcp) {
     content +=
-      `\n\nForeign CLI setup (hive-mcp shim — hive_send / hive_check / blocking hive_wait):\n` +
-      `  Claude Code:  claude mcp add hive -- node <auditaria>/bundle/hive-mcp.js --url "${baseUrl}" --passphrase-env HIVE_PASS --invite ${token}\n` +
-      `                (set HIVE_PASS=${passphrase} in the environment)\n` +
-      `  Codex:        same command under [mcp_servers.hive] in config.toml, plus tool_timeout_sec = 86400\n` +
-      `  Gemini CLI:   settings.json mcpServers entry with "timeout": 86400000\n` +
-      `  Copilot CLI:  works with hive_check only (60s tool cap — no hive_wait parking)\n` +
-      `  One-shot hook nudge: node <auditaria>/bundle/hive-mcp.js --url "${baseUrl}" --passphrase-env HIVE_PASS --check`;
+      `\n\nForeign CLI setup (hive-mcp shim — hive_connect / hive_send / hive_check / blocking hive_wait):\n` +
+      `  1) Register once, NO arguments needed (works for every project after that):\n` +
+      `       Claude Code:  claude mcp add --scope user hive -- node <auditaria>/bundle/hive-mcp.js\n` +
+      `       Codex:        same command under [mcp_servers.hive] in config.toml, plus tool_timeout_sec = 86400\n` +
+      `       Gemini CLI:   settings.json mcpServers entry with "timeout": 86400000\n` +
+      `       Copilot CLI:  works with hive_check only (60s tool cap — no hive_wait parking)\n` +
+      `  2) On THIS machine: just ask the agent to "join the hive" — it calls hive_join_local,\n` +
+      `     which discovers the local hive automatically (no invite/passphrase to paste).\n` +
+      `     On OTHER machines: paste the invite line above into the agent's chat (hive_connect).\n` +
+      `     Credentials persist per project directory (each directory = its own hive peer;\n` +
+      `     future sessions reconnect automatically).\n` +
+      `  Note: an agent session already running when the MCP server is added must be RESTARTED\n` +
+      `  to see the hive tools. Agents already bridged to an Auditaria node (auditaria-tools)\n` +
+      `  speak AS that node — the shim is what gives them their own identity + inbox + watcher.\n` +
+      `  One-shot hook nudge ("you have mail"): node <auditaria>/bundle/hive-mcp.js --check`;
   }
   return msg('info', content);
 }
@@ -488,6 +499,30 @@ async function serviceAdmin(
 async function statusAction(): Promise<void | SlashCommandActionReturn> {
   const service = getActiveHiveService();
   const saved = loadHiveConfig();
+  if (!service && activeHub) {
+    // Hub-only: hosting without participating.
+    const roster = activeHub.listRoster();
+    const online = roster.filter((e) => e.online).length;
+    const pass = effectivePassphrase(saved);
+    const peerLines =
+      roster.length === 0
+        ? '  (no peers enrolled yet)'
+        : roster
+            .map(
+              (e) =>
+                `  - ${e.card.nickname} [${e.online ? 'online' : 'offline'}, trust=${e.trust}, queued=${e.queued}]`,
+            )
+            .join('\n');
+    return msg(
+      'info',
+      `Hub: running locally on port ${activeHub.port}${activeTunnel ? ` behind ${activeTunnel.url}` : ' (no tunnel — LAN only)'}\n` +
+        `This session is NOT a peer (hub only) — /hive join to participate.\n` +
+        (activeBaseUrl && pass
+          ? `Current invite (re-share after a restart — the URL changes each time):\n  ${composeInvite(activeBaseUrl, pass)}\n`
+          : '') +
+        `Peers: ${online}/${roster.length} online\n${peerLines}`,
+    );
+  }
   if (!service) {
     let text = 'Hive: not running.';
     if (saved.url) {
@@ -688,6 +723,7 @@ async function leaveAction(): Promise<void | SlashCommandActionReturn> {
   await teardown();
   const saved = loadHiveConfig();
   saved.autoconnect = false;
+  saved.joined = false;
   saveHiveConfig(saved);
   releaseFileLock();
   return msg(
@@ -755,7 +791,7 @@ async function resetAction(
   }
   // Stop everything and release both locks.
   await teardown();
-  releaseLockAt(getHubLockPath());
+  releasePidLock(getHubLockPath());
   releaseFileLock();
   // Delete the machine-wide hub state (identity of the hive lives here).
   try {
@@ -776,6 +812,7 @@ async function resetAction(
   delete saved.relayFingerprint;
   delete saved.hub;
   saved.autoconnect = false;
+  saved.joined = false;
   if (hard) {
     delete saved.nodeId;
     delete saved.nodePublicKeyPem;
@@ -790,6 +827,22 @@ async function resetAction(
     `Hive reset${hard ? ' (hard — new identity)' : ''}. Everything from the old hive is gone.\n` +
       'Run /hive start for a brand-new hive, or /hive join <invite> to join a different one.',
   );
+}
+
+// AUDITARIA_HIVE_FEATURE: human view of the hive's shared objects.
+async function objectsAction(): Promise<void | SlashCommandActionReturn> {
+  const service = getActiveHiveService();
+  if (!service) {
+    return msg(
+      'error',
+      'Not joined to a hive — objects are read through your peer connection. /hive join first.',
+    );
+  }
+  try {
+    return msg('info', await service.object({ action: 'list' }));
+  } catch (e) {
+    return msg('error', e instanceof Error ? e.message : String(e));
+  }
 }
 
 async function teardown(): Promise<void> {
@@ -811,7 +864,7 @@ async function teardown(): Promise<void> {
     activeHub = undefined;
     // We hosted the relay — free the machine-wide hub lock so another node
     // can host next (no-op if we didn't hold it).
-    releaseLockAt(getHubLockPath());
+    releasePidLock(getHubLockPath());
   }
   activeBaseUrl = undefined;
 }
@@ -825,11 +878,12 @@ async function defaultAction(
     'info',
     'Auditaria Hive — hands-free messaging between your own agent instances\n\n' +
       'Usage:\n' +
-      '  /hive start                     Start a hub on this machine (+ quick tunnel) and print an invite\n' +
-      '  /hive join <invite>             Join a hive with an invite line\n' +
+      '  /hive start                     Host a hub on this machine (+ quick tunnel) — hub only, does NOT join\n' +
+      '  /hive join [invite]             Join as a peer (no arguments = the saved/local hive)\n' +
       '  /hive invite [--consult] [--mcp]  Mint a single-use invite (default: full trust)\n' +
       '  /hive status                    Roster, queues, connection state\n' +
       '  /hive send <nick|*> <message>   Message a peer; * = hive-wide chat\n' +
+      '  /hive objects                   List shared hive objects (resources, checklists, roadmaps)\n' +
       '  /hive describe <text>           Set your roster self-description\n' +
       '  /hive mode <main|approve>       Hands-free delivery vs per-message approval\n' +
       // AUDITARIA_HIVE_FEATURE
@@ -859,27 +913,33 @@ export async function autoConnectHive(config: Config): Promise<void> {
   if (saved.autoconnect === false) return;
   const passphrase = effectivePassphrase(saved);
   if (!passphrase) return;
-  if (!saved.hub && !saved.url) return;
-  if (!acquireFileLock()) return;
-  // If this instance previously hosted the hub, only re-host when no other
-  // node already holds the machine-wide hub lock.
-  if (saved.hub && !acquireLockAt(getHubLockPath())) {
-    releaseFileLock();
+  // Hosting and participating are independent intents: `hub` says re-host
+  // the relay; `joined` (grandfathered true when undefined, for configs
+  // predating the start/join split) says re-enroll as a peer.
+  const wantHub = !!saved.hub;
+  const wantJoin = !!saved.url && saved.joined !== false;
+  if (!wantHub && !wantJoin) return;
+  const gotHubLock = wantHub && acquirePidLock(getHubLockPath());
+  if (wantHub && !gotHubLock && !wantJoin) return; // hosted elsewhere already
+  if (wantJoin && !acquireFileLock()) {
+    if (gotHubLock) releasePidLock(getHubLockPath());
     return;
   }
   try {
-    if (saved.hub) {
-      await startHubAndSelfJoin(config);
-    } else if (saved.url) {
-      await joinHive(config, { url: saved.url, passphrase });
+    if (gotHubLock) {
+      await startHubOnly();
+    }
+    if (wantJoin) {
+      const url = preferLocalUrl(saved.url!);
+      await joinHive(config, { url, passphrase });
       activeBaseUrl = saved.url;
     }
   } catch {
-    // startHubAndSelfJoin assigns activeHub/activeTunnel before the service
-    // is fully up — tear the partial state down (teardown frees the hub lock),
-    // then free the instance lock. Otherwise an orphan keeps the port bound.
+    // startHubOnly assigns activeHub/activeTunnel before fully up — tear the
+    // partial state down (teardown frees the hub lock), then free the
+    // instance lock. Otherwise an orphan keeps the port bound.
     await teardown();
-    releaseLockAt(getHubLockPath()); // in case we failed before activeHub was set
+    releasePidLock(getHubLockPath()); // in case we failed before activeHub was set
     releaseFileLock();
     // Silent — autoconnect is best-effort; /hive status explains state.
   }
@@ -903,15 +963,23 @@ export const hiveCommand: SlashCommand = {
   subCommands: [
     {
       name: 'start',
-      description: 'Start a hive hub on this machine and print an invite',
+      description:
+        'Host a hive hub on this machine (hub only — /hive join to participate)',
       kind: CommandKind.BUILT_IN,
       autoExecute: true,
       action: startAction,
     },
     {
+      name: 'objects',
+      description: 'List shared hive objects (resources, checklists, roadmaps)',
+      kind: CommandKind.BUILT_IN,
+      autoExecute: true,
+      action: objectsAction,
+    },
+    {
       name: 'join',
       description:
-        'Join a hive. Usage: /hive join <url>#<passphrase>[.<token>]',
+        'Join as a peer. Usage: /hive join [<url>#<passphrase>[.<token>]] (no args = saved/local hive)',
       kind: CommandKind.BUILT_IN,
       autoExecute: false,
       action: joinAction,

@@ -105,6 +105,8 @@ const ALWAYS_EXCLUDED_TOOLS = [
   'hive_send',
   'hive_status',
   'hive_check',
+  'hive_fetch',
+  'hive_object',
 ];
 
 // Additional tools excluded when mode is 'consult' (read-only)
