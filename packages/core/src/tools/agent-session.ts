@@ -16,9 +16,9 @@ import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
 import {
   CLAUDE_MODEL_IDS,
-  CODEX_MODEL_IDS,
+  getCodexModelIds,
   AGY_MODEL_IDS,
-} from '../providers/types.js'; // AUDITARIA_AGY_PROVIDER: added AGY_MODEL_IDS
+} from '../providers/types.js'; // AUDITARIA_AGY_PROVIDER: added AGY_MODEL_IDS // AUDITARIA_CODEX_PROVIDER: live Codex catalog
 import {
   AUDITARIA_MODEL_IDS,
   VALID_GEMINI_MODELS,
@@ -43,13 +43,19 @@ type Action = (typeof ACTIONS)[number];
 // All valid model values the LLM can choose from. 'auto' is included once and
 // means "use the provider's default" — for Claude this skips --model and lets
 // Claude pick its 1M-context Opus when available.
-const ALL_MODEL_IDS = [
+// AUDITARIA_CODEX_PROVIDER: resolved per call rather than at module load, so
+// the Codex slice tracks the user's own `models_cache.json` — a model Codex
+// adds is offered AND accepted by validateToolParams without a code change.
+const codexModelIds = (): string[] =>
+  getCodexModelIds().filter((id) => id !== 'auto');
+
+const allModelIds = (): string[] => [
   'auto',
   ...CLAUDE_MODEL_IDS.filter((id) => id !== 'auto'),
-  ...CODEX_MODEL_IDS.filter((id) => id !== 'auto'),
+  ...codexModelIds(),
   ...AGY_MODEL_IDS.filter((id) => id !== 'auto'), // AUDITARIA_AGY_PROVIDER
   ...AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto'), // AUDITARIA_AGENT_SESSION
-] as const;
+];
 
 interface ExternalAgentSessionParams {
   action: Action;
@@ -76,11 +82,12 @@ interface ExternalAgentSessionParams {
 // Tool description
 // -------------------------------------------------------------------
 
-const DESCRIPTION = `Manage sessions with alternative LLM providers as external sub-agents. Each sub-agent runs in its own session with its own conversation context and access to Auditaria's tools (file ops, search, browser, etc.).
+const buildDescription =
+  () => `Manage sessions with alternative LLM providers as external sub-agents. Each sub-agent runs in its own session with its own conversation context and access to Auditaria's tools (file ops, search, browser, etc.).
 
 Available providers:
 - "claude" — Claude Code CLI (${CLAUDE_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
-- "codex" — OpenAI Codex CLI (${CODEX_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
+- "codex" — OpenAI Codex CLI (${codexModelIds().join(', ')})
 - "agy" — Google Antigravity CLI (${AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 - "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 
@@ -142,7 +149,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
     super(
       ExternalAgentSessionTool.Name,
       'ExternalAgentSession',
-      DESCRIPTION,
+      buildDescription(),
       Kind.Other,
       {
         type: 'object',
@@ -176,7 +183,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
               CLAUDE_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
               ' (all run with a 1M-token context window except haiku at 200K; opusplan uses Opus while planning and Sonnet while executing). ' +
               'Codex models: ' +
-              CODEX_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              codexModelIds().join(', ') +
               '. ' +
               'Antigravity (agy) models: ' +
               AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
@@ -186,7 +193,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
               ' (default: ' +
               DEFAULT_GEMINI_MODEL +
               ').',
-            enum: [...ALL_MODEL_IDS],
+            enum: allModelIds(),
           },
           mode: {
             type: 'string',
@@ -316,9 +323,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
       const claudeModels = new Set<string>(
         CLAUDE_MODEL_IDS.filter((id) => id !== 'auto'),
       );
-      const codexModels = new Set<string>(
-        CODEX_MODEL_IDS.filter((id) => id !== 'auto'),
-      );
+      const codexModels = new Set<string>(codexModelIds());
       const agyModels = new Set<string>(
         AGY_MODEL_IDS.filter((id) => id !== 'auto'),
       ); // AUDITARIA_AGY_PROVIDER

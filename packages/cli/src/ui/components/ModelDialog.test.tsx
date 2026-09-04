@@ -62,6 +62,10 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
     CODEX_REASONING_EFFORTS: allEfforts,
     getSupportedCodexReasoningEfforts,
     clampCodexReasoningEffortForModel,
+    // AUDITARIA_CODEX_PROVIDER: pin the submenu to modelCatalog's static
+    // fallback — the real reader would pull in whatever models the machine
+    // running the tests happens to have in $CODEX_HOME/models_cache.json.
+    getCodexCatalogModels: () => undefined,
     getAutoModelDescription: (
       hasAccessToPreview: boolean,
       useGemini3_1?: boolean,
@@ -439,13 +443,12 @@ describe('<ModelDialog />', () => {
     await openCodexView(stdin);
     expect(lastFrame()).toContain('Thinking intensity: Extra High');
 
-    // Move highlight to GPT-5.4 Mini (index 3 in codex submenu: auto, gpt-5.5, gpt-5.4, gpt-5.4-mini).
-    stdin.write(downArrow);
-    await waitForUpdate();
-    stdin.write(downArrow);
-    await waitForUpdate();
-    stdin.write(downArrow);
-    await waitForUpdate();
+    // Move highlight to GPT-5.4 Mini — index 6 of the codex submenu fallback
+    // (auto, 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini).
+    for (let i = 0; i < 6; i++) {
+      stdin.write(downArrow);
+      await waitForUpdate();
+    }
 
     expect(lastFrame()).toContain('Thinking intensity: High');
     expect(lastFrame()).toContain('Supported range: Low - High');

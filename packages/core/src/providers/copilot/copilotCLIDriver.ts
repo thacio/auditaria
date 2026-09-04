@@ -122,6 +122,16 @@ export function formatCopilotModelCost(
   return model.copilotUsage ?? undefined;
 }
 
+/**
+ * Copilot's own name for a model id ("claude-sonnet-5" → "Claude Sonnet 5"),
+ * falling back to the raw id when the cache has never been populated.
+ */
+export function getCopilotModelDisplayName(modelId: string): string {
+  return (
+    loadModelsCacheFromDisk().find((m) => m.value === modelId)?.name ?? modelId
+  );
+}
+
 /** Relative cost label for a cached Copilot model id. */
 export function getCopilotModelCost(modelId: string): string | undefined {
   const found = loadModelsCacheFromDisk().find((m) => m.value === modelId);

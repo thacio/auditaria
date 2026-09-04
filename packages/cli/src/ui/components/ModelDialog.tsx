@@ -61,7 +61,7 @@ import {
   COPILOT_PREFIX, // AUDITARIA_COPILOT_PROVIDER
   AGY_PREFIX, // AUDITARIA_AGY_PROVIDER
   CLAUDE_SUBMENU_OPTIONS,
-  CODEX_SUBMENU_OPTIONS,
+  getCodexModelOptions, // AUDITARIA_CODEX_PROVIDER
   AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   getReasoningEffortLabel,
@@ -632,7 +632,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
 
   // AUDITARIA_CODEX_PROVIDER_START: Codex submenu options
   const codexOptions = useMemo(
-    () => buildEffortRows('codex-cli', CODEX_SUBMENU_OPTIONS),
+    () => buildEffortRows('codex-cli', getCodexModelOptions()),
     [buildEffortRows],
   );
   // AUDITARIA_CODEX_PROVIDER_END

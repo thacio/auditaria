@@ -15,6 +15,7 @@ import {
   getDisplayString,
   getSupportedReasoningEfforts, // AUDITARIA_PROVIDER_EFFORT
   getReasoningEffortDisplay, // AUDITARIA_PROVIDER_EFFORT
+  getCodexCatalogModels, // AUDITARIA_CODEX_PROVIDER
   type ProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
 } from '@google/gemini-cli-core';
 
@@ -75,7 +76,13 @@ export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   },
 ];
 
-export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
+/**
+ * Offline fallback for the Codex submenu — a snapshot of the `visibility:
+ * "list"` models in Codex's own `models_cache.json`. `getCodexModelOptions()`
+ * prefers that file when the user has a Codex install; this is what we show
+ * when they don't (or when it can't be read).
+ */
+export const CODEX_FALLBACK_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CODEX_PREFIX}auto`,
     title: 'Auto',
@@ -86,7 +93,7 @@ export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CODEX_PREFIX}gpt-5.6-sol`,
     title: 'GPT-5.6 Sol',
-    description: 'Latest frontier agentic coding model',
+    description: 'Reliable agentic workhorse for everyday tasks',
     key: 'codex-gpt56sol',
     model: 'gpt-5.6-sol',
   },
@@ -107,8 +114,7 @@ export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CODEX_PREFIX}gpt-5.5`,
     title: 'GPT-5.5',
-    description:
-      'Frontier model for complex coding, research, and real-world work',
+    description: 'Proven previous-generation model for coding and general work',
     key: 'codex-gpt55',
     model: 'gpt-5.5',
   },
@@ -122,11 +128,40 @@ export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CODEX_PREFIX}gpt-5.4-mini`,
     title: 'GPT-5.4 Mini',
-    description: 'Small, fast, and cost-efficient for simpler coding tasks',
+    description:
+      'Small, fast, and cost-efficient model for simpler coding tasks',
     key: 'codex-gpt54mini',
     model: 'gpt-5.4-mini',
   },
 ];
+
+/**
+ * Codex submenu options, read from the Codex CLI's own model catalog so new
+ * models appear the moment Codex knows about them (mirrors what
+ * `getCopilotModelOptions()` does for Copilot). Falls back to the snapshot
+ * above when Codex isn't installed or its cache can't be read.
+ */
+export function getCodexModelOptions(): ProviderSubmenuOption[] {
+  const catalog = getCodexCatalogModels();
+  if (!catalog || catalog.length === 0) return [...CODEX_FALLBACK_OPTIONS];
+
+  return [
+    {
+      value: `${CODEX_PREFIX}auto`,
+      title: 'Auto',
+      description: "Uses Codex's default model",
+      key: 'codex-auto',
+      model: undefined,
+    },
+    ...catalog.map((model) => ({
+      value: `${CODEX_PREFIX}${model.slug}`,
+      title: model.displayName,
+      description: model.description,
+      key: `codex-${model.slug.replace(/[^a-z0-9-]/gi, '_')}`,
+      model: model.slug,
+    })),
+  ];
+}
 
 // AUDITARIA_AGY_PROVIDER: Google Antigravity (`agy`) model submenu. Each
 // variant maps to an agy `--model` display name; Gemini / Claude / GPT-OSS
@@ -333,10 +368,8 @@ export function getReasoningEffortOptions(
 
 // AUDITARIA_COPILOT_PROVIDER_START: Copilot model catalog with dynamic discovery support
 
-import { execSync } from 'node:child_process';
 import {
   getCachedCopilotModels,
-  getCopilotModelCost,
   formatCopilotModelCost,
   refreshCopilotModelsCache,
 } from '@google/gemini-cli-core'; // AUDITARIA_COPILOT_PROVIDER
@@ -352,109 +385,40 @@ export const COPILOT_FALLBACK_OPTIONS: readonly ProviderSubmenuOption[] = [
   },
 ];
 
-/** Cached model IDs from `copilot --help` (only used when copilot-models.json doesn't exist). */
-let helpModelIds: string[] | null = null;
-
 /**
  * Get Copilot model options for the submenu.
- * Priority: 1) copilot-models.json (rich ACP data) → 2) copilot --help (basic IDs) → 3) fallback
+ *
+ * Source of truth is `~/.auditaria/copilot-models.json`, written from
+ * Copilot's ACP `session/new` model list. On a cold cache we show Auto alone
+ * and let the background refresh repopulate the open menu (it emits a
+ * model-changed event). There is deliberately no `copilot --help` fallback:
+ * as of CLI 1.0.81 that help text no longer lists model ids at all, so the
+ * old parse returned nothing while still paying a blocking `execSync` on
+ * every menu build.
  */
 export function getCopilotModelOptions(): ProviderSubmenuOption[] {
-  // Copilot's model line-up moves; the interactive PTY driver only reads this
-  // cache, so kick a throttled background refresh whenever the menu is built.
-  // It emits a model-changed event when the list actually shifted, which
-  // repopulates the open menu.
+  // Copilot's model line-up moves and the interactive PTY driver only ever
+  // reads this cache, so kick a throttled background refresh whenever the
+  // menu is built. It emits a model-changed event when the list actually
+  // shifted, which repopulates the open menu.
   void refreshCopilotModelsCache();
 
-  // 1. Try cached models from ACP session/new (has names, descriptions, cost)
   const cached = getCachedCopilotModels();
-  if (cached.length > 0) {
-    return cached.map((m) => {
-      const cost = formatCopilotModelCost(m);
-      const desc = cost
-        ? `${m.description || m.name} (${cost})`
-        : m.description || m.name;
-      return {
-        value: `${COPILOT_PREFIX}${m.value}`,
-        title: m.name,
-        description: desc,
-        key: `copilot-${m.value.replace(/[^a-z0-9-]/gi, '_')}`,
-        model: m.value === 'auto' ? undefined : m.value,
-      };
-    });
-  }
+  if (cached.length === 0) return [...COPILOT_FALLBACK_OPTIONS];
 
-  // 2. No ACP cache — fall back to copilot --help (first run, or copilot not used yet)
-  if (helpModelIds === null) {
-    try {
-      const helpText = execSync('copilot --help', {
-        encoding: 'utf-8',
-        timeout: 10_000,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      helpModelIds = parseCopilotModelsFromHelp(helpText);
-    } catch {
-      helpModelIds = []; // copilot not installed or --help failed
-    }
-  }
-
-  if (helpModelIds.length === 0) {
-    return [...COPILOT_FALLBACK_OPTIONS];
-  }
-
-  return [
-    {
-      value: `${COPILOT_PREFIX}auto`,
-      title: 'Auto',
-      description: "Uses Copilot's default model",
-      key: 'copilot-auto',
-      model: undefined,
-    },
-    ...helpModelIds.map((modelId) => {
-      const cost = getCopilotModelCost(modelId);
-      return {
-        value: `${COPILOT_PREFIX}${modelId}`,
-        title: formatCopilotModelName(modelId),
-        description: cost ? `${modelId} (${cost})` : modelId,
-        key: `copilot-${modelId.replace(/[^a-z0-9-]/gi, '_')}`,
-        model: modelId,
-      };
-    }),
-  ];
-}
-
-/**
- * Extract model IDs from copilot --help output.
- * Looks for `--model <model>` then extracts all quoted strings until the next `--` option.
- */
-export function parseCopilotModelsFromHelp(helpText: string): string[] {
-  const modelSectionMatch = helpText.match(
-    /--model\s+<[^>]+>\s+([\s\S]*?)(?=\n\s+--[a-z])/,
-  );
-  if (!modelSectionMatch) return [];
-
-  const section = modelSectionMatch[1];
-  const models: string[] = [];
-  const quoteRegex = /"([^"]+)"/g;
-  let match;
-  while ((match = quoteRegex.exec(section)) !== null) {
-    models.push(match[1]);
-  }
-  return models;
-}
-
-/** Convert model ID to a display-friendly name (e.g., 'gpt-5.3-codex' → 'GPT-5.3 Codex'). */
-const UPPERCASE_WORDS = new Set(['gpt', 'ai']);
-function formatCopilotModelName(modelId: string): string {
-  return modelId
-    .split('-')
-    .map((part) => {
-      if (/^\d/.test(part)) return part;
-      if (UPPERCASE_WORDS.has(part.toLowerCase())) return part.toUpperCase();
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join(' ')
-    .replace(/\.\s/g, '.');
+  return cached.map((m) => {
+    const cost = formatCopilotModelCost(m);
+    const desc = cost
+      ? `${m.description || m.name} (${cost})`
+      : m.description || m.name;
+    return {
+      value: `${COPILOT_PREFIX}${m.value}`,
+      title: m.name,
+      description: desc,
+      key: `copilot-${m.value.replace(/[^a-z0-9-]/gi, '_')}`,
+      model: m.value === 'auto' ? undefined : m.value,
+    };
+  });
 }
 
 /**

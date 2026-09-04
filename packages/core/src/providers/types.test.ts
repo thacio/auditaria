@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   clampCodexReasoningEffortForModel,
   getSupportedCodexReasoningEfforts,
@@ -14,6 +17,27 @@ import {
   isProviderReasoningEffort,
   getReasoningEffortDisplay,
 } from './types.js';
+import { resetCodexCatalogCache } from './codex/codexModelCatalog.js';
+
+// AUDITARIA_CODEX_PROVIDER: the Codex effort tables are now a FALLBACK behind
+// the user's own `$CODEX_HOME/models_cache.json`. Point CODEX_HOME at an empty
+// directory so these tests exercise the fallback deterministically, on a dev
+// machine with a real Codex install as much as on CI without one.
+let emptyCodexHome: string;
+const originalCodexHome = process.env['CODEX_HOME'];
+
+beforeEach(() => {
+  emptyCodexHome = mkdtempSync(join(tmpdir(), 'codex-no-cache-'));
+  process.env['CODEX_HOME'] = emptyCodexHome;
+  resetCodexCatalogCache();
+});
+
+afterEach(() => {
+  if (originalCodexHome === undefined) delete process.env['CODEX_HOME'];
+  else process.env['CODEX_HOME'] = originalCodexHome;
+  resetCodexCatalogCache();
+  rmSync(emptyCodexHome, { recursive: true, force: true });
+});
 
 describe('Codex reasoning effort model constraints', () => {
   it('returns restricted supported efforts for gpt-5.5 (no max/ultra)', () => {

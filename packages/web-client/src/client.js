@@ -1093,6 +1093,18 @@ class AuditariaWebClient {
         .filter(Boolean)
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+    // 'gpt-5.6-sol' -> 'GPT-5.6 Sol'
+    const formatProviderModelId = (value) =>
+      String(value || '')
+        .split('-')
+        .filter(Boolean)
+        .map((part) => {
+          if (/^\d/.test(part)) return part;
+          if (part.toLowerCase() === 'gpt') return 'GPT';
+          return part.charAt(0).toUpperCase() + part.slice(1);
+        })
+        .join(' ')
+        .replace(/^GPT\s/, 'GPT-');
 
     if (rawLower.startsWith('claude-code:')) {
       const variant = raw.slice('claude-code:'.length);
@@ -1101,20 +1113,16 @@ class AuditariaWebClient {
       return `Claude (${label})`;
     }
 
+    // The backend names Codex models from Codex's own catalog
+    // (models_cache.json), so prefer its label and only fall back to
+    // prettifying the raw slug. A hardcoded map here went stale every time
+    // OpenAI shipped a model.
     if (rawLower.startsWith('codex-code:')) {
+      if (display && displayLower.startsWith('codex')) return display;
       const variant = raw.slice('codex-code:'.length);
-      if (variant.toLowerCase() === 'auto') {
-        return 'Codex (Auto)';
-      }
-      const codexTitleMap = {
-        'gpt-5.5': 'GPT-5.5',
-        'gpt-5.4': 'GPT-5.4',
-        'gpt-5.4-mini': 'GPT-5.4 Mini',
-        'gpt-5.3-codex': 'GPT-5.3 Codex',
-        'gpt-5.2': 'GPT-5.2',
-      };
-      const mapped = codexTitleMap[variant.toLowerCase()];
-      return `Codex (${mapped || variant})`;
+      return variant.toLowerCase() === 'auto'
+        ? 'Codex (Auto)'
+        : `Codex (${formatProviderModelId(variant)})`;
     }
 
     // AUDITARIA_COPILOT_PROVIDER: Use backend modelDisplayName which includes usage multiplier
@@ -1123,7 +1131,7 @@ class AuditariaWebClient {
       const variant = raw.slice('copilot-code:'.length);
       return variant.toLowerCase() === 'auto'
         ? 'Copilot (Auto)'
-        : `Copilot (${variant})`;
+        : `Copilot (${formatProviderModelId(variant)})`;
     }
 
     if (

@@ -173,7 +173,7 @@ import {
   COPILOT_PREFIX, // AUDITARIA_COPILOT_PROVIDER
   AGY_PREFIX, // AUDITARIA_AGY_PROVIDER
   CLAUDE_SUBMENU_OPTIONS,
-  CODEX_SUBMENU_OPTIONS,
+  getCodexModelOptions, // AUDITARIA_CODEX_PROVIDER
   AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   getReasoningEffortOptions, // AUDITARIA_PROVIDER_EFFORT
@@ -2500,7 +2500,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
           ? undefined
           : 'To use OpenAI Codex, install it from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
         reasoningEffort: reasoningEffortForGroup('codex-cli'), // AUDITARIA_PROVIDER_EFFORT
-        options: CODEX_SUBMENU_OPTIONS.map((option) => ({
+        options: getCodexModelOptions().map((option) => ({
           selection: option.value,
           label: `Codex (${option.title})`,
           description: option.description,

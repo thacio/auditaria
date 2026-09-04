@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getCopilotModelCost } from '../providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+import {
+  getCopilotModelCost,
+  getCopilotModelDisplayName,
+} from '../providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+import { getCodexModelDisplayName } from '../providers/codex/codexModelCatalog.js'; // AUDITARIA_CODEX_PROVIDER
 import { AGY_MODEL_DISPLAY } from '../providers/agy/agyCLIDriver.js'; // AUDITARIA_AGY_PROVIDER
 
 export interface ModelResolutionContext {
@@ -374,11 +378,12 @@ export function getDisplayString(
     return `Claude (${label})`;
   }
 
-  // AUDITARIA_CODEX_PROVIDER: Format Codex model display
+  // AUDITARIA_CODEX_PROVIDER: Format Codex model display, using Codex's own
+  // name for the model ("GPT-5.6 Sol") rather than the raw slug.
   if (model.startsWith('codex-code:')) {
     const variant = model.split(':')[1] || 'unknown';
     if (variant === 'auto') return 'Codex (Auto)';
-    return `Codex (${variant})`;
+    return `Codex (${getCodexModelDisplayName(variant)})`;
   }
 
   // AUDITARIA_COPILOT_PROVIDER: Format Copilot model display (with the relative
@@ -388,7 +393,8 @@ export function getDisplayString(
     const cost = getCopilotModelCost(variant);
     const costSuffix = cost ? ` (${cost})` : '';
     if (variant === 'auto') return `Copilot (Auto)${costSuffix}`;
-    return `Copilot (${variant})${costSuffix}`;
+    // Copilot's own label for the model, same as the /model menu shows.
+    return `Copilot (${getCopilotModelDisplayName(variant)})${costSuffix}`;
   }
 
   // AUDITARIA_AGY_PROVIDER: Format Antigravity model display

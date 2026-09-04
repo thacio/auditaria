@@ -346,6 +346,7 @@ export {
   getReasoningEffortDisplay,
   CLAUDE_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   CODEX_MODEL_IDS, // AUDITARIA_AGENT_SESSION
+  getCodexModelIds, // AUDITARIA_CODEX_PROVIDER: live catalog, static fallback
   COPILOT_MODEL_IDS, // AUDITARIA_COPILOT_PROVIDER
   AGY_MODEL_IDS, // AUDITARIA_AGY_PROVIDER
 } from './providers/types.js';
@@ -376,10 +377,18 @@ export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.
 export {
   getCopilotModelUsage,
   getCopilotModelCost,
+  getCopilotModelDisplayName,
   formatCopilotModelCost,
   getCachedCopilotModels,
   refreshCopilotModelsCache,
 } from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+export {
+  getCodexCatalogModels,
+  getCodexCatalogEfforts,
+  getCodexModelDisplayName,
+  resetCodexCatalogCache,
+} from './providers/codex/codexModelCatalog.js'; // AUDITARIA_CODEX_PROVIDER
+export type { CodexCatalogModel } from './providers/codex/codexModelCatalog.js'; // AUDITARIA_CODEX_PROVIDER
 export {
   AGY_MODEL_DISPLAY,
   getAgyModelDisplayName,

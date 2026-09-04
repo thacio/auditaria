@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// AUDITARIA_CODEX_PROVIDER: dynamic model catalog (reads the Codex CLI's own
+// models_cache.json). Imported for its runtime value; codexModelCatalog.ts
+// imports back from here TYPE-ONLY, so there is no ESM cycle.
+import {
+  getCodexCatalogEfforts,
+  getCodexCatalogModelIds,
+} from './codex/codexModelCatalog.js';
+
 export enum ProviderEventType {
   Content = 'content',
   Thinking = 'thinking',
@@ -247,8 +255,12 @@ export function getSupportedCodexReasoningEfforts(
   model?: string,
 ): readonly CodexReasoningEffort[] {
   if (!model) return CODEX_REASONING_EFFORTS;
+  // Prefer what the user's own Codex install reports; the table above is the
+  // offline fallback (no Codex installed, or an unreadable cache file).
   return (
-    CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL[model] ?? CODEX_REASONING_EFFORTS
+    getCodexCatalogEfforts(model) ??
+    CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL[model] ??
+    CODEX_REASONING_EFFORTS
   );
 }
 
@@ -545,6 +557,15 @@ export const CODEX_MODEL_IDS = [
   'gpt-5.4-mini',
 ] as const;
 export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
+
+/**
+ * Codex model ids to offer, newest-first: the live catalog when the Codex CLI
+ * has written one, else the static mirror above. Always leads with `auto`.
+ */
+export function getCodexModelIds(): string[] {
+  const live = getCodexCatalogModelIds();
+  return live ? ['auto', ...live] : [...CODEX_MODEL_IDS];
+}
 
 // AUDITARIA_COPILOT_PROVIDER: Fallback model IDs for Copilot provider.
 // Dynamic discovery from ACP configOptions is preferred; this is the minimal fallback.
