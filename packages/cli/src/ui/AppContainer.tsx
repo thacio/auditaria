@@ -2816,6 +2816,22 @@ Logging in with Google... Restarting Gemini CLI to continue.
     }
   }, [webInterface?.service, cancelOngoingRequest]);
 
+  // AUDITARIA_ARTIFACTS_START: hand the artifact store to the web server
+  // (before it starts) and surface artifact notices as info items.
+  useEffect(() => {
+    const service = webInterface?.service;
+    if (!service) return;
+    service.setArtifactService(config.getArtifactService());
+    const onNotice = (text: string) => {
+      historyManager.addItem({ type: MessageType.INFO, text }, Date.now());
+    };
+    service.on('artifact_notice', onNotice);
+    return () => {
+      service.off('artifact_notice', onNotice);
+    };
+  }, [webInterface?.service, config, historyManager]);
+  // AUDITARIA_ARTIFACTS_END
+
   // Register with web interface service once
   const submitHandlerRegistered = useRef(false);
 

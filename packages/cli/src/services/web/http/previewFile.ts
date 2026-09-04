@@ -171,6 +171,14 @@ async function handlePreviewRequest(
     const ext = path.extname(absolutePath).toLowerCase();
 
     res.setHeader('Content-Type', contentTypeFor(ext));
+    // A previewed document runs in an opaque origin: scripts may run, but
+    // they cannot reach the console's storage, cookies, or chat socket.
+    if (isHtmlExtension(ext) || ext === '.svg') {
+      res.append(
+        'Content-Security-Policy',
+        'sandbox allow-scripts allow-forms allow-modals allow-popups',
+      );
+    }
 
     if (isMediaExtension(ext)) {
       res.setHeader('Accept-Ranges', 'bytes');

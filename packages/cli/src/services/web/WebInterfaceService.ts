@@ -15,6 +15,7 @@ import {
   type MCPServerConfig,
   type ToolConfirmationOutcome,
   type ToolConfirmationPayload,
+  type ArtifactService, // AUDITARIA_ARTIFACTS
 } from '@google/gemini-cli-core';
 import type {
   ConsoleMessageItem,
@@ -34,11 +35,11 @@ import {
 } from './config.js';
 import { Broadcaster } from './core/broadcaster.js';
 import { ClientRegistry } from './core/clientRegistry.js';
-import { WebHttpServer } from './core/httpServer.js';
+import { WebHttpServer, isLoopbackHost } from './core/httpServer.js';
 import { InboundRouter } from './core/inboundRouter.js';
 import type { WebFeature } from './core/webFeature.js';
 import { WebSocketHub } from './core/webSocketHub.js';
-import type { WebFeatureContext, WebLogger } from './core/types.js';
+import type { ListenInfo, WebFeatureContext, WebLogger } from './core/types.js';
 import {
   createHealthRouter,
   createStaticAssetsHandler,
@@ -58,6 +59,7 @@ import { DocxParserFeature } from './features/DocxParserFeature.js';
 import { FileBrowserFeature } from './features/FileBrowserFeature.js';
 import { KnowledgeBaseFeature } from './features/KnowledgeBaseFeature.js';
 import { ProviderTerminalFeature } from './features/ProviderTerminalFeature.js';
+import { ArtifactsFeature } from './features/ArtifactsFeature.js'; // AUDITARIA_ARTIFACTS
 
 export interface WebInterfaceStatus {
   isRunning: boolean;
@@ -77,6 +79,8 @@ export interface WebInterfaceEventMap {
   terminal_input: [key: WebTerminalKeyInput];
   /** The web footer's model picker changed. */
   model_change_request: [request: ModelChangeRequest];
+  /** AUDITARIA_ARTIFACTS: an artifact notice for the CLI display. */
+  artifact_notice: [text: string];
 }
 
 /** Everything that exists only while the server is up. */
@@ -111,6 +115,7 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
   private readonly chat: ChatFeature;
   private readonly docx = new DocxParserFeature();
   private readonly features: readonly WebFeature[];
+  private artifactService: ArtifactService | null = null; // AUDITARIA_ARTIFACTS
 
   constructor() {
     super();
@@ -133,6 +138,13 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
       new BrowserAgentFeature(),
     ];
   }
+
+  // AUDITARIA_ARTIFACTS_START: the artifact store belongs to the Config;
+  // the CLI hands it over before start() so the gallery and origins exist.
+  setArtifactService(service: ArtifactService): void {
+    this.artifactService = service;
+  }
+  // AUDITARIA_ARTIFACTS_END
 
   // ---------------------------------------------------------------------
   // Lifecycle
@@ -199,7 +211,18 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
         http,
         ws: hub,
       };
-      for (const feature of this.features) {
+      // AUDITARIA_ARTIFACTS: per-start feature (needs the store + client root)
+      const features: WebFeature[] = [...this.features];
+      if (this.artifactService) {
+        features.push(
+          new ArtifactsFeature({
+            service: this.artifactService,
+            webClientRoot,
+            notify: (text) => this.emit('artifact_notice', text),
+          }),
+        );
+      }
+      for (const feature of features) {
         await feature.attach(ctx);
         runtime.attached.push(feature);
         this.assertStillStarting(runtime);
@@ -208,7 +231,7 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
       // Static files last so feature routes take precedence.
       http.mount(createStaticAssetsHandler(webClientRoot));
 
-      const { port, usedFallback } = await http.listen({
+      const { port, usedFallback, addresses } = await http.listen({
         ...target,
         sequentialAttempts: SEQUENTIAL_PORT_ATTEMPTS,
       });
@@ -218,11 +241,30 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
           `Port ${target.port} is in use, using port ${port} instead`,
         );
       }
-      const server = http.nodeServer;
-      if (!server) {
+      if (http.nodeServers.length === 0) {
         throw new Error('HTTP server did not start');
       }
-      hub.attach(server);
+      const loopback = addresses.every(isLoopbackHost);
+      hub.attach(http.nodeServers, {
+        loopback,
+        port,
+        isVirtualHost: (hostname) => http.hasVirtualHost(hostname),
+      });
+      const listenInfo: ListenInfo = {
+        port,
+        host: target.host,
+        loopback,
+        consoleOrigins: loopback
+          ? [
+              `http://localhost:${port}`,
+              `http://127.0.0.1:${port}`,
+              `http://[::1]:${port}`,
+            ]
+          : [`http://${target.host}:${port}`],
+      };
+      for (const feature of runtime.attached) {
+        feature.onListening?.(listenInfo);
+      }
 
       runtime.port = port;
       this.running = true;

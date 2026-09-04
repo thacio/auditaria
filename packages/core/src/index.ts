@@ -371,6 +371,38 @@ export type {
   HiveFetchParams,
   HiveObjectParams,
 } from './tools/hive.js';
+// AUDITARIA_ARTIFACTS_START: store, service and tool display types for the CLI/web layers
+export {
+  ArtifactStore,
+  ArtifactStoreError,
+  UNSERVED_CAPABILITIES,
+} from './artifacts/artifactStore.js';
+export { ArtifactService } from './artifacts/artifactService.js';
+export type { ArtifactHost } from './artifacts/artifactService.js';
+export {
+  artifactHostname,
+  artifactIdFromHostname,
+  artifactUrl,
+  isArtifactId,
+  parseArtifactReference,
+} from './artifacts/artifactPaths.js';
+export {
+  MARKDOWN_STYLE,
+  renderMarkdown,
+  usesMermaid,
+  wrapDocument,
+  unwrapDocument,
+} from './artifacts/htmlShell.js';
+export type {
+  ArtifactId,
+  ArtifactRecord,
+  ArtifactSummary,
+  ArtifactVersion,
+  PublishOutcome,
+} from './artifacts/types.js';
+export { tryParseArtifactDisplay } from './tools/artifact.js';
+export type { ArtifactDisplayData } from './tools/artifact.js';
+// AUDITARIA_ARTIFACTS_END
 export { SessionRegistry } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { SessionRecord } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools

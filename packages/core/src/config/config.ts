@@ -125,6 +125,10 @@ import {
   HiveObjectTool,
 } from '../tools/hive.js';
 import { AgentSessionManager } from '../providers/agent-session-manager.js'; // AUDITARIA_AGENT_SESSION
+// AUDITARIA_ARTIFACTS_START: artifact tool + per-process service
+import { ArtifactTool } from '../tools/artifact.js';
+import { ArtifactService } from '../artifacts/artifactService.js';
+// AUDITARIA_ARTIFACTS_END
 import { SessionRegistry } from '../providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 import { FileCheckpointManager } from '../file-checkpoints/index.js'; // AUDITARIA_REWIND
 import {
@@ -212,7 +216,11 @@ import { SkillManager, type SkillDefinition } from '../skills/skillManager.js';
 import { startupProfiler } from '../telemetry/startupProfiler.js';
 import type { AgentDefinition } from '../agents/types.js';
 import { fetchAdminControls } from '../code_assist/admin/admin_controls.js';
-import { isSubpath, resolveToRealPath } from '../utils/paths.js';
+import {
+  isSubpath,
+  resolveToRealPath,
+  resolveConfigDirPath, // AUDITARIA_ARTIFACTS
+} from '../utils/paths.js';
 import { validatePath } from '../utils/path-validator.js';
 import { InjectionService } from './injectionService.js';
 import { ExecutionLifecycleService } from '../services/executionLifecycleService.js';
@@ -850,6 +858,7 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly exposeToolBridge: boolean; // AUDITARIA_EXPOSE_MCP
   private readonly mcpPort: number | undefined; // AUDITARIA_EXPOSE_MCP
   private agentSessionManager_?: AgentSessionManager; // AUDITARIA_AGENT_SESSION
+  private artifactService_?: ArtifactService; // AUDITARIA_ARTIFACTS
   private sessionRegistry_?: SessionRegistry; // AUDITARIA_SESSION_MANAGEMENT
   private providerAvailability: {
     claude: boolean;
@@ -3375,6 +3384,21 @@ export class Config implements McpContext, AgentLoopContext {
     return this.providerManager?.isExternalProviderActive() ?? false;
   }
 
+  // AUDITARIA_ARTIFACTS_START: per-process artifact service (store, identity, host seam)
+  getArtifactService(): ArtifactService {
+    this.artifactService_ ??= new ArtifactService(
+      resolveConfigDirPath(this.targetDir),
+      Storage.getGlobalGeminiDir(),
+    );
+    return this.artifactService_;
+  }
+
+  /** Open the browser on a first publish unless AUDITARIA_ARTIFACT_AUTO_OPEN=0. */
+  getArtifactAutoOpen(): boolean {
+    return process.env['AUDITARIA_ARTIFACT_AUTO_OPEN'] !== '0';
+  }
+  // AUDITARIA_ARTIFACTS_END
+
   // AUDITARIA_AGENT_SESSION_START: Lazy-init agent session manager
   getAgentSessionManager(): AgentSessionManager {
     if (!this.agentSessionManager_) {
@@ -4644,6 +4668,13 @@ export class Config implements McpContext, AgentLoopContext {
       registry.registerTool(new HiveFetchTool(this.messageBus)),
     );
     // AUDITARIA_HIVE_FEATURE_END
+    // AUDITARIA_ARTIFACTS_START: artifact tool (disable with AUDITARIA_DISABLE_ARTIFACT=1)
+    if (process.env['AUDITARIA_DISABLE_ARTIFACT'] !== '1') {
+      maybeRegister(ArtifactTool, () =>
+        registry.registerTool(new ArtifactTool(this, this.messageBus)),
+      );
+    }
+    // AUDITARIA_ARTIFACTS_END
 
     if (this.isTrackerEnabled()) {
       maybeRegister(TrackerCreateTaskTool, () =>

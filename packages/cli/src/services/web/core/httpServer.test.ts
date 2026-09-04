@@ -106,7 +106,7 @@ describe('WebHttpServer', () => {
       host: HOST,
       sequentialAttempts: 0,
     });
-    expect(reused).toEqual({ port, usedFallback: false });
+    expect(reused).toMatchObject({ port, usedFallback: false });
   });
 
   it('close() is a no-op before listening', async () => {

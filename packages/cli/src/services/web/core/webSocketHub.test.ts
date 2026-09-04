@@ -108,9 +108,11 @@ async function startHub() {
     host: '127.0.0.1',
     sequentialAttempts: 0,
   });
-  const server = http.nodeServer;
-  if (!server) throw new Error('no server');
-  hub.attach(server);
+  hub.attach(http.nodeServers, {
+    loopback: true,
+    port,
+    isVirtualHost: (hostname) => hostname.endsWith('-art.localhost'),
+  });
   const url = `ws://127.0.0.1:${port}`;
   const stop = async () => {
     hub.close();

@@ -194,6 +194,9 @@ export const HIVE_CHECK_TOOL_NAME = 'hive_check';
 export const HIVE_FETCH_TOOL_NAME = 'hive_fetch';
 export const HIVE_OBJECT_TOOL_NAME = 'hive_object';
 
+// AUDITARIA_ARTIFACTS - Auditaria Custom Feature
+export const ARTIFACT_TOOL_NAME = 'artifact';
+
 /**
  * Tools that require mandatory argument narrowing (e.g., file paths, command prefixes)
  * when granting persistent or session-wide approval.

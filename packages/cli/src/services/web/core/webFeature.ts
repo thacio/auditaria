@@ -9,7 +9,7 @@
 import type { WebSocket } from 'ws';
 import type { ServerMessageType } from '../protocol.js';
 import type { SendOptions } from './broadcaster.js';
-import type { WebFeatureContext } from './types.js';
+import type { ListenInfo, WebFeatureContext } from './types.js';
 
 /**
  * A self-contained capability of the web interface: file browser, knowledge
@@ -69,6 +69,13 @@ export abstract class WebFeature {
   protected abstract onAttach(ctx: WebFeatureContext): void | Promise<void>;
 
   protected onDetach(): void | Promise<void> {}
+
+  /**
+   * Called once the server is listening (after every feature attached), with
+   * the bound port and the origins the console answers on. Features that
+   * build absolute URLs or origin allowlists implement this.
+   */
+  onListening?(info: ListenInfo): void;
 
   sendInitialState?(ws: WebSocket): void;
 

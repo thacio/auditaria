@@ -42,7 +42,7 @@ function createContext(): WebFeatureContext & {
     clients,
     broadcaster: new Broadcaster(clients, logger),
     inbound: new InboundRouter(logger),
-    http: { mount: () => {} },
+    http: { mount: () => {}, mountHost: () => {} },
     ws: { addEndpoint: () => {} },
   };
 }

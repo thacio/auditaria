@@ -23,6 +23,20 @@ export interface WebLogger {
   error(...args: unknown[]): void;
 }
 
+/**
+ * A host name the server answers for besides the console's own. Requests
+ * whose `Host` matches are handled ONLY by `handler` (never by the console
+ * routes or static files) and get a 404 when it does not answer. WebSocket
+ * upgrades on a virtual host reach only endpoints scoped to it.
+ */
+export interface VirtualHost {
+  /** Diagnostic name, unique per server. */
+  readonly name: string;
+  /** Lower-case host name without port. */
+  matches(hostname: string): boolean;
+  readonly handler: RequestHandler;
+}
+
 /** Path-scoped WebSocket handler, e.g. the browser-agent stream socket. */
 export interface WsEndpoint {
   /**
@@ -30,6 +44,12 @@ export interface WsEndpoint {
    * starting with `:` capture a parameter: `/stream/browser/:sessionId`.
    */
   readonly path: string;
+  /**
+   * Scope the endpoint to virtual hosts (lower-case host name without
+   * port). Endpoints without `host` exist only on the console's hosts.
+   * Upgrades on a virtual host must carry an `Origin` equal to that host.
+   */
+  host?(hostname: string): boolean;
   onConnection(
     ws: WebSocket,
     params: Readonly<Record<string, string>>,
@@ -39,14 +59,27 @@ export interface WsEndpoint {
 
 /** Registration surface for HTTP handlers. */
 export interface HttpRouteRegistry {
-  /** Mount a handler, optionally under a path prefix. */
+  /** Mount a handler on the console hosts, optionally under a path prefix. */
   mount(handler: RequestHandler): void;
   mount(path: string, handler: RequestHandler): void;
+  /** Serve a virtual host. */
+  mountHost(host: VirtualHost): void;
 }
 
 /** Registration surface for path-scoped WebSocket endpoints. */
 export interface WsEndpointRegistry {
   addEndpoint(endpoint: WsEndpoint): void;
+}
+
+/** Where the server ended up listening; handed to features on start. */
+export interface ListenInfo {
+  readonly port: number;
+  /** The configured bind host (`localhost` means both loopback addresses). */
+  readonly host: string;
+  /** True when every bound address is a loopback address. */
+  readonly loopback: boolean;
+  /** Origins at which the console itself is reachable. */
+  readonly consoleOrigins: readonly string[];
 }
 
 /**

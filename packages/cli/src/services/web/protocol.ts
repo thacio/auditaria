@@ -84,7 +84,12 @@ export type ServerMessageType =
   | 'knowledge_base_search_response'
   // Collaborative writing
   | 'collaborative_writing_status'
-  | 'collaborative_writing_toggle_result';
+  | 'collaborative_writing_toggle_result'
+  // Artifacts (gallery + viewer)
+  | 'artifact_list'
+  | 'artifact_event'
+  | 'artifact_versions_response'
+  | 'artifact_open';
 
 /** Messages chat clients send to the server. */
 export type ClientMessageType =
@@ -130,7 +135,13 @@ export type ClientMessageType =
   | 'knowledge_base_search_request'
   // Collaborative writing
   | 'collaborative_writing_status_request'
-  | 'collaborative_writing_toggle';
+  | 'collaborative_writing_toggle'
+  // Artifacts (gallery + viewer)
+  | 'artifact_list_request'
+  | 'artifact_versions_request'
+  | 'artifact_update_request'
+  | 'artifact_delete_request'
+  | 'artifact_restore_request';
 
 /**
  * Message types that are full state snapshots. The per-client replay buffer
@@ -148,6 +159,7 @@ export const LATEST_ONLY_MESSAGE_TYPES: ReadonlySet<ServerMessageType> =
     'model_menu_data',
     'response_state',
     'input_history_sync',
+    'artifact_list',
   ]);
 
 /** Envelope for every sequenced server → client message. */
