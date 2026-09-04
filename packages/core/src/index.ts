@@ -388,6 +388,7 @@ export {
 } from './artifacts/artifactPaths.js';
 export {
   MARKDOWN_STYLE,
+  extractTitle,
   renderMarkdown,
   usesMermaid,
   wrapDocument,

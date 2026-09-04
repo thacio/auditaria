@@ -35,6 +35,17 @@ export class ArtifactsManager extends EventTarget {
         waiter(Array.isArray(versions) ? versions : []);
       }
     });
+    /** id → { url, startedAt } while shared in this session. */
+    this.shares = new Map();
+    wsManager.addEventListener('artifact_share_state', (event) => {
+      const { id, url, startedAt, error } = event.detail || {};
+      if (!id) return;
+      if (url) this.shares.set(id, { url, startedAt });
+      else this.shares.delete(id);
+      this.dispatchEvent(
+        new CustomEvent('share', { detail: { id, url: url || null, error } }),
+      );
+    });
     wsManager.addEventListener('artifact_open', (event) => {
       this.dispatchEvent(new CustomEvent('open', { detail: event.detail }));
     });
@@ -106,6 +117,19 @@ export class ArtifactsManager extends EventTarget {
       op: 'sample_consent',
       consent,
     });
+  }
+
+  shareOf(id) {
+    return this.shares.get(id) || null;
+  }
+
+  /** Publish: open a temporary public link for this session only. */
+  share(id) {
+    this.wsManager.send({ type: 'artifact_share_request', id, op: 'start' });
+  }
+
+  unshare(id) {
+    this.wsManager.send({ type: 'artifact_share_request', id, op: 'stop' });
   }
 
   delete(id) {

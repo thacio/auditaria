@@ -9,9 +9,12 @@
 
 import type { WebSocket } from 'ws';
 import {
+  ArtifactStoreError,
   artifactHostname,
   artifactUrl,
+  extractTitle,
   parseArtifactReference,
+  unwrapDocument,
   type ArtifactHost,
   type ArtifactId,
   type ArtifactService,
@@ -32,11 +35,16 @@ import {
   createArtifactHost,
   runtimeDirFor,
 } from '../artifacts/artifactHost.js';
+import { ShareManager, type TunnelFactory } from '../artifacts/shareSession.js';
+import { startQuickTunnel } from '../../hive/HiveTunnel.js';
+import { registerCleanup } from '../../../utils/cleanup.js';
 
 /** What the gallery receives per artifact. */
 export interface ArtifactListRow extends ArtifactSummary {
   readonly url: string;
   readonly hostname: string;
+  /** Public address while shared in this session, else null. */
+  readonly shareUrl: string | null;
 }
 
 export interface ArtifactsFeatureOptions {
@@ -45,6 +53,8 @@ export interface ArtifactsFeatureOptions {
   readonly webClientRoot: string;
   /** Pushes a notice to the CLI display (turn-boundary delivery is theirs). */
   readonly notify?: (text: string) => void;
+  /** Opens the public tunnel (tests inject a fake); default: cloudflared. */
+  readonly tunnelFactory?: TunnelFactory;
 }
 
 /**
@@ -62,6 +72,9 @@ export class ArtifactsFeature extends WebFeature {
   private unsubscribers: Array<() => void> = [];
   /** Live runtime sockets per artifact (pages currently open). */
   private readonly runtimeSockets = new Map<ArtifactId, Set<WebSocket>>();
+  private shares: ShareManager | null = null;
+  private static cleanupRegistered = false;
+  private static readonly liveManagers = new Set<ShareManager>();
 
   constructor(private readonly options: ArtifactsFeatureOptions) {
     super();
@@ -103,8 +116,31 @@ export class ArtifactsFeature extends WebFeature {
       () => store.off('restored', onRestored),
     );
 
+    this.shares = new ShareManager({
+      service,
+      logger: ctx.logger,
+      runtimeDir: runtimeDirFor(this.options.webClientRoot),
+      tunnelFactory:
+        this.options.tunnelFactory ??
+        (async (port) => {
+          const tunnel = await startQuickTunnel(port);
+          return { url: tunnel.url, stop: () => tunnel.stop() };
+        }),
+    });
+    ArtifactsFeature.liveManagers.add(this.shares);
+    if (!ArtifactsFeature.cleanupRegistered) {
+      ArtifactsFeature.cleanupRegistered = true;
+      // Shares must not outlive the process: no tunnel, no token survives.
+      registerCleanup(async () => {
+        await Promise.all(
+          Array.from(ArtifactsFeature.liveManagers).map((m) => m.stopAll()),
+        );
+      });
+    }
+
     const { inbound } = ctx;
     inbound.on('artifact_list_request', (_message, ws) => this.sendList(ws));
+    inbound.on('artifact_share_request', (message) => this.share(message));
     inbound.on('artifact_versions_request', (message, ws) =>
       this.sendVersions(message, ws),
     );
@@ -136,7 +172,13 @@ export class ArtifactsFeature extends WebFeature {
     this.options.service.setHost(host);
   }
 
-  protected onDetach(): void {
+  protected async onDetach(): Promise<void> {
+    const shares = this.shares;
+    this.shares = null;
+    if (shares) {
+      ArtifactsFeature.liveManagers.delete(shares);
+      await shares.stopAll();
+    }
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.unsubscribers = [];
     for (const sockets of this.runtimeSockets.values()) {
@@ -164,6 +206,7 @@ export class ArtifactsFeature extends WebFeature {
       ...row,
       url: artifactUrl(row.id, port),
       hostname: artifactHostname(row.id),
+      shareUrl: this.shares?.get(row.id)?.url ?? null,
     }));
   }
 
@@ -254,6 +297,32 @@ export class ArtifactsFeature extends WebFeature {
     }
   }
 
+  /** Publish (start a public share) or unpublish an artifact. */
+  private async share(message: ClientMessage): Promise<void> {
+    const id = this.idOf(message);
+    const shares = this.shares;
+    if (!id || !shares) return;
+    const op = readString(message, 'op');
+    try {
+      if (op === 'start') {
+        const state = await shares.start(id);
+        this.broadcast('artifact_share_state', {
+          id,
+          url: state.url,
+          startedAt: state.startedAt,
+        });
+      } else if (op === 'stop') {
+        await shares.stop(id);
+        this.broadcast('artifact_share_state', { id, url: null });
+      }
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      this.ctx?.logger.error('Artifact share failed:', error);
+      this.broadcast('artifact_share_state', { id, url: null, error: text });
+    }
+    void this.broadcastList();
+  }
+
   private idOf(message: ClientMessage): ArtifactId | null {
     const raw = readString(message, 'id');
     return raw ? parseArtifactReference(raw) : null;
@@ -320,17 +389,133 @@ export class ArtifactsFeature extends WebFeature {
         return;
       }
       if (!isRecord(call)) return;
-      const callId = readNumber({ type: 'rpc', ...call }, 'id');
+      const envelope: ClientMessage = { type: 'rpc', ...call };
+      const callId = readNumber(envelope, 'id');
       if (callId === undefined) return;
-      ws.send(
-        JSON.stringify({
-          id: callId,
-          error: {
-            code: 'capability_disabled',
-            message: `${String(call['method'])} is not served by this host yet`,
-          },
-        }),
+      const method = readString(envelope, 'method') ?? '';
+      const rawParams = call['params'];
+      const params = isRecord(rawParams) ? rawParams : {};
+      this.dispatchRpc(id, method, params).then(
+        (result) => ws.send(JSON.stringify({ id: callId, result })),
+        (error: unknown) =>
+          ws.send(JSON.stringify({ id: callId, error: rpcError(error) })),
       );
     });
   }
+
+  /**
+   * Capability RPC from a page. Every call re-checks the artifact's stored
+   * declaration (the page cannot grant itself anything) and runs with the
+   * OWNER's authority because this socket only exists on the local
+   * listener. Capabilities not served yet reject with capability_disabled.
+   */
+  private async dispatchRpc(
+    id: ArtifactId,
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<unknown> {
+    const store = this.store;
+    if (!store) throw rpc('unavailable', 'store is not open');
+    const record = await store.get(id);
+    if (!record || record.deletedAt) {
+      throw rpc('unavailable', 'artifact not found');
+    }
+    const declared = new Set(
+      Object.keys(record.capabilities).map((n) =>
+        n === 'self' ? 'artifact' : n,
+      ),
+    );
+    const namespace = method.split('.')[0];
+    if (!declared.has(namespace)) {
+      throw rpc('not_declared', `the page does not declare ${namespace}`);
+    }
+    switch (method) {
+      case 'user.id':
+        return this.options.service.getOwnerId();
+      case 'user.canEdit':
+      case 'user.isOwner':
+        return true;
+      case 'user.profiles': {
+        const owner = await this.options.service.getOwnerId();
+        const ids = Array.isArray(params['ids']) ? params['ids'] : [];
+        return ids
+          .filter((v): v is string => typeof v === 'string' && v === owner)
+          .map((uid) => ({ id: uid, name: 'You' }));
+      }
+      case 'artifact.publish': {
+        const html = params['html'];
+        if (typeof html !== 'string' || !/^\s*<!doctype html>/i.test(html)) {
+          throw rpc(
+            'invalid_content',
+            'publish(html) needs a complete document starting with <!doctype html>',
+          );
+        }
+        const body = unwrapDocument(html);
+        const base = readNumber({ type: 'rpc', ...params }, 'base');
+        try {
+          const outcome = await store.publish(
+            id,
+            {
+              body,
+              format: 'html',
+              source: 'page',
+              title: extractTitle(body) ?? record.title,
+            },
+            base,
+          );
+          return { version: outcome.version.n };
+        } catch (error) {
+          if (error instanceof ArtifactStoreError) {
+            const live = (await store.get(id))?.latestVersion;
+            const code =
+              error.code === 'conflict'
+                ? 'conflict'
+                : error.code === 'too_large'
+                  ? 'too_large'
+                  : 'invalid_content';
+            throw rpc(code, error.message, { live });
+          }
+          throw error;
+        }
+      }
+      default:
+        throw rpc(
+          'capability_disabled',
+          `${method} is not served by this host yet`,
+        );
+    }
+  }
+}
+
+interface RpcError {
+  code: string;
+  message: string;
+  [extra: string]: unknown;
+}
+
+function rpc(
+  code: string,
+  message: string,
+  extra: Record<string, unknown> = {},
+): RpcError {
+  return { code, message, ...extra };
+}
+
+function isRpcError(value: unknown): value is RpcError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'code' in value &&
+    'message' in value &&
+    typeof value.code === 'string' &&
+    typeof value.message === 'string'
+  );
+}
+
+function rpcError(error: unknown): RpcError {
+  if (isRpcError(error)) return error;
+  return rpc(
+    'upstream_error',
+    error instanceof Error ? error.message : String(error),
+  );
 }

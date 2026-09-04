@@ -28,6 +28,13 @@ export class ArtifactsPanel {
     this.handleThemeChange = this.handleThemeChange.bind(this);
 
     manager.addEventListener('list', () => this.render());
+    manager.addEventListener('share', (event) => {
+      const { id, error } = event.detail || {};
+      if (error) this.shareError = error;
+      else this.shareError = null;
+      if (this.sharePending === id) this.sharePending = null;
+      this.render();
+    });
     manager.addEventListener('event', (event) =>
       this.onArtifactEvent(event.detail),
     );
@@ -322,14 +329,27 @@ export class ArtifactsPanel {
       copyText(a.url).then(() => toast(this.container, `Copied ${a.url}`)),
     );
     tools.appendChild(copy);
+    const share = this.manager.shareOf(a.id);
+    const pending = this.sharePending === a.id;
     const publish = el(
       'button',
       'artifacts-btn artifacts-btn--publish',
-      'Publish',
+      share ? 'Unpublish' : pending ? 'Publishing…' : 'Publish',
     );
-    publish.title = 'Share this artifact with a temporary public link';
-    publish.disabled = true;
-    publish.dataset.artifactId = a.id;
+    publish.title = share
+      ? 'Stop sharing this artifact'
+      : 'Share this artifact with a temporary public link';
+    publish.disabled = pending;
+    publish.addEventListener('click', () => {
+      if (share) {
+        this.manager.unshare(a.id);
+        return;
+      }
+      this.sharePending = a.id;
+      this.shareError = null;
+      this.manager.share(a.id);
+      this.render();
+    });
     tools.appendChild(publish);
     const close = el('button', 'artifacts-close', '×');
     close.setAttribute('aria-label', 'Close');
@@ -337,6 +357,10 @@ export class ArtifactsPanel {
     tools.appendChild(close);
     header.appendChild(tools);
     panel.appendChild(header);
+
+    if (share || this.shareError || this.sharePending === a.id) {
+      panel.appendChild(this.renderShareBar(a, share));
+    }
 
     const frame = document.createElement('iframe');
     frame.className = 'artifact-frame';
@@ -355,6 +379,54 @@ export class ArtifactsPanel {
     return root;
   }
 }
+
+/**
+ * The bar under the viewer header while an artifact is published: the
+ * public address, a copy button, and the plain truth about its lifetime.
+ */
+ArtifactsPanel.prototype.renderShareBar = function renderShareBar(a, share) {
+  const bar = el('div', 'artifacts-share-bar');
+  if (this.shareError) {
+    bar.classList.add('artifacts-share-bar--error');
+    bar.appendChild(
+      el(
+        'span',
+        'artifacts-share-text',
+        `Could not publish: ${this.shareError}`,
+      ),
+    );
+    return bar;
+  }
+  if (!share) {
+    bar.appendChild(
+      el(
+        'span',
+        'artifacts-share-text',
+        'Opening a public tunnel… this can take about ten seconds.',
+      ),
+    );
+    return bar;
+  }
+  const link = el('a', 'artifacts-share-url', share.url);
+  link.href = share.url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  bar.appendChild(el('span', 'artifacts-share-label', 'Public link'));
+  bar.appendChild(link);
+  const copy = el('button', 'artifacts-btn', 'Copy public link');
+  copy.addEventListener('click', () =>
+    copyText(share.url).then(() => toast(this.container, 'Public link copied')),
+  );
+  bar.appendChild(copy);
+  bar.appendChild(
+    el(
+      'span',
+      'artifacts-share-note',
+      'Anyone with this link can view the latest version while Auditaria is running. The link stops working when Auditaria closes; click Publish again to get a new one.',
+    ),
+  );
+  return bar;
+};
 
 function el(tag, className, text) {
   const node = document.createElement(tag);

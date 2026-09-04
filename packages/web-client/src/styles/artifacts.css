@@ -349,3 +349,31 @@
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* Publish (share) bar */
+.artifacts-share-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--success-bg, var(--surface-alt));
+  font-size: 13px;
+}
+.artifacts-share-bar--error {
+  background: var(--error-bg);
+  color: var(--error);
+}
+.artifacts-share-label {
+  font-weight: 600;
+}
+.artifacts-share-url {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+.artifacts-share-note {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+}
