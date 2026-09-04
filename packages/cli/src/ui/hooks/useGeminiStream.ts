@@ -115,7 +115,7 @@ import path from 'node:path';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { useKeypress } from './useKeypress.js';
 import type { LoadedSettings } from '../../config/settings.js';
-import { attachmentMetadataMap } from '../../services/WebInterfaceService.js'; // WEB_INTERFACE AUDITARIA: Import WeakMap for attachment metadata
+import { attachmentMetadataMap } from '../../services/web/index.js'; // WEB_INTERFACE AUDITARIA: Import WeakMap for attachment metadata
 
 // WEB_INTERFACE AUDITARIA: Type for attachment metadata stored in WeakMap
 interface AttachmentMeta {

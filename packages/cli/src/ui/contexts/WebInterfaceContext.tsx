@@ -6,19 +6,37 @@
 
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { WebInterfaceConfig } from '../../services/WebInterfaceService.js';
-import { WebInterfaceService } from '../../services/WebInterfaceService.js';
+import type { ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { debugLogger } from '@google/gemini-cli-core';
+import {
+  DEFAULT_WEB_PORT,
+  WebInterfaceService,
+  type WebInterfaceConfig,
+} from '../../services/web/index.js';
 import type { HistoryItem, ResponseBlock } from '../types.js';
-import { useSubmitQuery } from './SubmitQueryContext.js';
 import { openBrowserWithDelay } from '../../utils/browserUtils.js';
 
-interface WebInterfaceContextValue {
-  service: WebInterfaceService | null;
-  isRunning: boolean;
-  port: number | null;
-  clientCount: number;
-  defaultPort: number;
+/** Grace period before opening the browser so the first paint finds a server. */
+const OPEN_BROWSER_DELAY_MS = 2000;
+
+export interface WebInterfaceContextValue {
+  /** The session's server instance. Always present; check `isRunning`. */
+  readonly service: WebInterfaceService;
+  readonly isRunning: boolean;
+  /** Bound port while running, otherwise null. */
+  readonly port: number | null;
+  readonly clientCount: number;
+  /** Port `start()` tries first when none is given (`--port`, else 8629). */
+  readonly defaultPort: number;
+  /** Starts the server; resolves with the port actually bound. */
   start: (config?: WebInterfaceConfig) => Promise<number>;
   stop: () => Promise<void>;
   broadcastMessage: (historyItem: HistoryItem) => void;
@@ -26,125 +44,140 @@ interface WebInterfaceContextValue {
   setCurrentHistory: (history: HistoryItem[]) => void;
 }
 
-const WebInterfaceContext = createContext<WebInterfaceContextValue | null>(null);
+const WebInterfaceContext = createContext<WebInterfaceContextValue | null>(
+  null,
+);
 
 interface WebInterfaceProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
+  /** Start the server as soon as the provider mounts (`--web`). */
   enabled?: boolean;
+  /** After an automatic start, open the UI in the default browser. */
   openBrowser?: boolean;
+  /** Overrides the default port (`--port`). */
   port?: number;
 }
 
-export function WebInterfaceProvider({ children, enabled = false, openBrowser = true, port: configuredPort }: WebInterfaceProviderProps) {
+/**
+ * Owns the session's single `WebInterfaceService` and mirrors its lifecycle
+ * into React state. The service is the source of truth: the provider
+ * subscribes to its `started` / `stopped` / `clients` events, so the state
+ * is right no matter which code path started or stopped the server, and the
+ * client count follows connects and disconnects instead of a timer.
+ */
+export function WebInterfaceProvider({
+  children,
+  enabled = false,
+  openBrowser = true,
+  port: configuredPort,
+}: WebInterfaceProviderProps) {
   const [service] = useState(() => new WebInterfaceService());
-  const [isRunning, setIsRunning] = useState(false);
-  const [port, setPort] = useState<number | null>(null);
-  const [clientCount, setClientCount] = useState(0);
-  const submitQuery = useSubmitQuery();
-  const submitQueryRegistered = useRef(false);
-  const defaultPort = configuredPort !== undefined ? configuredPort : 8629;
+  const [status, setStatus] = useState(() => service.getStatus());
+  const defaultPort = configuredPort ?? DEFAULT_WEB_PORT;
 
-  const start = useCallback(async (config?: WebInterfaceConfig): Promise<number> => {
-    try {
-      const assignedPort = await service.start(config);
-      setIsRunning(true);
-      setPort(assignedPort);
-      return assignedPort;
-    } catch (error) {
-      setIsRunning(false);
-      setPort(null);
-      throw error;
-    }
-  }, [service]);
-
-  const stop = useCallback(async (): Promise<void> => {
-    await service.stop();
-    setIsRunning(false);
-    setPort(null);
-    setClientCount(0);
-  }, [service]);
-
-  const broadcastMessage = useCallback((historyItem: HistoryItem): void => {
-    if (isRunning) {
-      service.broadcastMessage(historyItem);
-      // Update client count after broadcast (in case of disconnected clients)
-      const status = service.getStatus();
-      setClientCount(status.clients);
-    }
-  }, [service, isRunning]);
-
-  const broadcastResponseState = useCallback((blocks: ResponseBlock[] | null): void => {
-    if (isRunning) {
-      service.broadcastResponseState(blocks);
-    }
-  }, [service, isRunning]);
-
-  const setCurrentHistory = useCallback((history: HistoryItem[]): void => {
-    if (service) {
-      service.setCurrentHistory(history);
-    }
-  }, [service]);
-
-  // Auto-start if enabled
   useEffect(() => {
-    if (enabled && !isRunning) {
-      start({ port: defaultPort }) // Use configured port or default
-        .then(async (port) => {
-          // Open browser automatically when starting with --web flag (unless no-browser is specified)
-          if (openBrowser) {
-            try {
-              await openBrowserWithDelay(`http://localhost:${port}`, 2000);
-            } catch (error) {
-              // Browser opening failed, but web interface is still running
-              // Error will be handled in CLI message display
-            }
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to start web interface:', error);
-        });
-    }
+    const sync = () => setStatus(service.getStatus());
+    service.on('started', sync);
+    service.on('stopped', sync);
+    service.on('clients', sync);
+    sync();
     return () => {
-      if (isRunning) {
-        stop().catch(console.error);
-      }
+      service.off('started', sync);
+      service.off('stopped', sync);
+      service.off('clients', sync);
     };
-  }, [enabled, isRunning, start, stop, openBrowser, defaultPort]);
+  }, [service]);
 
-  // Periodic client count update
+  const start = useCallback(
+    (config?: WebInterfaceConfig) =>
+      service.start({ ...config, port: config?.port ?? defaultPort }),
+    [service, defaultPort],
+  );
+
+  const stop = useCallback(() => service.stop(), [service]);
+
+  // Automatic start (`--web`): once per mount; the server stops on unmount.
   useEffect(() => {
-    if (!isRunning) return;
+    if (!enabled) return;
+    let unmounted = false;
+    service
+      .start({ port: defaultPort })
+      .then((port) => {
+        if (unmounted || !openBrowser) return undefined;
+        // A failure to open the browser is reported by the CLI message that
+        // prints the URL, so it is not an error here.
+        return openBrowserWithDelay(
+          `http://localhost:${port}`,
+          OPEN_BROWSER_DELAY_MS,
+        ).catch(() => undefined);
+      })
+      .catch((error: unknown) => {
+        debugLogger.error('Failed to start web interface:', error);
+      });
+    return () => {
+      unmounted = true;
+      service.stop().catch((error: unknown) => {
+        debugLogger.error('Failed to stop web interface:', error);
+      });
+    };
+  }, [enabled, openBrowser, defaultPort, service]);
 
-    const interval = setInterval(() => {
-      const status = service.getStatus();
-      setClientCount(status.clients);
-    }, 5000);
+  // All three are safe while stopped: the service records the state for
+  // the clients that connect later.
+  const broadcastMessage = useCallback(
+    (historyItem: HistoryItem) => {
+      service.broadcastMessage(historyItem);
+    },
+    [service],
+  );
 
-    return () => clearInterval(interval);
-  }, [service, isRunning]);
+  const broadcastResponseState = useCallback(
+    (blocks: ResponseBlock[] | null) => {
+      service.broadcastResponseState(blocks);
+    },
+    [service],
+  );
 
-  // NOTE: submitQuery registration moved to App.tsx to avoid infinite loop
+  const setCurrentHistory = useCallback(
+    (history: HistoryItem[]) => {
+      service.setCurrentHistory(history);
+    },
+    [service],
+  );
 
-  const contextValue: WebInterfaceContextValue = useMemo(() => ({
-    service,
-    isRunning,
-    port,
-    clientCount,
-    defaultPort,
-    start,
-    stop,
-    broadcastMessage,
-    broadcastResponseState,
-    setCurrentHistory,
-  }), [service, isRunning, port, clientCount, defaultPort, start, stop, broadcastMessage, broadcastResponseState, setCurrentHistory]);
+  const value = useMemo<WebInterfaceContextValue>(
+    () => ({
+      service,
+      isRunning: status.isRunning,
+      port: status.port ?? null,
+      clientCount: status.clients,
+      defaultPort,
+      start,
+      stop,
+      broadcastMessage,
+      broadcastResponseState,
+      setCurrentHistory,
+    }),
+    [
+      service,
+      status,
+      defaultPort,
+      start,
+      stop,
+      broadcastMessage,
+      broadcastResponseState,
+      setCurrentHistory,
+    ],
+  );
 
   return (
-    <WebInterfaceContext.Provider value={contextValue}>
+    <WebInterfaceContext.Provider value={value}>
       {children}
     </WebInterfaceContext.Provider>
   );
 }
 
+/** Null outside a provider (headless and non-interactive runs). */
 export function useWebInterface(): WebInterfaceContextValue | null {
   return useContext(WebInterfaceContext);
 }

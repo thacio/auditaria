@@ -3380,16 +3380,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
       // When a confirmation is removed from the queue, broadcast the removal
       const activeConfirmations =
         toolConfirmationContext?.pendingConfirmations || [];
-      const trackedConfirmations = [
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/no-unsafe-assignment
-        ...((webInterface.service as any).activeToolConfirmations?.keys() ||
-          []),
-      ];
+      const service = webInterface.service;
+      const trackedConfirmations = service.getActiveToolConfirmationIds();
 
       // Find confirmations that were tracked but are no longer pending
       trackedConfirmations.forEach((callId) => {
         if (!activeConfirmations.some((c) => c.callId === callId)) {
-          webInterface.service!.broadcastToolConfirmationRemoval(callId);
+          service.broadcastToolConfirmationRemoval(callId);
         }
       });
     }
