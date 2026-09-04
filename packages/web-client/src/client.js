@@ -36,6 +36,8 @@ import { detectLanguage } from './utils/languageDetection.js';
 
 // Knowledge Base Search & Management
 import { KnowledgeBaseManager } from './knowledge-base/KnowledgeBaseManager.js';
+import { ArtifactsManager } from './artifacts/ArtifactsManager.js';
+import { ArtifactsPanel } from './artifacts/ArtifactsPanel.js';
 
 // Arcade Mini-Games
 import { GamesPanel } from './components/GamesPanel.js';
@@ -67,6 +69,8 @@ class AuditariaWebClient {
 
     // Initialize Knowledge Base manager
     this.knowledgeBaseManager = new KnowledgeBaseManager(this.wsManager);
+    this.artifactsManager = new ArtifactsManager(this.wsManager);
+    this.artifactsPanel = new ArtifactsPanel(this.artifactsManager);
 
     // Initialize Arcade mini-games
     this.gamesPanel = new GamesPanel();
@@ -146,6 +150,12 @@ class AuditariaWebClient {
     this.slashAutocomplete = new SlashAutocompleteManager(this.messageInput);
 
     // Knowledge Base button
+    this.artifactsButton = document.getElementById('artifacts-button');
+    if (this.artifactsButton) {
+      this.artifactsButton.addEventListener('click', () =>
+        this.artifactsPanel.toggle(),
+      );
+    }
     this.knowledgeBaseButton = document.getElementById('knowledge-base-button');
     if (this.knowledgeBaseButton) {
       this.knowledgeBaseButton.addEventListener('click', () => {
@@ -177,6 +187,7 @@ class AuditariaWebClient {
       }
       // WEB_INTERFACE_END
 
+      if (this.artifactsButton) this.artifactsButton.disabled = false;
       // Enable Knowledge Base button and request status
       if (this.knowledgeBaseButton) {
         this.knowledgeBaseButton.disabled = false;

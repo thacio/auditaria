@@ -1,0 +1,134 @@
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * Client side of the artifacts protocol. Keeps the gallery list current
+ * from `artifact_list` snapshots and `artifact_event` pushes, and exposes
+ * the requests the panel makes. The server is the source of truth: every
+ * mutation is a request, and the list arrives back as a fresh snapshot.
+ */
+export class ArtifactsManager extends EventTarget {
+  constructor(wsManager) {
+    super();
+    this.wsManager = wsManager;
+    /** @type {Array<object>} */
+    this.artifacts = [];
+    this.versionWaiters = new Map();
+
+    wsManager.addEventListener('artifact_list', (event) => {
+      this.artifacts = Array.isArray(event.detail?.artifacts)
+        ? event.detail.artifacts
+        : [];
+      this.dispatchEvent(new CustomEvent('list', { detail: this.artifacts }));
+    });
+    wsManager.addEventListener('artifact_event', (event) => {
+      this.dispatchEvent(new CustomEvent('event', { detail: event.detail }));
+    });
+    wsManager.addEventListener('artifact_versions_response', (event) => {
+      const { id, versions } = event.detail || {};
+      const waiter = this.versionWaiters.get(id);
+      if (waiter) {
+        this.versionWaiters.delete(id);
+        waiter(Array.isArray(versions) ? versions : []);
+      }
+    });
+    wsManager.addEventListener('artifact_open', (event) => {
+      this.dispatchEvent(new CustomEvent('open', { detail: event.detail }));
+    });
+    wsManager.addEventListener('connected', () => this.refresh());
+  }
+
+  refresh() {
+    this.wsManager.send({ type: 'artifact_list_request' });
+  }
+
+  get(id) {
+    return this.artifacts.find((a) => a.id === id) || null;
+  }
+
+  /** @returns {Promise<Array<object>>} */
+  versions(id) {
+    return new Promise((resolve) => {
+      this.versionWaiters.set(id, resolve);
+      this.wsManager.send({ type: 'artifact_versions_request', id });
+      setTimeout(() => {
+        if (this.versionWaiters.get(id) === resolve) {
+          this.versionWaiters.delete(id);
+          resolve([]);
+        }
+      }, 8000);
+    });
+  }
+
+  rename(id, title) {
+    this.wsManager.send({
+      type: 'artifact_update_request',
+      id,
+      op: 'rename',
+      title,
+    });
+  }
+
+  setPinned(id, pinned) {
+    this.wsManager.send({
+      type: 'artifact_update_request',
+      id,
+      op: 'pin',
+      pinned,
+    });
+  }
+
+  pinVersion(id, version) {
+    this.wsManager.send({
+      type: 'artifact_update_request',
+      id,
+      op: 'pin_version',
+      version,
+    });
+  }
+
+  restoreVersion(id, version) {
+    this.wsManager.send({
+      type: 'artifact_update_request',
+      id,
+      op: 'restore_version',
+      version,
+    });
+  }
+
+  setSampleConsent(id, consent) {
+    this.wsManager.send({
+      type: 'artifact_update_request',
+      id,
+      op: 'sample_consent',
+      consent,
+    });
+  }
+
+  delete(id) {
+    this.wsManager.send({ type: 'artifact_delete_request', id });
+  }
+
+  restore(id) {
+    this.wsManager.send({ type: 'artifact_restore_request', id });
+  }
+}
+
+/** "Edited 42m ago" / "Edited Sep 1", as the gallery shows it. */
+export function relativeTime(iso, now = Date.now()) {
+  const seconds = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
+  if (seconds < 60) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+}

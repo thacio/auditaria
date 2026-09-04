@@ -166,6 +166,11 @@ export class ArtifactService {
     this.host?.notify(text);
   }
 
+  /** Queues a notice for the model only (the user already saw it). */
+  queueNotice(text: string): void {
+    this.pendingNotices.push(text);
+  }
+
   drainNotices(): string[] {
     return this.pendingNotices.splice(0);
   }
