@@ -35,6 +35,7 @@ import {
   type CommentThread,
 } from '../artifacts/comments.js';
 import { AssetError, isAssetId } from '../artifacts/assets.js';
+import { SITE_ENTRY, SiteError, collectSite } from '../artifacts/site.js';
 import { randomBytes } from 'node:crypto';
 import {
   MAX_DESCRIPTION_CHARS,
@@ -48,6 +49,7 @@ import type {
   ArtifactSummary,
   CapabilityDeclaration,
   PublishOutcome,
+  SiteInput,
 } from '../artifacts/types.js';
 import { ARTIFACT_TOOL_NAME } from './tool-names.js';
 import {
@@ -210,7 +212,7 @@ export class ArtifactTool extends BaseDeclarativeTool<
           file_path: {
             type: 'string',
             description:
-              'Path to the .html (or .md) file to publish. For upload_asset, the local file to attach.',
+              'Path to the .html (or .md) file to publish, or a DIRECTORY with an index.html at its root to publish a multi-file site (Auditaria extension): every file is served under the artifact origin at its relative path, every HTML page gets the runtime, so use relative links; 16MB and 2000 files in total; dotfiles, node_modules, .git and symlinks are skipped; the top-level names v, s, __assets, __rt, __downloads and __runtime are reserved. Prefer a single page whenever it can do the job. For upload_asset, the local file to attach.',
           },
           url: {
             type: 'string',
@@ -487,10 +489,16 @@ class ArtifactInvocation extends BaseToolInvocation<
     const file = path.basename(this.params.file_path ?? '');
     let title = this.params.title;
     try {
-      const body = await fsp.readFile(this.params.file_path ?? '', 'utf-8');
+      const target = this.params.file_path ?? '';
+      const isDirectory =
+        (await fsp.stat(target).catch(() => null))?.isDirectory() === true;
+      const body = await fsp.readFile(
+        isDirectory ? path.join(target, SITE_ENTRY) : target,
+        'utf-8',
+      );
       title = resolveTitle(
         body,
-        formatOf(this.params.file_path ?? '') ?? 'html',
+        isDirectory ? 'html' : (formatOf(target) ?? 'html'),
         title,
         file,
       );
@@ -607,13 +615,30 @@ class ArtifactInvocation extends BaseToolInvocation<
 
   private async publish(): Promise<ToolResult> {
     const filePath = path.resolve(this.params.file_path ?? '');
-    const format = formatOf(filePath);
+    // A directory publishes as a multi-file site (Auditaria extension): its
+    // index.html is the entry and the whole folder is served by path.
+    const isDirectory =
+      (await fsp.stat(filePath).catch(() => null))?.isDirectory() === true;
+    let site: SiteInput | undefined;
+    if (isDirectory) {
+      try {
+        site = { files: (await collectSite(filePath)).files };
+      } catch (error) {
+        if (error instanceof SiteError)
+          return text(`Cannot publish ${filePath} as a site: ${error.message}`);
+        throw error;
+      }
+    }
+    const format = isDirectory ? 'html' : formatOf(filePath);
     if (!format) {
       return text(
-        `Only .html, .htm and .md files can be published (got ${path.basename(filePath)}).`,
+        `Only .html, .htm and .md files (or a folder with an ${SITE_ENTRY}) can be published (got ${path.basename(filePath)}).`,
       );
     }
-    const body = await fsp.readFile(filePath, 'utf-8');
+    const body = await fsp.readFile(
+      isDirectory ? path.join(filePath, SITE_ENTRY) : filePath,
+      'utf-8',
+    );
     const store = await this.service.getStore();
     const explicitId = this.params.url
       ? (parseArtifactReference(this.params.url) ?? undefined)
@@ -657,6 +682,7 @@ class ArtifactInvocation extends BaseToolInvocation<
           body,
           format,
           source: 'tool',
+          ...(site ? { site } : {}),
           title,
           description: this.params.description,
           favicon: this.params.favicon,
@@ -722,6 +748,11 @@ class ArtifactInvocation extends BaseToolInvocation<
       `Stored — capabilities: ${declared.length ? declared.join(', ') : 'none'}${unserved.length ? ` (${unserved.join(', ')} accepted but not served on this host: use() resolves null)` : ''} · sharing: private (the user can share it publicly for this session with the viewer's Publish button or /artifacts share).`,
       'Watching for republishes (in-process). To update: publish the same file path again in this session, or pass url from another session after reading it.',
     ];
+    if (version.site) {
+      lines.push(
+        `Site: ${version.site.files} files (${version.site.bytes} bytes) served under the artifact's origin at their relative paths (e.g. ${pageUrl ?? 'http://art-<id>.localhost:<port>/'}about.html for about.html); every HTML page gets the runtime. Use relative links between pages.`,
+      );
+    }
     if (assetLines.length) {
       lines.push(
         `Assets attached with this publish:\n${assetLines.join('\n')}`,
@@ -806,6 +837,24 @@ class ArtifactInvocation extends BaseToolInvocation<
     // Large sources, or any source when out_dir is given, go to a file so
     // the agent can Read only the parts it needs.
     const outDir = this.params.out_dir?.trim();
+    // A site: name its files; with out_dir, extract the whole snapshot.
+    const version = await store.version(id, record.latestVersion);
+    if (version?.site) {
+      const files = await store.siteFiles(id, record.latestVersion);
+      const siteHeader = `${header}\nThis is a multi-file site (${files.length} files): ${files.join(', ')}.`;
+      if (outDir) {
+        const dest = path.join(
+          path.resolve(outDir),
+          `artifact-${id}-v${record.latestVersion}`,
+        );
+        const dir = await store.siteDir(id, record.latestVersion);
+        if (dir) await fsp.cp(dir, dest, { recursive: true, force: true });
+        return text(`${siteHeader}\nSnapshot extracted to ${dest}.`);
+      }
+      return text(
+        `${siteHeader}\nThe entry (${SITE_ENTRY}) follows; pass out_dir to extract every file.\n\n${fence(`ARTIFACT ${id} v${record.latestVersion} ${SITE_ENTRY}`, body)}`,
+      );
+    }
     if (outDir || body.length > 64 * 1024) {
       const file = path.join(
         outDir ? path.resolve(outDir) : this.config.storage.getProjectTempDir(),

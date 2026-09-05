@@ -16,6 +16,7 @@ import {
   renderMarkdown,
   usesMermaid,
   wrapDocument,
+  stripDocumentShell,
   isAssetId,
   type ArtifactId,
   type ArtifactRecord,
@@ -155,9 +156,11 @@ export function createArtifactHost(options: ArtifactHostOptions): VirtualHost {
     record: ArtifactRecord,
     version: ArtifactVersion,
     immutable: boolean,
+    /** A site page's own source, instead of the version's entry body. */
+    pageBody?: string,
   ): Promise<void> => {
     const store = await service.getStore();
-    const body = await store.readBody(id, version.n);
+    const body = pageBody ?? (await store.readBody(id, version.n));
     const rawTheme = req.query['theme'];
     const theme: 'light' | 'dark' | undefined =
       rawTheme === 'dark' ? 'dark' : rawTheme === 'light' ? 'light' : undefined;
@@ -176,7 +179,8 @@ export function createArtifactHost(options: ArtifactHostOptions): VirtualHost {
       `<script src="/__rt/claude.js"></script>` +
       `<link rel="icon" href="/__rt/favicon.svg" type="image/svg+xml">`;
 
-    let fragment = body;
+    // Site pages are usually complete documents; the shell wraps fragments.
+    let fragment = version.site ? stripDocumentShell(body) : body;
     let extraHead = '';
     if (version.format === 'markdown') {
       fragment = `<title>${escapeHtml(version.title)}</title>${renderMarkdown(body)}`;
@@ -231,6 +235,66 @@ export function createArtifactHost(options: ArtifactHostOptions): VirtualHost {
       return;
     }
     await sendVersion(req, res, target.id, target.record, version, true);
+  });
+
+  // Multi-file sites: any other path resolves inside the version's folder
+  // snapshot. HTML pages are wrapped like the entry (runtime, theme, CSP);
+  // everything else is served as-is with its own content type.
+  const sendSiteFile = async (
+    req: Request,
+    res: Response,
+    id: ArtifactId,
+    record: ArtifactRecord,
+    version: ArtifactVersion,
+    requestPath: string,
+    immutable: boolean,
+  ): Promise<void> => {
+    const store = await service.getStore();
+    const hit = version.site
+      ? await store.siteFile(id, version.n, requestPath)
+      : null;
+    if (!hit) {
+      res.status(404).type('text/plain').send('Not Found');
+      return;
+    }
+    if (hit.html) {
+      const page = await readFile(hit.file, 'utf-8');
+      await sendVersion(req, res, id, record, version, immutable, page);
+      return;
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Cache-Control',
+      immutable ? 'private, max-age=31536000, immutable' : 'no-cache',
+    );
+    // Relative to its own directory: the dotfile guard must judge the site
+    // path (already validated), not the store's `.auditaria` folder.
+    res.sendFile(path.basename(hit.file), {
+      root: path.dirname(hit.file),
+      dotfiles: 'deny',
+    });
+  };
+
+  router.get('/v/:n/*', async (req, res) => {
+    const target = await resolveArtifact(req, res);
+    if (!target) return;
+    const n = Number(req.params['n']);
+    const version = Number.isInteger(n)
+      ? await (await service.getStore()).version(target.id, n)
+      : null;
+    if (!version) {
+      res.status(404).type('text/plain').send('No such version.');
+      return;
+    }
+    await sendSiteFile(
+      req,
+      res,
+      target.id,
+      target.record,
+      version,
+      req.path.replace(/^\/v\/\d+\//, ''),
+      true,
+    );
   });
 
   router.get('/__rt/favicon.svg', async (req, res) => {
@@ -313,6 +377,28 @@ export function createArtifactHost(options: ArtifactHostOptions): VirtualHost {
       },
     }),
   );
+
+  // Last: a site's files at their own paths on the served version. Pages
+  // (no site) fall through to a plain 404 here.
+  router.get('/*', async (req, res) => {
+    const target = await resolveArtifact(req, res);
+    if (!target) return;
+    const store = await service.getStore();
+    const version = await store.servedVersion(target.id);
+    if (!version) {
+      res.status(404).type('text/plain').send('No such version.');
+      return;
+    }
+    await sendSiteFile(
+      req,
+      res,
+      target.id,
+      target.record,
+      version,
+      req.path.replace(/^\/v\/\d+\//, ''),
+      false,
+    );
+  });
 
   const handler = router;
   return {

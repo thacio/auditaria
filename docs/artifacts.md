@@ -85,6 +85,30 @@ it at once.
 Visitors get the latest version, read-only: no runtime capability is granted on
 a public share, so a page must render sensibly when everything resolves `null`.
 
+## Multi-file sites
+
+A single page is the normal shape and matches Claude exactly. When a real site
+is needed — several pages, shared stylesheets, an image folder — the agent
+publishes a **folder** whose root holds an `index.html`. The whole folder
+becomes one artifact version, served under the artifact's origin at the files'
+relative paths:
+
+```
+site/index.html      →  http://art-<id>.localhost:<port>/
+site/about.html      →  http://art-<id>.localhost:<port>/about.html
+site/css/site.css    →  http://art-<id>.localhost:<port>/css/site.css
+```
+
+Every HTML page is wrapped like the entry (runtime, theme, security policy), so
+pages may be complete documents. Relative links between pages resolve, and
+version history keeps whole snapshots (`/v/3/about.html`), so pages should link
+relatively rather than from the root. Limits: 16 MB and 2000 files in total;
+dotfiles, `node_modules`, `.git` and symlinks are never published; the top-level
+names `v`, `s`, `__assets`, `__rt`, `__downloads` and `__runtime` are reserved.
+Republishing the folder mints a new version, `read` lists the files (and
+extracts the snapshot with `out_dir`), and a public share serves the entire
+site.
+
 ## Comments
 
 Viewers leave comment threads in the viewer's sidebar. A thread reaches the

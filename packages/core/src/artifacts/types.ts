@@ -46,6 +46,30 @@ export interface ArtifactVersion {
   readonly bytes: number;
   /** Source kind of the body: an authored HTML fragment or Markdown. */
   readonly format: 'html' | 'markdown';
+  /**
+   * Present when the version is a multi-file site: the body is its
+   * `index.html` and the whole folder snapshot lives beside it.
+   */
+  readonly site?: SiteSummary;
+}
+
+/** What a site version records about its snapshot. */
+export interface SiteSummary {
+  readonly files: number;
+  readonly bytes: number;
+}
+
+/** One file of a site being published: where it is and where it goes. */
+export interface SiteFile {
+  /** Relative path inside the site, forward slashes. */
+  readonly path: string;
+  /** Absolute source path to copy from. */
+  readonly source: string;
+  readonly bytes: number;
+}
+
+export interface SiteInput {
+  readonly files: readonly SiteFile[];
 }
 
 export interface ArtifactRecord {
@@ -135,6 +159,11 @@ export interface PublishInput {
    * `{}` clears it, a non-empty object replaces it in full.
    */
   readonly capabilities?: CapabilityDeclaration;
+  /**
+   * A multi-file site: the folder's files, copied into the version's
+   * snapshot; `body` is then the site's `index.html`.
+   */
+  readonly site?: SiteInput;
 }
 
 export interface PublishOutcome {

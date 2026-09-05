@@ -389,6 +389,20 @@ export {
   parseArtifactReference,
 } from './artifacts/artifactPaths.js';
 export {
+  MAX_SITE_BYTES,
+  MAX_SITE_FILES,
+  RESERVED_SITE_NAMES,
+  SITE_ENTRY,
+  SiteError,
+  collectSite,
+  isSiteHtml,
+  listSiteFiles,
+  resolveSiteFile,
+  stripDocumentShell,
+} from './artifacts/site.js';
+export type { SiteErrorCode } from './artifacts/site.js';
+export type { SiteFile, SiteInput, SiteSummary } from './artifacts/types.js';
+export {
   MARKDOWN_STYLE,
   extractTitle,
   renderMarkdown,

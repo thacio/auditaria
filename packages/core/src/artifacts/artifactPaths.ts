@@ -142,3 +142,8 @@ export function parseArtifactReference(value: string): ArtifactId | null {
     return null;
   }
 }
+
+/** The snapshot directory of a multi-file site version. */
+export function siteDir(paths: ArtifactPaths, n: number): string {
+  return path.join(paths.versionsDir, String(n));
+}

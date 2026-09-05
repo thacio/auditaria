@@ -11,8 +11,10 @@ import { randomBytes } from 'node:crypto';
 import express from 'express';
 import { createServer, type Server } from 'node:http';
 import path from 'node:path';
+import * as fsp from 'node:fs/promises';
 import {
   wrapDocument,
+  stripDocumentShell,
   renderMarkdown,
   usesMermaid,
   MARKDOWN_STYLE,
@@ -224,7 +226,7 @@ export class ShareSession {
           return;
         }
         const body = await store.readBody(this.id, version.n);
-        let fragment = body;
+        let fragment = version.site ? stripDocumentShell(body) : body;
         let extraHead = '';
         if (version.format === 'markdown') {
           fragment = `<title>${escapeHtml(version.title)}</title>${renderMarkdown(body)}`;
@@ -290,6 +292,65 @@ export class ShareSession {
         maxAge: '5m',
       }),
     );
+
+    // Multi-file sites: the version's files at their own paths (behind the
+    // cookie, like everything above). Pages get the same read-only wrap as
+    // the entry; other files are served as-is.
+    app.get('/*', async (req, res) => {
+      try {
+        const store = await service.getStore();
+        const record = await store.get(this.id);
+        const version =
+          record && !record.deletedAt
+            ? await store.servedVersion(this.id)
+            : null;
+        const hit = version?.site
+          ? await store.siteFile(this.id, version.n, req.path)
+          : null;
+        if (!version || !hit) {
+          res.status(404).type('text/plain').send('Not Found');
+          return;
+        }
+        if (!hit.html) {
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.sendFile(path.basename(hit.file), {
+            root: path.dirname(hit.file),
+            dotfiles: 'deny',
+          });
+          return;
+        }
+        const fragment = stripDocumentShell(
+          await fsp.readFile(hit.file, 'utf-8'),
+        );
+        const extraHead = usesMermaid(fragment)
+          ? '<script src="/__rt/mermaid.min.js"></script>' +
+            '<script>if(window.mermaid){mermaid.initialize({startOnLoad:true,securityLevel:"strict"})}</script>'
+          : '';
+        const frameConfig = {
+          id: this.id,
+          version: version.n,
+          grants: [],
+          consoleOrigins: [],
+          shared: true,
+        };
+        const runtimeHead =
+          `<script>window.__AUDITARIA_FRAME=${JSON.stringify(frameConfig).replace(/</g, '\\u003c')}</script>` +
+          `<script src="/__rt/claude.js"></script>`;
+        res.setHeader(
+          'Content-Security-Policy',
+          buildArtifactCsp(["'none'"]).replace(
+            "frame-ancestors 'self' 'none'",
+            "frame-ancestors 'none'",
+          ),
+        );
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(wrapDocument({ body: fragment, runtimeHead, extraHead }));
+      } catch (error) {
+        logger.error('Share listener error:', error);
+        if (!res.headersSent) res.status(500).type('text/plain').send('Error');
+      }
+    });
 
     app.use((_req, res) => {
       res.status(404).type('text/plain').send('Not Found');

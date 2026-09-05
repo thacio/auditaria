@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -72,6 +72,67 @@ describe('ArtifactTool', () => {
     tool = new ArtifactTool(makeConfig(), messageBus);
   });
   afterEach(() => rm(dir, { recursive: true, force: true }));
+
+  it('publishes a folder as a multi-file site, reads it, and redeploys it', async () => {
+    const site = path.join(dir, 'site');
+    const write = async (rel: string, body: string) => {
+      const file = path.join(site, rel);
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, body, 'utf-8');
+    };
+    await write(
+      'index.html',
+      '<!doctype html><html><head><title>Field Guide</title><link rel="stylesheet" href="css/site.css"></head><body><a href="about.html">About</a></body></html>',
+    );
+    await write('about.html', '<title>About</title><h1>About</h1>');
+    await write('css/site.css', 'body{margin:0}');
+    await write('.env', 'SECRET=1');
+
+    const first = await run({ file_path: site, favicon: '🗺️' });
+    expect(String(first.llmContent)).toMatch(
+      /^Published "Field Guide" as artifact [0-9a-f]{16}, version 1\./,
+    );
+    expect(String(first.llmContent)).toContain('Site: 3 files');
+    const id = String(first.llmContent).match(/artifact ([0-9a-f]{16})/)![1];
+    const store = await service.getStore();
+    const v1 = await store.version(id, 1);
+    expect(v1?.site).toEqual({ files: 3, bytes: expect.any(Number) });
+    expect(await store.siteFiles(id, 1)).toEqual([
+      'about.html',
+      'css/site.css',
+      'index.html',
+    ]);
+    expect((await store.siteFile(id, 1, '/css/site.css'))?.html).toBe(false);
+    expect(await store.siteFile(id, 1, '/.env')).toBeNull();
+    // The entry body is the authored index.html, untouched.
+    expect(await store.readBody(id, 1)).toContain('<!doctype html>');
+
+    const listed = await run({ action: 'read', url: id });
+    expect(String(listed.llmContent)).toContain(
+      'multi-file site (3 files): about.html, css/site.css, index.html',
+    );
+    const outDir = path.join(dir, 'extract');
+    const extracted = await run({ action: 'read', url: id, out_dir: outDir });
+    expect(String(extracted.llmContent)).toContain('Snapshot extracted to');
+    expect(
+      await readFile(
+        path.join(outDir, `artifact-${id}-v1`, 'css', 'site.css'),
+        'utf-8',
+      ),
+    ).toBe('body{margin:0}');
+
+    await write('about.html', '<title>About</title><h1>About, revised</h1>');
+    const second = await run({ file_path: site });
+    expect(String(second.llmContent)).toMatch(/version 2\./);
+    expect((await store.version(id, 2))?.site?.files).toBe(3);
+    expect(await store.siteFile(id, 1, 'about.html')).not.toBeNull();
+
+    const bare = path.join(dir, 'bare');
+    await mkdir(bare, { recursive: true });
+    await writeFile(path.join(bare, 'about.html'), 'x', 'utf-8');
+    const refused = await run({ file_path: bare, favicon: '📁' });
+    expect(String(refused.llmContent)).toMatch(/needs an index\.html/);
+  });
 
   it('validates parameters the way Claude Code does', () => {
     expect(tool.validateToolParams({})).toMatch(/file_path is required/);

@@ -27,6 +27,8 @@ import {
 } from './htmlShell.js';
 import { isPlainObject, validateRules } from './dbEngine.js';
 import { appendJsonl, isCode, readJsonl, writeOnce } from './journal.js';
+import { constants as fsConstants } from 'node:fs';
+import { listSiteFiles, resolveSiteFile, siteDirOf } from './site.js';
 import type {
   ArtifactEvent,
   ArtifactId,
@@ -288,6 +290,34 @@ export class ArtifactStore extends EventEmitter<ArtifactStoreEvents> {
   }
 
   // ---------------------------------------------------------------------
+  // Multi-file sites: a version's folder snapshot, served by path.
+  // ---------------------------------------------------------------------
+
+  /** The snapshot directory of a site version, or null for a page. */
+  async siteDir(id: ArtifactId, n: number): Promise<string | null> {
+    const version = await this.version(id, n);
+    return version?.site
+      ? siteDirOf(artifactPaths(this.rootDir, id).versionsDir, n)
+      : null;
+  }
+
+  /** A file inside a site version for a request path, or null. */
+  async siteFile(
+    id: ArtifactId,
+    n: number,
+    requestPath: string,
+  ): Promise<{ file: string; html: boolean } | null> {
+    const dir = await this.siteDir(id, n);
+    return dir ? resolveSiteFile(dir, requestPath) : null;
+  }
+
+  /** A site version's files as sorted relative paths (empty for a page). */
+  async siteFiles(id: ArtifactId, n: number): Promise<string[]> {
+    const dir = await this.siteDir(id, n);
+    return dir ? listSiteFiles(dir) : [];
+  }
+
+  // ---------------------------------------------------------------------
   // Mutations
   // ---------------------------------------------------------------------
 
@@ -305,11 +335,14 @@ export class ArtifactStore extends EventEmitter<ArtifactStoreEvents> {
     await this.load();
     validatePublishInput(input);
 
-    const bytes = Buffer.byteLength(input.body, 'utf-8');
+    // A site's ceiling covers the whole folder, a page's its body.
+    const bytes = input.site
+      ? input.site.files.reduce((sum, f) => sum + f.bytes, 0)
+      : Buffer.byteLength(input.body, 'utf-8');
     if (bytes > MAX_RENDERED_BYTES) {
       throw new ArtifactStoreError(
         'too_large',
-        `The rendered page must be 16MB or smaller (this one is ${bytes} bytes).`,
+        `The rendered ${input.site ? 'site' : 'page'} must be 16MB or smaller (this one is ${bytes} bytes).`,
       );
     }
     if (input.capabilities !== undefined) {
@@ -395,8 +428,26 @@ export class ArtifactStore extends EventEmitter<ArtifactStoreEvents> {
       sha256: sha256Hex(input.body),
       bytes: Buffer.byteLength(input.body, 'utf-8'),
       format: input.format,
+      ...(input.site
+        ? {
+            site: {
+              files: input.site.files.length,
+              bytes: input.site.files.reduce((sum, f) => sum + f.bytes, 0),
+            },
+          }
+        : {}),
     };
-    // Body first (write-once), then the journal line that makes it visible.
+    // Files first (write-once), then the journal line that makes them visible.
+    if (input.site) {
+      const dir = siteDirOf(paths.versionsDir, n);
+      for (const file of input.site.files) {
+        const dest = `${dir}/${file.path}`;
+        await fsp.mkdir(dest.slice(0, dest.lastIndexOf('/')), {
+          recursive: true,
+        });
+        await fsp.copyFile(file.source, dest, fsConstants.COPYFILE_EXCL);
+      }
+    }
     await writeOnce(versionFile(paths, n, input.format), input.body);
     await appendJsonl(paths.journal, {
       type: 'version',

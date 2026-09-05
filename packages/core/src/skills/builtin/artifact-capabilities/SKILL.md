@@ -169,3 +169,22 @@ Reply to or resolve only comment threads that were sent to you, and never
 re-resolve a resolved thread. Seed and inspect the store with `write_db`
 (batches of up to 50 are atomic) and `read_db` rather than hardcoding data
 in the page.
+
+## Multi-file sites (Auditaria extension)
+
+A single page is the preferred shape and is exactly Claude's. When the user
+wants a real site — several pages, shared stylesheets, an image folder —
+publish a DIRECTORY instead of a file: `file_path` pointing at a folder with
+an `index.html` at its root. The whole folder becomes one artifact version,
+served under the artifact's origin at the files' relative paths
+(`/about.html`, `/css/site.css`, `/img/logo.png`), so use RELATIVE links
+between pages and to assets (root-absolute links break in the version
+history view). Every HTML page is wrapped like the entry: it gets
+`window.claude`, the theme handling and the CSP, so pages may be complete
+documents (the document shell is stripped) or fragments. Limits: 16MB in
+total, 2000 files; dotfiles, `node_modules`, `.git` and symlinks are not
+published; the top-level names `v`, `s`, `__assets`, `__rt`, `__downloads`
+and `__runtime` are reserved. Republishing the same folder mints a new
+version; `read` lists the files and `read` with `out_dir` extracts the whole
+snapshot. Sharing serves the entire site. Prefer one page whenever it can do
+the job.

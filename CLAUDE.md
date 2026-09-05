@@ -1606,6 +1606,22 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
   _update(op: rename|pin|pin_version|restore_version|sample_consent)/
   _delete/_restore/_share(op: start|stop)/_comments/_comment(op: create|
   reply|activate|resolve|reopen)_request`, `artifact_download_decision`.
+- **Multi-file sites** (Auditaria extension, Sept 2026): `publish` with
+  `file_path` = a DIRECTORY holding `index.html` mints a version whose
+  whole folder is snapshotted write-once under `versions/<n>/` (entry also
+  at `versions/<n>.html` so every body reader is unchanged) and served
+  under the artifact origin at relative paths — HTML pages wrapped like
+  the entry (runtime/theme/CSP, document shell stripped by
+  `stripDocumentShell`), other files raw with nosniff; `/v/<n>/<path>`
+  for history; the share listener serves the folder too. Pure logic in
+  `core/artifacts/site.ts` (collect: regular files only, no symlinks/
+  dotfiles/node_modules/.git, reserved top-level names v/s/__assets/__rt/
+  __downloads/__runtime, 16MB + 2000-file caps; resolve: decode once, no
+  dot segments/dotfiles, never outside the snapshot, dir → index.html;
+  `ArtifactVersion.site {files, bytes}` marks it, `format` stays 'html').
+  Store: `siteDir/siteFile/siteFiles`. Tool: directory detection in
+  publish + prompt, `read` lists files / `out_dir` extracts the snapshot.
+  Single page stays the preferred, Claude-identical shape.
 - **Skills**: built-in `artifact-design` + `artifact-capabilities`
   (`packages/core/src/skills/builtin/`, copied to `bundle/builtin`).
 - **Files Modified** (minimal, all marked `// AUDITARIA_ARTIFACTS` or
