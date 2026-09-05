@@ -16,6 +16,7 @@ import {
   renderMarkdown,
   usesMermaid,
   MARKDOWN_STYLE,
+  isAssetId,
   type ArtifactId,
   type ArtifactService,
 } from '@google/gemini-cli-core';
@@ -256,6 +257,29 @@ export class ShareSession {
         res.send(wrapDocument({ body: fragment, runtimeHead, extraHead }));
       } catch (error) {
         logger.error('Share listener error:', error);
+        if (!res.headersSent) res.status(500).type('text/plain').send('Error');
+      }
+    });
+
+    // Attached files are part of the page; served read-only, immutable.
+    app.get('/__assets/:assetId', async (req, res) => {
+      const assetId = req.params['assetId'];
+      if (!isAssetId(assetId)) {
+        res.status(404).type('text/plain').send('Not Found');
+        return;
+      }
+      try {
+        const assets = await service.getAssets(this.id);
+        const asset = assets.get(assetId);
+        if (!asset) {
+          res.status(404).type('text/plain').send('Not Found');
+          return;
+        }
+        res.setHeader('Content-Type', asset.type);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.sendFile(assets.fileOf(asset));
+      } catch (error) {
+        logger.error('Share asset error:', error);
         if (!res.headersSent) res.status(500).type('text/plain').send('Error');
       }
     });

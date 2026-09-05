@@ -59,6 +59,9 @@ export class ArtifactsManager extends EventTarget {
     wsManager.addEventListener('artifact_comment_event', (event) => {
       this.dispatchEvent(new CustomEvent('comment', { detail: event.detail }));
     });
+    wsManager.addEventListener('artifact_download_offer', (event) => {
+      this.dispatchEvent(new CustomEvent('download', { detail: event.detail }));
+    });
     wsManager.addEventListener('artifact_open', (event) => {
       this.dispatchEvent(new CustomEvent('open', { detail: event.detail }));
     });
@@ -157,6 +160,11 @@ export class ArtifactsManager extends EventTarget {
         }
       }, 8000);
     });
+  }
+
+  /** The viewer's answer to a page's download offer. */
+  decideDownload(token, accept) {
+    this.wsManager.send({ type: 'artifact_download_decision', token, accept });
   }
 
   /** op: create | reply | activate | resolve | reopen */

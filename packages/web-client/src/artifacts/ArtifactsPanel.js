@@ -45,6 +45,9 @@ export class ArtifactsPanel {
     this.handleThemeChange = this.handleThemeChange.bind(this);
 
     manager.addEventListener('list', () => this.render());
+    manager.addEventListener('download', (event) =>
+      this.showDownloadOffer(event.detail),
+    );
     manager.addEventListener('share', (event) => {
       const { id, error } = event.detail || {};
       if (error) this.shareError = error;
@@ -162,6 +165,19 @@ export class ArtifactsPanel {
     if (!this.container || this.container.hidden) return;
     const artifact = this.viewing ? this.manager.get(this.viewing.id) : null;
     if (this.viewing && !artifact) this.viewing = null;
+    // While the same version stays on screen, a gallery refresh, a share
+    // change or a rename must not re-create the frame (that reloads the
+    // page); only the chrome around it is rebuilt.
+    if (
+      artifact &&
+      this.container.querySelector('.artifacts-viewer') &&
+      this.renderedFrameBase ===
+        this.frameBaseOf(artifact, this.servedVersionOf(artifact))
+    ) {
+      this.refreshViewerChrome(artifact);
+      return;
+    }
+    this.renderedFrameBase = null;
     this.container.innerHTML = '';
     this.container.appendChild(
       this.viewing ? this.renderViewer(artifact) : this.renderGallery(),
@@ -305,6 +321,46 @@ export class ArtifactsPanel {
     const panel = el('div', 'artifacts-viewer');
     root.appendChild(panel);
 
+    const served = this.servedVersionOf(a);
+    const header = this.buildViewerHeader(a, served);
+    panel.appendChild(header);
+
+    const share = this.manager.shareOf(a.id);
+    if (share || this.shareError || this.sharePending === a.id) {
+      panel.appendChild(this.renderShareBar(a, share));
+    }
+
+    const frame = document.createElement('iframe');
+    frame.className = 'artifact-frame';
+    frame.title = 'User-generated artifact content';
+    // Exactly Claude Code's sandbox: scripts and forms, same-origin with the
+    // artifact's OWN origin (never ours), no popups, no downloads.
+    frame.setAttribute(
+      'sandbox',
+      'allow-scripts allow-same-origin allow-forms',
+    );
+    frame.setAttribute('referrerpolicy', 'no-referrer');
+    frame.setAttribute('allow', 'fullscreen; clipboard-write');
+    const base = this.frameBaseOf(a, served);
+    this.renderedFrameBase = base;
+    frame.src = `${base}?theme=${this.themeKind()}`;
+    const body = el('div', 'artifacts-viewer-body');
+    body.appendChild(frame);
+    if (this.showComments) body.appendChild(this.renderComments(a));
+    panel.appendChild(body);
+    return root;
+  }
+
+  servedVersionOf(a) {
+    return this.viewing?.version ?? a.pinnedVersion ?? a.latestVersion;
+  }
+
+  frameBaseOf(a, served) {
+    return served === a.latestVersion ? a.url : `${a.url}v/${served}/`;
+  }
+
+  /** The viewer's header: title, version picker, and the tool buttons. */
+  buildViewerHeader(a, served) {
     const header = el('div', 'artifacts-header');
     const back = el('button', 'artifacts-back', '‹ Artifacts');
     back.addEventListener('click', () => {
@@ -317,7 +373,6 @@ export class ArtifactsPanel {
 
     const picker = el('select', 'artifacts-version-picker');
     picker.setAttribute('aria-label', 'Version');
-    const served = this.viewing.version ?? a.pinnedVersion ?? a.latestVersion;
     const versions = this.versions.length
       ? this.versions
       : [{ n: a.latestVersion, createdAt: a.updatedAt }];
@@ -394,30 +449,7 @@ export class ArtifactsPanel {
     close.addEventListener('click', () => this.hide());
     tools.appendChild(close);
     header.appendChild(tools);
-    panel.appendChild(header);
-
-    if (share || this.shareError || this.sharePending === a.id) {
-      panel.appendChild(this.renderShareBar(a, share));
-    }
-
-    const frame = document.createElement('iframe');
-    frame.className = 'artifact-frame';
-    frame.title = 'User-generated artifact content';
-    // Exactly Claude Code's sandbox: scripts and forms, same-origin with the
-    // artifact's OWN origin (never ours), no popups, no downloads.
-    frame.setAttribute(
-      'sandbox',
-      'allow-scripts allow-same-origin allow-forms',
-    );
-    frame.setAttribute('referrerpolicy', 'no-referrer');
-    frame.setAttribute('allow', 'fullscreen; clipboard-write');
-    const base = served === a.latestVersion ? a.url : `${a.url}v/${served}/`;
-    frame.src = `${base}?theme=${this.themeKind()}`;
-    const body = el('div', 'artifacts-viewer-body');
-    body.appendChild(frame);
-    if (this.showComments) body.appendChild(this.renderComments(a));
-    panel.appendChild(body);
-    return root;
+    return header;
   }
 }
 
@@ -663,4 +695,73 @@ ArtifactsPanel.prototype.refreshComments = function refreshComments() {
     const open = this.threads.filter((t) => !t.resolved).length;
     button.textContent = open ? `Comments (${open})` : 'Comments';
   }
+};
+
+/**
+ * A page offered the viewer a file. The page cannot save it itself (the
+ * frame's sandbox forbids downloads), so the console asks, and on Save
+ * navigates its own hidden frame to the one-time attachment URL.
+ */
+ArtifactsPanel.prototype.showDownloadOffer = function showDownloadOffer(offer) {
+  if (!offer || !offer.token) return;
+  const existing = document.querySelector(
+    `.artifacts-download-bar[data-token="${offer.token}"]`,
+  );
+  if (existing) return;
+  const bar = el('div', 'artifacts-download-bar');
+  bar.dataset.token = offer.token;
+  const kb =
+    offer.size >= 1024
+      ? `${(offer.size / 1024).toFixed(offer.size >= 10240 ? 0 : 1)} KB`
+      : `${offer.size} B`;
+  bar.appendChild(
+    el(
+      'span',
+      'artifacts-download-text',
+      `“${offer.title}” wants to save ${offer.filename} (${kb}).`,
+    ),
+  );
+  const actions = el('div', 'artifacts-comment-actions');
+  const save = el('button', 'artifacts-btn artifacts-btn--publish', 'Save');
+  save.addEventListener('click', () => {
+    this.manager.decideDownload(offer.token, true);
+    const frame = document.createElement('iframe');
+    frame.hidden = true;
+    frame.src = offer.url;
+    document.body.appendChild(frame);
+    setTimeout(() => frame.remove(), 60000);
+    bar.remove();
+  });
+  const decline = el('button', 'artifacts-btn', 'Decline');
+  decline.addEventListener('click', () => {
+    this.manager.decideDownload(offer.token, false);
+    bar.remove();
+  });
+  actions.append(save, decline);
+  bar.appendChild(actions);
+  document.body.appendChild(bar);
+};
+
+/** Rebuilds the header, share bar and comments around a frame that stays. */
+ArtifactsPanel.prototype.refreshViewerChrome = function refreshViewerChrome(a) {
+  const viewer = this.container?.querySelector('.artifacts-viewer');
+  if (!viewer) {
+    this.render();
+    return;
+  }
+  const served = this.servedVersionOf(a);
+  const header = this.buildViewerHeader(a, served);
+  const oldHeader = viewer.querySelector('.artifacts-header');
+  if (oldHeader) oldHeader.replaceWith(header);
+  else viewer.prepend(header);
+  const oldBar = viewer.querySelector('.artifacts-share-bar');
+  const share = this.manager.shareOf(a.id);
+  if (share || this.shareError || this.sharePending === a.id) {
+    const bar = this.renderShareBar(a, share);
+    if (oldBar) oldBar.replaceWith(bar);
+    else header.after(bar);
+  } else if (oldBar) {
+    oldBar.remove();
+  }
+  this.refreshComments();
 };

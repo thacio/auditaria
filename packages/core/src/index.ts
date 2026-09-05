@@ -411,6 +411,13 @@ export type {
   CommentMessage,
   CommentAnchor,
 } from './artifacts/comments.js';
+export {
+  AssetStore,
+  AssetError,
+  ASSET_TYPES,
+  isAssetId,
+} from './artifacts/assets.js';
+export type { AssetRecord } from './artifacts/assets.js';
 export { ArtifactDb } from './artifacts/dbStore.js';
 export type { AcquireResult, BatchWrite } from './artifacts/dbStore.js';
 export {

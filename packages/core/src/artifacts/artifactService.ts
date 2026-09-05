@@ -9,6 +9,7 @@
 import path from 'node:path';
 import { ArtifactStore } from './artifactStore.js';
 import { artifactUrl } from './artifactPaths.js';
+import { AssetStore } from './assets.js';
 import { CommentStore } from './comments.js';
 import { ArtifactDb } from './dbStore.js';
 import { loadOwnerIdentity, type OwnerIdentity } from './identity.js';
@@ -53,6 +54,7 @@ export class ArtifactService {
   private readonly tracked = new Map<ArtifactId, TrackedArtifact>();
   private readonly dbs = new Map<ArtifactId, ArtifactDb>();
   private readonly comments = new Map<ArtifactId, CommentStore>();
+  private readonly assets = new Map<ArtifactId, AssetStore>();
   /** Notices to prepend to the next tool result, oldest first. */
   private readonly pendingNotices: string[] = [];
   /** Most recently published or attached artifact of this session. */
@@ -84,6 +86,19 @@ export class ArtifactService {
   /** The store when already opened (for synchronous event wiring). */
   peekStore(): ArtifactStore | null {
     return this.store;
+  }
+
+  /** The files attached to one artifact, opened on first use. */
+  async getAssets(id: ArtifactId): Promise<AssetStore> {
+    const store = await this.getStore();
+    await store.require(id);
+    let assets = this.assets.get(id);
+    if (!assets) {
+      assets = new AssetStore(store.paths(id).assetsDir);
+      this.assets.set(id, assets);
+    }
+    await assets.load();
+    return assets;
   }
 
   /** The comment threads of one artifact, opened on first use. */

@@ -34,6 +34,7 @@ import {
   needsAgentReply,
   type CommentThread,
 } from '../artifacts/comments.js';
+import { AssetError, isAssetId } from '../artifacts/assets.js';
 import { randomBytes } from 'node:crypto';
 import {
   MAX_DESCRIPTION_CHARS,
@@ -98,10 +99,6 @@ const READ_ONLY_ACTIONS: ReadonlySet<ArtifactAction> = new Set([
 /** Actions whose backend arrives in a later milestone. */
 const PENDING_ACTIONS: ReadonlySet<ArtifactAction> = new Set([
   'resume_replies',
-  'upload_asset',
-  'list_assets',
-  'read_asset',
-  'delete_asset',
 ]);
 
 export interface ArtifactToolParams {
@@ -382,6 +379,15 @@ export class ArtifactTool extends BaseDeclarativeTool<
         if (action === 'reply' && !params.text?.trim()) {
           return 'text is required for reply.';
         }
+        if (action === 'upload_asset' && !params.file_path?.trim()) {
+          return 'file_path is required for upload_asset.';
+        }
+        if (
+          (action === 'read_asset' || action === 'delete_asset') &&
+          !params.asset_id?.trim()
+        ) {
+          return `asset_id is required for ${action}.`;
+        }
         return null;
       default:
         return null;
@@ -572,6 +578,14 @@ class ArtifactInvocation extends BaseToolInvocation<
         return this.reply();
       case 'resolve':
         return this.resolve();
+      case 'upload_asset':
+        return this.uploadAsset();
+      case 'list_assets':
+        return this.listAssets();
+      case 'read_asset':
+        return this.readAsset();
+      case 'delete_asset':
+        return this.deleteAsset();
       case 'list_types':
         return text(
           'This host has no artifact types. Publish an .html file with action "publish" instead.',
@@ -1154,6 +1168,80 @@ class ArtifactInvocation extends BaseToolInvocation<
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Assets — files attached to the artifact, served at /__assets/<id>.
+  // ---------------------------------------------------------------------
+
+  private assetUrl(id: ArtifactId, assetId: string): string {
+    const base = this.service.urlFor(id);
+    return base ? `${base}__assets/${assetId}` : `/__assets/${assetId}`;
+  }
+
+  private async uploadAsset(): Promise<ToolResult> {
+    const id = this.requireId();
+    const filePath = this.params.file_path?.trim() ?? '';
+    const assets = await this.service.getAssets(id);
+    try {
+      const asset = await assets.add(path.resolve(filePath));
+      return text(
+        `Uploaded "${asset.name}" as asset ${asset.id} (${asset.type}, ${asset.size} bytes). Reference it from the page by this URL, verbatim: ${this.assetUrl(id, asset.id)}`,
+      );
+    } catch (error) {
+      return assetFailure(error);
+    }
+  }
+
+  private async listAssets(): Promise<ToolResult> {
+    const id = this.requireId();
+    const assets = await this.service.getAssets(id);
+    const page = assets.list({ after: this.params.after?.trim() || undefined });
+    if (page.assets.length === 0) return text(`No assets on artifact ${id}.`);
+    const lines = page.assets.map(
+      (a) =>
+        `- ${a.id} · ${a.name} · ${a.type} · ${a.size} bytes · ${this.assetUrl(id, a.id)}`,
+    );
+    return text(
+      `${page.assets.length} asset(s) on artifact ${id}:\n${lines.join('\n')}${page.next ? `\nnext: ${page.next} (pass it as "after" for the next page)` : ''}`,
+    );
+  }
+
+  private async readAsset(): Promise<ToolResult> {
+    const id = this.requireId();
+    const assetId = this.params.asset_id?.trim() ?? '';
+    if (!isAssetId(assetId)) {
+      return text(
+        'asset_id must be the 32-hex id of an asset (see list_assets).',
+      );
+    }
+    const assets = await this.service.getAssets(id);
+    const asset = assets.get(assetId);
+    if (!asset) return text(`No asset ${assetId} on artifact ${id}.`);
+    const dir = path.resolve(this.params.out_dir?.trim() || process.cwd());
+    await fsp.mkdir(dir, { recursive: true });
+    const target = path.join(dir, `${asset.id}.${asset.ext}`);
+    await fsp.copyFile(assets.fileOf(asset), target);
+    return text(
+      `Saved asset ${asset.id} ("${asset.name}", ${asset.size} bytes) to ${target}.`,
+    );
+  }
+
+  private async deleteAsset(): Promise<ToolResult> {
+    const id = this.requireId();
+    const assetId = this.params.asset_id?.trim() ?? '';
+    if (!isAssetId(assetId)) {
+      return text(
+        'asset_id must be the 32-hex id of an asset (see list_assets).',
+      );
+    }
+    const assets = await this.service.getAssets(id);
+    try {
+      const asset = await assets.remove(assetId);
+      return text(`Deleted asset ${asset.id} ("${asset.name}") permanently.`);
+    } catch (error) {
+      return assetFailure(error);
+    }
+  }
+
   private requireId(): ArtifactId {
     const id = parseArtifactReference(this.params.url ?? '');
     if (!id)
@@ -1162,6 +1250,13 @@ class ArtifactInvocation extends BaseToolInvocation<
       );
     return id;
   }
+}
+
+function assetFailure(error: unknown): ToolResult {
+  if (error instanceof AssetError) {
+    return text(`Error (${error.code}): ${error.message}`);
+  }
+  throw error;
 }
 
 function formatThread(thread: CommentThread): string {

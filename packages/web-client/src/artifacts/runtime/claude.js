@@ -442,9 +442,22 @@
               'save({filename, data}) needs a filename',
             );
           }
-          return encodeData(request.data).then((data) =>
-            call('downloads.save', { filename: request.filename, data }),
-          );
+          return encodeData(request.data)
+            .then((data) =>
+              call('downloads.save', { filename: request.filename, data }),
+            )
+            .then((result) => {
+              // No console to hand the file over: a standalone tab saves
+              // it itself (the browser shows its own prompt).
+              if (result && result.url) {
+                const frame = document.createElement('iframe');
+                frame.hidden = true;
+                frame.src = result.url;
+                document.body.appendChild(frame);
+                setTimeout(() => frame.remove(), 60000);
+              }
+              return { status: 'saved' };
+            });
         }),
       }),
     sample: () => {

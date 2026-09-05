@@ -16,6 +16,7 @@ import {
   renderMarkdown,
   usesMermaid,
   wrapDocument,
+  isAssetId,
   type ArtifactId,
   type ArtifactRecord,
   type ArtifactService,
@@ -99,6 +100,15 @@ export interface ArtifactHostOptions {
   readonly runtimeDir: string;
   /** Console origins allowed to frame artifacts (set once listening). */
   readonly getConsoleOrigins: () => readonly string[];
+  /** A one-time download a page offered (feature-owned), or null. */
+  readonly takeDownload: (token: string) => {
+    readonly artifactId: ArtifactId;
+    readonly file: string;
+    readonly filename: string;
+    readonly type: string;
+  } | null;
+  /** Forgets a download once served (or when it cannot be served). */
+  readonly discardDownload: (token: string) => Promise<void>;
 }
 
 /**
@@ -232,6 +242,58 @@ export function createArtifactHost(options: ArtifactHostOptions): VirtualHost {
     res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.send(svg);
+  });
+
+  // Files attached to the artifact (images, fonts, PDFs, …), immutable.
+  router.get('/__assets/:assetId', async (req, res) => {
+    const target = await resolveArtifact(req, res);
+    if (!target) return;
+    const assetId = req.params['assetId'];
+    if (!isAssetId(assetId)) {
+      res.status(404).type('text/plain').send('Not Found');
+      return;
+    }
+    const assets = await service.getAssets(target.id);
+    const asset = assets.get(assetId);
+    if (!asset) {
+      res.status(404).type('text/plain').send('Not Found');
+      return;
+    }
+    res.setHeader('Content-Type', asset.type);
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.sendFile(assets.fileOf(asset));
+  });
+
+  // A file the page offered and the viewer accepted: served once, as an
+  // attachment, then forgotten.
+  router.get('/__downloads/:token', async (req, res) => {
+    const target = await resolveArtifact(req, res);
+    if (!target) return;
+    const token = req.params['token'];
+    const offer = options.takeDownload(token);
+    if (!offer || offer.artifactId !== target.id) {
+      res
+        .status(404)
+        .type('text/plain')
+        .send('This download is no longer available.');
+      return;
+    }
+    res.setHeader('Content-Type', offer.type);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${offer.filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(offer.filename)}`,
+    );
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.sendFile(offer.file, (error?: Error) => {
+      if (error) {
+        logger.error('Artifact download failed:', error);
+        if (!res.headersSent) res.status(500).type('text/plain').send('Error');
+        return;
+      }
+      void options.discardDownload(token);
+    });
   });
 
   router.get('/__runtime/ping', (_req, res) => {

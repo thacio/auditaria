@@ -8,6 +8,9 @@
 // AUDITARIA_ARTIFACTS: hosts artifacts on their own origins and feeds the gallery.
 
 import type { WebSocket } from 'ws';
+import { randomBytes } from 'node:crypto';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import {
   ArtifactStoreError,
   DbError,
@@ -97,6 +100,8 @@ export class ArtifactsFeature extends WebFeature {
   private readonly wiredDbs = new WeakSet<ArtifactDb>();
   /** Comment stores whose events already reach the gallery and the agent. */
   private readonly wiredComments = new WeakSet<CommentStore>();
+  /** Files a page offered, keyed by their one-time token. */
+  private readonly downloads = new Map<string, PendingDownload>();
   private shares: ShareManager | null = null;
   private static cleanupRegistered = false;
   private static readonly liveManagers = new Set<ShareManager>();
@@ -113,6 +118,8 @@ export class ArtifactsFeature extends WebFeature {
         logger: ctx.logger,
         runtimeDir: runtimeDirFor(this.options.webClientRoot),
         getConsoleOrigins: () => this.consoleOrigins,
+        takeDownload: (token) => this.takeDownload(token),
+        discardDownload: (token) => this.discardDownload(token),
       }),
     );
 
@@ -177,6 +184,9 @@ export class ArtifactsFeature extends WebFeature {
     );
     inbound.on('artifact_comment_request', (message, ws) =>
       this.comment(message, ws),
+    );
+    inbound.on('artifact_download_decision', (message) =>
+      this.decideDownload(message),
     );
 
     void store.purgeExpired().then((purged) => {
@@ -392,6 +402,131 @@ export class ArtifactsFeature extends WebFeature {
         `Artifact changed: "${record.title}" (${record.id}) is now version ${version.n}, published by ${by}. Re-read it before editing or republishing.`,
       );
     }
+  }
+
+  // ---------------------------------------------------------------------
+  // downloads: a page never saves a file by itself (the viewer's sandbox
+  // forbids it). It hands the bytes to the server, the console shows the
+  // viewer a confirmation, and on accept the CONSOLE navigates its own
+  // hidden frame to a one-time attachment URL on the artifact origin. With
+  // no console connected (a standalone tab) the page navigates itself.
+  // ---------------------------------------------------------------------
+
+  private async offerDownload(
+    id: ArtifactId,
+    record: ArtifactRecord,
+    params: Record<string, unknown>,
+  ): Promise<unknown> {
+    const envelope: ClientMessage = { type: 'rpc', ...params };
+    const filename = (readString(envelope, 'filename') ?? '').trim();
+    if (!filename || filename.length > MAX_DOWNLOAD_FILENAME) {
+      throw rpc(
+        'invalid_argument',
+        'filename is required (at most 512 characters)',
+      );
+    }
+    const safeName = path
+      .basename(filename)
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .replace(/\s+/g, ' ');
+    const ext = path.extname(safeName).slice(1).toLowerCase();
+    if (!DOWNLOAD_EXTENSIONS.has(ext)) {
+      throw rpc(
+        'rejected_extension',
+        `".${ext || ''}" files cannot be offered; allowed: ${Array.from(DOWNLOAD_EXTENSIONS).join(', ')}`,
+      );
+    }
+    const data = params['data'];
+    const dataEnvelope: ClientMessage = isRecord(data)
+      ? { type: 'rpc', ...data }
+      : { type: 'rpc' };
+    const text = readString(dataEnvelope, 'text');
+    const base64 = readString(dataEnvelope, 'base64');
+    let bytes: Buffer;
+    if (text !== undefined) {
+      bytes = Buffer.from(text, 'utf-8');
+    } else if (base64 !== undefined) {
+      bytes = Buffer.from(base64, 'base64');
+    } else {
+      throw rpc(
+        'invalid_argument',
+        'data must be a string, Blob, ArrayBuffer or view',
+      );
+    }
+    if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
+      throw rpc(
+        'too_large',
+        `a download may be at most ${MAX_DOWNLOAD_BYTES} bytes on this host`,
+      );
+    }
+    const store = this.store;
+    if (!store) throw rpc('unavailable', 'store is not open');
+    const token = randomBytes(18).toString('base64url');
+    const dir = path.join(store.paths(id).root, 'downloads');
+    await mkdir(dir, { recursive: true });
+    const file = path.join(dir, `${token}.${ext}`);
+    await writeFile(file, bytes, { flag: 'wx' });
+    const offer: PendingDownload = {
+      token,
+      artifactId: id,
+      file,
+      filename: safeName,
+      size: bytes.byteLength,
+      type: DOWNLOAD_TYPES[ext] ?? 'application/octet-stream',
+      expiresAt: Date.now() + DOWNLOAD_TTL_MS,
+    };
+    this.downloads.set(token, offer);
+    setTimeout(() => {
+      void this.discardDownload(token);
+    }, DOWNLOAD_TTL_MS).unref();
+
+    const url = `${artifactUrl(id, this.port ?? 0)}__downloads/${token}`;
+    if (!this.ctx || this.ctx.clients.size === 0) {
+      // Nobody to ask: the page is in a standalone tab and saves itself.
+      return { status: 'saved', url };
+    }
+    const decision = new Promise<boolean>((resolve) => {
+      offer.decide = resolve;
+    });
+    this.broadcast('artifact_download_offer', {
+      id,
+      title: record.title,
+      token,
+      filename: safeName,
+      size: bytes.byteLength,
+      url,
+    });
+    const accepted = await decision;
+    if (!accepted) {
+      await this.discardDownload(token);
+      throw rpc('declined', 'the viewer declined the download');
+    }
+    return { status: 'saved' };
+  }
+
+  /** The console's answer to an offer. */
+  private decideDownload(message: ClientMessage): void {
+    const token = readString(message, 'token');
+    const offer = token ? this.downloads.get(token) : undefined;
+    if (!offer) return;
+    const accept = message['accept'] === true;
+    offer.decide?.(accept);
+    offer.decide = undefined;
+  }
+
+  /** Looks up a one-time download for the artifact host route. */
+  private takeDownload(token: string): PendingDownload | null {
+    const offer = this.downloads.get(token);
+    if (!offer || offer.expiresAt < Date.now()) return null;
+    return offer;
+  }
+
+  private async discardDownload(token: string): Promise<void> {
+    const offer = this.downloads.get(token);
+    if (!offer) return;
+    this.downloads.delete(token);
+    offer.decide?.(false);
+    await rm(offer.file, { force: true }).catch(() => undefined);
   }
 
   // ---------------------------------------------------------------------
@@ -840,6 +975,24 @@ export class ArtifactsFeature extends WebFeature {
           throw error;
         }
       }
+      case 'downloads.save':
+        return this.offerDownload(id, record, params);
+      case 'assets.list': {
+        const assets = await this.options.service.getAssets(id);
+        const page = assets.list({
+          after: readString({ type: 'rpc', ...params }, 'after'),
+        });
+        return {
+          assets: page.assets.map((a) => ({
+            id: a.id,
+            name: a.name,
+            type: a.type,
+            size: a.size,
+            url: `/__assets/${a.id}`,
+          })),
+          next: page.next,
+        };
+      }
       case 'db.get':
       case 'db.query':
       case 'db.set':
@@ -897,3 +1050,63 @@ interface LiveSubscription {
   readonly artifactId: ArtifactId;
   readonly target: { readonly path: string } | { readonly spec: QuerySpec };
 }
+
+/** A file a page offered the viewer, waiting for the decision or the fetch. */
+interface PendingDownload {
+  readonly token: string;
+  readonly artifactId: ArtifactId;
+  readonly file: string;
+  readonly filename: string;
+  readonly size: number;
+  readonly type: string;
+  readonly expiresAt: number;
+  decide?: (accept: boolean) => void;
+}
+
+const MAX_DOWNLOAD_FILENAME = 512;
+/** Claude's ordinary saves are unlimited; this host caps the socket payload. */
+const MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
+const DOWNLOAD_TTL_MS = 5 * 60 * 1000;
+/** The contract's allowlist (both lists enabled here). */
+const DOWNLOAD_EXTENSIONS: ReadonlySet<string> = new Set([
+  'gif',
+  'png',
+  'jpg',
+  'jpeg',
+  'webp',
+  'mp4',
+  'webm',
+  'txt',
+  'json',
+  'md',
+  'docx',
+  'pptx',
+  'epub',
+  'csv',
+  'ttf',
+  'html',
+  'svg',
+  'pdf',
+  'xlsx',
+]);
+const DOWNLOAD_TYPES: Readonly<Record<string, string>> = {
+  gif: 'image/gif',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  txt: 'text/plain; charset=utf-8',
+  json: 'application/json; charset=utf-8',
+  md: 'text/markdown; charset=utf-8',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  epub: 'application/epub+zip',
+  csv: 'text/csv; charset=utf-8',
+  ttf: 'font/ttf',
+  html: 'text/html; charset=utf-8',
+  svg: 'image/svg+xml',
+  pdf: 'application/pdf',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};

@@ -267,7 +267,7 @@ describe('ArtifactTool', () => {
 
   it('answers pending and compatibility actions with guidance', async () => {
     const pending = await run({
-      action: 'upload_asset',
+      action: 'resume_replies',
       url: '0123456789abcdef',
     });
     expect(String(pending.llmContent)).toMatch(
@@ -617,6 +617,109 @@ describe('ArtifactTool comments / reply / resolve', () => {
     ).toMatch(/text is required/);
     expect(tool.validateToolParams({ action: 'resolve', url: id })).toMatch(
       /thread_id is required/,
+    );
+  });
+});
+
+describe('ArtifactTool assets', () => {
+  let dir: string;
+  let service: ArtifactService;
+  let tool: ArtifactTool;
+  let id: string;
+
+  const run = async (params: ArtifactToolParams): Promise<string> => {
+    const error = tool.validateToolParams(params);
+    if (error) throw new Error(`validation: ${error}`);
+    const result = await tool
+      .build(params)
+      .execute({ abortSignal: new AbortController().signal });
+    return String(result.llmContent);
+  };
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'artifact-tool-assets-'));
+    service = new ArtifactService(
+      path.join(dir, '.auditaria'),
+      path.join(dir, 'home'),
+    );
+    service.setHost({
+      getPort: () => 8629,
+      openInBrowser: async () => true,
+      notify: () => {},
+    });
+    const config = {
+      getArtifactService: () => service,
+      getArtifactAutoOpen: () => false,
+      storage: { getProjectTempDir: () => path.join(dir, 'tmp') },
+    } as unknown as Config;
+    tool = new ArtifactTool(config, {} as unknown as MessageBus);
+    const file = path.join(dir, 'gallery.html');
+    await writeFile(file, '<title>Gallery</title><h1>Gallery</h1>', 'utf-8');
+    const published = await run({ file_path: file, favicon: '🖼️' });
+    id = (published.match(/artifact ([0-9a-f]{16})/) ?? [])[1];
+  });
+  afterEach(() => rm(dir, { recursive: true, force: true }));
+
+  it('uploads, lists with urls, reads back into out_dir, and deletes', async () => {
+    expect(await run({ action: 'list_assets', url: id })).toBe(
+      `No assets on artifact ${id}.`,
+    );
+    const png = path.join(dir, 'chart.png');
+    await writeFile(png, Buffer.from([1, 2, 3]));
+    const uploaded = await run({
+      action: 'upload_asset',
+      url: id,
+      file_path: png,
+    });
+    const assetId = (uploaded.match(/as asset ([0-9a-f]{32})/) ?? [])[1];
+    expect(uploaded).toContain(
+      `Uploaded "chart.png" as asset ${assetId} (image/png, 3 bytes).`,
+    );
+    expect(uploaded).toContain(
+      `http://art-${id}.localhost:8629/__assets/${assetId}`,
+    );
+
+    const listing = await run({ action: 'list_assets', url: id });
+    expect(listing).toContain(`1 asset(s) on artifact ${id}:`);
+    expect(listing).toContain(`- ${assetId} · chart.png · image/png · 3 bytes`);
+
+    const outDir = path.join(dir, 'out');
+    const saved = await run({
+      action: 'read_asset',
+      url: id,
+      asset_id: assetId,
+      out_dir: outDir,
+    });
+    expect(saved).toContain(`to ${path.join(outDir, `${assetId}.png`)}`);
+    expect(await readFile(path.join(outDir, `${assetId}.png`))).toEqual(
+      Buffer.from([1, 2, 3]),
+    );
+
+    expect(
+      await run({ action: 'delete_asset', url: id, asset_id: assetId }),
+    ).toBe(`Deleted asset ${assetId} ("chart.png") permanently.`);
+    expect(await run({ action: 'list_assets', url: id })).toBe(
+      `No assets on artifact ${id}.`,
+    );
+    expect(
+      await run({ action: 'read_asset', url: id, asset_id: assetId }),
+    ).toBe(`No asset ${assetId} on artifact ${id}.`);
+  });
+
+  it('rejects unsupported files and bad ids', async () => {
+    const exe = path.join(dir, 'tool.exe');
+    await writeFile(exe, 'MZ');
+    expect(
+      await run({ action: 'upload_asset', url: id, file_path: exe }),
+    ).toMatch(/^Error \(invalid_argument\): "tool.exe" is not an image/);
+    expect(
+      await run({ action: 'delete_asset', url: id, asset_id: 'nope' }),
+    ).toMatch(/asset_id must be the 32-hex id/);
+    expect(
+      tool.validateToolParams({ action: 'upload_asset', url: id }),
+    ).toMatch(/file_path is required/);
+    expect(tool.validateToolParams({ action: 'read_asset', url: id })).toMatch(
+      /asset_id is required/,
     );
   });
 });
