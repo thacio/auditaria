@@ -401,6 +401,16 @@ export type {
   ArtifactVersion,
   PublishOutcome,
 } from './artifacts/types.js';
+export {
+  CommentStore,
+  CommentError,
+  needsAgentReply,
+} from './artifacts/comments.js';
+export type {
+  CommentThread,
+  CommentMessage,
+  CommentAnchor,
+} from './artifacts/comments.js';
 export { ArtifactDb } from './artifacts/dbStore.js';
 export type { AcquireResult, BatchWrite } from './artifacts/dbStore.js';
 export {

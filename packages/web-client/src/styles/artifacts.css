@@ -377,3 +377,116 @@
   flex-basis: 100%;
   color: var(--text-secondary);
 }
+
+/* Viewer body: the frame beside the optional comments sidebar */
+.artifacts-viewer-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.artifacts-btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.artifacts-comments {
+  width: 340px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg, var(--surface));
+  font-size: 13px;
+}
+.artifacts-comments-head h3 {
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+.artifacts-comments-hint,
+.artifacts-comments-empty {
+  color: var(--text-muted);
+}
+.artifacts-comment-compose,
+.artifacts-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.artifacts-comment-compose textarea,
+.artifacts-reply-box {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--input-border, var(--border));
+  background: var(--input-bg);
+  color: var(--input-text, var(--text));
+  font: inherit;
+}
+.artifacts-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.artifacts-btn--send {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.artifacts-comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.artifacts-thread {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  background: var(--surface-alt, var(--surface));
+}
+.artifacts-thread--resolved {
+  opacity: 0.7;
+}
+.artifacts-thread-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.artifacts-thread-state {
+  font-weight: 600;
+  color: var(--text);
+}
+.artifacts-thread-sent {
+  color: var(--accent);
+}
+.artifacts-thread-anchor {
+  margin: 0;
+  padding: 4px 10px;
+  border-left: 3px solid var(--border-strong, var(--border));
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.artifacts-message {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.artifacts-message-who {
+  font-weight: 600;
+  font-size: 12px;
+}
+.artifacts-message--agent .artifacts-message-who {
+  color: var(--accent);
+}
+.artifacts-message-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.artifacts-message-flag {
+  font-size: 11px;
+  color: var(--text-muted);
+}

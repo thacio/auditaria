@@ -46,6 +46,19 @@ export class ArtifactsManager extends EventTarget {
         new CustomEvent('share', { detail: { id, url: url || null, error } }),
       );
     });
+    /** id → resolver for the next comments listing. */
+    this.commentWaiters = new Map();
+    wsManager.addEventListener('artifact_comments_response', (event) => {
+      const { id, threads } = event.detail || {};
+      const waiter = this.commentWaiters.get(id);
+      if (waiter) {
+        this.commentWaiters.delete(id);
+        waiter(Array.isArray(threads) ? threads : []);
+      }
+    });
+    wsManager.addEventListener('artifact_comment_event', (event) => {
+      this.dispatchEvent(new CustomEvent('comment', { detail: event.detail }));
+    });
     wsManager.addEventListener('artifact_open', (event) => {
       this.dispatchEvent(new CustomEvent('open', { detail: event.detail }));
     });
@@ -130,6 +143,25 @@ export class ArtifactsManager extends EventTarget {
 
   unshare(id) {
     this.wsManager.send({ type: 'artifact_share_request', id, op: 'stop' });
+  }
+
+  /** @returns {Promise<Array<object>>} the artifact's comment threads */
+  comments(id) {
+    return new Promise((resolve) => {
+      this.commentWaiters.set(id, resolve);
+      this.wsManager.send({ type: 'artifact_comments_request', id });
+      setTimeout(() => {
+        if (this.commentWaiters.get(id) === resolve) {
+          this.commentWaiters.delete(id);
+          resolve([]);
+        }
+      }, 8000);
+    });
+  }
+
+  /** op: create | reply | activate | resolve | reopen */
+  comment(id, op, extra = {}) {
+    this.wsManager.send({ type: 'artifact_comment_request', id, op, ...extra });
   }
 
   delete(id) {

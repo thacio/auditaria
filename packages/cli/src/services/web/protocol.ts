@@ -90,7 +90,9 @@ export type ServerMessageType =
   | 'artifact_event'
   | 'artifact_versions_response'
   | 'artifact_open'
-  | 'artifact_share_state';
+  | 'artifact_share_state'
+  | 'artifact_comments_response'
+  | 'artifact_comment_event';
 
 /** Messages chat clients send to the server. */
 export type ClientMessageType =
@@ -143,7 +145,9 @@ export type ClientMessageType =
   | 'artifact_update_request'
   | 'artifact_delete_request'
   | 'artifact_restore_request'
-  | 'artifact_share_request';
+  | 'artifact_share_request'
+  | 'artifact_comments_request'
+  | 'artifact_comment_request';
 
 /**
  * Message types that are full state snapshots. The per-client replay buffer

@@ -24,6 +24,23 @@ export class ArtifactsPanel {
     this.viewing = null; // { id, version }
     this.versions = [];
     this.confirmDeleteId = null;
+    /** Comment threads of the artifact on screen. */
+    this.threads = [];
+    this.showComments = false;
+    manager.addEventListener('comment', (event) => {
+      const { id, thread, error } = event.detail || {};
+      if (!this.viewing || id !== this.viewing.id) return;
+      if (error) {
+        toast(this.container, error);
+        return;
+      }
+      if (thread) {
+        const index = this.threads.findIndex((t) => t.id === thread.id);
+        if (index >= 0) this.threads[index] = thread;
+        else this.threads.unshift(thread);
+        this.refreshComments();
+      }
+    });
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleThemeChange = this.handleThemeChange.bind(this);
 
@@ -81,7 +98,14 @@ export class ArtifactsPanel {
   open(id, version = null) {
     this.viewing = { id, version };
     this.versions = [];
+    this.threads = [];
     this.show();
+    this.manager.comments(id).then((threads) => {
+      if (this.viewing?.id === id) {
+        this.threads = threads;
+        this.refreshComments();
+      }
+    });
     this.manager.versions(id).then((versions) => {
       if (this.viewing?.id === id) {
         this.versions = versions;
@@ -351,6 +375,20 @@ export class ArtifactsPanel {
       this.render();
     });
     tools.appendChild(publish);
+    const openThreads = this.threads.filter((t) => !t.resolved).length;
+    const commentsBtn = el(
+      'button',
+      `artifacts-btn artifacts-btn--comments${this.showComments ? ' artifacts-btn--active' : ''}`,
+      openThreads ? `Comments (${openThreads})` : 'Comments',
+    );
+    commentsBtn.title = 'Comment on this artifact';
+    commentsBtn.addEventListener('click', () => {
+      // Only the sidebar changes; never re-create the frame for this.
+      this.showComments = !this.showComments;
+      commentsBtn.classList.toggle('artifacts-btn--active', this.showComments);
+      this.refreshComments();
+    });
+    tools.appendChild(commentsBtn);
     const close = el('button', 'artifacts-close', '×');
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', () => this.hide());
@@ -375,7 +413,10 @@ export class ArtifactsPanel {
     frame.setAttribute('allow', 'fullscreen; clipboard-write');
     const base = served === a.latestVersion ? a.url : `${a.url}v/${served}/`;
     frame.src = `${base}?theme=${this.themeKind()}`;
-    panel.appendChild(frame);
+    const body = el('div', 'artifacts-viewer-body');
+    body.appendChild(frame);
+    if (this.showComments) body.appendChild(this.renderComments(a));
+    panel.appendChild(body);
     return root;
   }
 }
@@ -461,3 +502,165 @@ function toast(container, message) {
   container.appendChild(node);
   setTimeout(() => node.remove(), 2500);
 }
+
+/**
+ * The comments sidebar: a new-thread box, then every thread (open first)
+ * with its messages, a reply box, "Send to agent" (activation), and
+ * Resolve/Reopen. Threads reach the agent only once sent.
+ */
+ArtifactsPanel.prototype.renderComments = function renderComments(a) {
+  const side = el('aside', 'artifacts-comments');
+  const head = el('div', 'artifacts-comments-head');
+  head.appendChild(el('h3', '', 'Comments'));
+  head.appendChild(
+    el(
+      'span',
+      'artifacts-comments-hint',
+      'A thread reaches the agent only when you send it.',
+    ),
+  );
+  side.appendChild(head);
+
+  const compose = el('form', 'artifacts-comment-compose');
+  const textarea = document.createElement('textarea');
+  textarea.placeholder = 'Comment on this artifact…';
+  textarea.rows = 3;
+  compose.appendChild(textarea);
+  const row = el('div', 'artifacts-comment-actions');
+  const post = el('button', 'artifacts-btn', 'Comment');
+  post.type = 'submit';
+  const send = el(
+    'button',
+    'artifacts-btn artifacts-btn--send',
+    'Send to agent',
+  );
+  send.type = 'button';
+  row.append(post, send);
+  compose.appendChild(row);
+  const submit = (sendToAgent) => {
+    const text = textarea.value.trim();
+    if (!text) return;
+    this.manager.comment(a.id, 'create', { text, send_to_agent: sendToAgent });
+    textarea.value = '';
+  };
+  compose.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submit(false);
+  });
+  send.addEventListener('click', () => submit(true));
+  side.appendChild(compose);
+
+  const list = el('div', 'artifacts-comment-list');
+  if (this.threads.length === 0) {
+    list.appendChild(el('p', 'artifacts-comments-empty', 'No comments yet.'));
+  }
+  for (const t of this.threads) list.appendChild(this.renderThread(a, t));
+  side.appendChild(list);
+  return side;
+};
+
+ArtifactsPanel.prototype.renderThread = function renderThread(a, t) {
+  const box = el(
+    'article',
+    `artifacts-thread${t.resolved ? ' artifacts-thread--resolved' : ''}`,
+  );
+  box.dataset.threadId = t.id;
+  const meta = el('div', 'artifacts-thread-meta');
+  meta.appendChild(
+    el('span', 'artifacts-thread-state', t.resolved ? 'Resolved' : 'Open'),
+  );
+  meta.appendChild(
+    el('span', '', `v${t.version} · ${relativeTime(t.createdAt)}`),
+  );
+  if (t.activated)
+    meta.appendChild(el('span', 'artifacts-thread-sent', 'Sent to agent'));
+  box.appendChild(meta);
+  if (t.anchor && t.anchor.text) {
+    box.appendChild(el('blockquote', 'artifacts-thread-anchor', t.anchor.text));
+  }
+  for (const m of t.messages) {
+    const msg = el('div', `artifacts-message artifacts-message--${m.author}`);
+    msg.appendChild(
+      el(
+        'span',
+        'artifacts-message-who',
+        m.author === 'agent' ? 'Agent · via you' : 'You',
+      ),
+    );
+    msg.appendChild(el('span', 'artifacts-message-text', m.text));
+    if (m.sentToAgent)
+      msg.appendChild(el('span', 'artifacts-message-flag', 'sent to agent'));
+    box.appendChild(msg);
+  }
+  const replyBox = document.createElement('textarea');
+  replyBox.rows = 2;
+  replyBox.placeholder = 'Reply…';
+  replyBox.className = 'artifacts-reply-box';
+  box.appendChild(replyBox);
+  const actions = el('div', 'artifacts-comment-actions');
+  const reply = el('button', 'artifacts-btn', 'Reply');
+  reply.addEventListener('click', () => {
+    const text = replyBox.value.trim();
+    if (!text) return;
+    this.manager.comment(a.id, 'reply', { thread_id: t.id, text });
+    replyBox.value = '';
+  });
+  actions.appendChild(reply);
+  if (!t.activated) {
+    const activate = el(
+      'button',
+      'artifacts-btn artifacts-btn--send',
+      'Send to agent',
+    );
+    activate.addEventListener('click', () => {
+      const text = replyBox.value.trim();
+      if (text) {
+        this.manager.comment(a.id, 'reply', {
+          thread_id: t.id,
+          text,
+          send_to_agent: true,
+        });
+      } else {
+        this.manager.comment(a.id, 'activate', { thread_id: t.id });
+      }
+      replyBox.value = '';
+    });
+    actions.appendChild(activate);
+  }
+  const toggle = el(
+    'button',
+    'artifacts-btn',
+    t.resolved ? 'Reopen' : 'Resolve',
+  );
+  toggle.addEventListener('click', () =>
+    this.manager.comment(a.id, t.resolved ? 'reopen' : 'resolve', {
+      thread_id: t.id,
+    }),
+  );
+  actions.appendChild(toggle);
+  box.appendChild(actions);
+  return box;
+};
+
+/** Re-renders only the comments sidebar and its button, keeping the frame. */
+ArtifactsPanel.prototype.refreshComments = function refreshComments() {
+  const viewer = this.container?.querySelector('.artifacts-viewer');
+  const a = this.viewing ? this.manager.get(this.viewing.id) : null;
+  if (!viewer || !a) {
+    this.render();
+    return;
+  }
+  const old = viewer.querySelector('.artifacts-comments');
+  if (this.showComments) {
+    const fresh = this.renderComments(a);
+    if (old) old.replaceWith(fresh);
+    else viewer.querySelector('.artifacts-viewer-body')?.appendChild(fresh);
+  } else if (old) {
+    old.remove();
+  }
+  const button = viewer.querySelector('.artifacts-btn--comments');
+  if (button) {
+    const open = this.threads.filter((t) => !t.resolved).length;
+    button.textContent = open ? `Comments (${open})` : 'Comments';
+  }
+};

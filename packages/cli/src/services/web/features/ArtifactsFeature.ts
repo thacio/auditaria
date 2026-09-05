@@ -20,6 +20,8 @@ import {
   type AccessRule,
   type ArtifactDb,
   type ArtifactRecord,
+  type CommentStore,
+  type CommentThread,
   type QuerySpec,
   type StoredDoc,
   type Viewer,
@@ -93,6 +95,8 @@ export class ArtifactsFeature extends WebFeature {
   private nextSubscriptionId = 1;
   /** Databases whose change events already fan out to subscribers. */
   private readonly wiredDbs = new WeakSet<ArtifactDb>();
+  /** Comment stores whose events already reach the gallery and the agent. */
+  private readonly wiredComments = new WeakSet<CommentStore>();
   private shares: ShareManager | null = null;
   private static cleanupRegistered = false;
   private static readonly liveManagers = new Set<ShareManager>();
@@ -168,6 +172,12 @@ export class ArtifactsFeature extends WebFeature {
     inbound.on('artifact_update_request', (message) => this.update(message));
     inbound.on('artifact_delete_request', (message) => this.remove(message));
     inbound.on('artifact_restore_request', (message) => this.restore(message));
+    inbound.on('artifact_comments_request', (message, ws) =>
+      this.sendComments(message, ws),
+    );
+    inbound.on('artifact_comment_request', (message, ws) =>
+      this.comment(message, ws),
+    );
 
     void store.purgeExpired().then((purged) => {
       if (purged.length)
@@ -381,6 +391,98 @@ export class ArtifactsFeature extends WebFeature {
       this.options.service.pushNotice(
         `Artifact changed: "${record.title}" (${record.id}) is now version ${version.n}, published by ${by}. Re-read it before editing or republishing.`,
       );
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Comments: threads live in the gallery's sidebar; a thread reaches the
+  // agent (a notice now, the tool's `comments` action later) only once a
+  // person sends it. Every change is broadcast so open sidebars follow.
+  // ---------------------------------------------------------------------
+
+  private async commentsFor(id: ArtifactId): Promise<CommentStore> {
+    const comments = await this.options.service.getComments(id);
+    if (!this.wiredComments.has(comments)) {
+      this.wiredComments.add(comments);
+      comments.on('change', (thread) => {
+        this.broadcast('artifact_comment_event', { id, thread });
+      });
+      comments.on('activated', (thread) => {
+        void this.noticeComments(id, thread);
+      });
+    }
+    return comments;
+  }
+
+  private async noticeComments(
+    id: ArtifactId,
+    thread: CommentThread,
+  ): Promise<void> {
+    const record = await this.store?.get(id);
+    const title = record?.title ?? id;
+    this.options.service.pushNotice(
+      `Comments are waiting on Artifact: "${title}" (${id}) — thread ${thread.id} was sent to you. Run the artifact tool with action "comments" and url ${id} to read it, then reply or resolve.`,
+    );
+  }
+
+  private async sendComments(
+    message: ClientMessage,
+    ws: WebSocket,
+  ): Promise<void> {
+    const id = this.idOf(message);
+    if (!id) return;
+    try {
+      const comments = await this.commentsFor(id);
+      this.send(ws, 'artifact_comments_response', {
+        id,
+        threads: comments.list(),
+      });
+    } catch (error) {
+      this.ctx?.logger.error('Artifact comments failed:', error);
+    }
+  }
+
+  /** A viewer's comment action from the sidebar. */
+  private async comment(message: ClientMessage, ws: WebSocket): Promise<void> {
+    const id = this.idOf(message);
+    const store = this.store;
+    if (!id || !store) return;
+    const op = readString(message, 'op');
+    const threadId = readString(message, 'thread_id') ?? '';
+    const text = readString(message, 'text') ?? '';
+    const anchorText = readString(message, 'anchor');
+    const sendToAgent = message['send_to_agent'] === true;
+    try {
+      const record = await store.require(id);
+      const comments = await this.commentsFor(id);
+      switch (op) {
+        case 'create':
+          await comments.create({
+            version: record.latestVersion,
+            author: 'user',
+            text,
+            anchor: anchorText ? { text: anchorText } : null,
+            sendToAgent,
+          });
+          break;
+        case 'reply':
+          await comments.reply(threadId, { author: 'user', text, sendToAgent });
+          break;
+        case 'activate':
+          await comments.activate(threadId);
+          break;
+        case 'resolve':
+          await comments.resolve(threadId, 'user');
+          break;
+        case 'reopen':
+          await comments.reopen(threadId);
+          break;
+        default:
+          this.ctx?.logger.warn(`Unknown comment op: ${String(op)}`);
+      }
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      this.send(ws, 'artifact_comment_event', { id, error: text });
     }
   }
 
