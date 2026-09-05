@@ -128,6 +128,7 @@ import { AgentSessionManager } from '../providers/agent-session-manager.js'; // 
 // AUDITARIA_ARTIFACTS_START: artifact tool + per-process service
 import { ArtifactTool } from '../tools/artifact.js';
 import { ArtifactService } from '../artifacts/artifactService.js';
+import { createSampler } from '../artifacts/sampleExecutor.js';
 // AUDITARIA_ARTIFACTS_END
 import { SessionRegistry } from '../providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 import { FileCheckpointManager } from '../file-checkpoints/index.js'; // AUDITARIA_REWIND
@@ -3386,10 +3387,15 @@ export class Config implements McpContext, AgentLoopContext {
 
   // AUDITARIA_ARTIFACTS_START: per-process artifact service (store, identity, host seam)
   getArtifactService(): ArtifactService {
-    this.artifactService_ ??= new ArtifactService(
-      resolveConfigDirPath(this.targetDir),
-      Storage.getGlobalGeminiDir(),
-    );
+    if (!this.artifactService_) {
+      this.artifactService_ = new ArtifactService(
+        resolveConfigDirPath(this.targetDir),
+        Storage.getGlobalGeminiDir(),
+      );
+      // Pages that declare `sample` ask the model through this Config's
+      // provider — headless, tool-less, outside the chat session.
+      this.artifactService_.setSampler(createSampler(this));
+    }
     return this.artifactService_;
   }
 

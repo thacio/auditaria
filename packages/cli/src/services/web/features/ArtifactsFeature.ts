@@ -14,7 +14,10 @@ import path from 'node:path';
 import {
   ArtifactStoreError,
   DbError,
+  SampleError,
+  SAMPLE_MAX_PROMPT_BYTES,
   MAX_SUBSCRIPTIONS_PER_VIEW,
+  type ModelTier,
   collectionOf,
   idOf,
   mayAccess,
@@ -102,6 +105,20 @@ export class ArtifactsFeature extends WebFeature {
   private readonly wiredComments = new WeakSet<CommentStore>();
   /** Files a page offered, keyed by their one-time token. */
   private readonly downloads = new Map<string, PendingDownload>();
+  /** Pages waiting for the owner to allow model calls, per artifact. */
+  private readonly consentWaiters = new Map<
+    ArtifactId,
+    Set<(allowed: boolean) => void>
+  >();
+  /** Model calls in flight per artifact (a page cannot flood the model). */
+  private readonly samplesInFlight = new Map<ArtifactId, number>();
+  /** Recent answers, replayed for identical prompts (the contract's cache). */
+  private readonly sampleCache = new Map<string, CachedSample>();
+  /** Abort controllers of running model calls, per socket and request. */
+  private readonly sampleAborts = new Map<
+    WebSocket,
+    Map<number, AbortController>
+  >();
   private shares: ShareManager | null = null;
   private static cleanupRegistered = false;
   private static readonly liveManagers = new Set<ShareManager>();
@@ -306,9 +323,12 @@ export class ArtifactsFeature extends WebFeature {
           });
           break;
         }
-        case 'sample_consent':
-          await store.setSampleConsent(id, message['consent'] === true);
+        case 'sample_consent': {
+          const consent = message['consent'] === true;
+          await store.setSampleConsent(id, consent);
+          this.settleSampleConsent(id, consent);
           break;
+        }
         default:
           this.ctx?.logger.warn(`Unknown artifact update op: ${String(op)}`);
       }
@@ -402,6 +422,141 @@ export class ArtifactsFeature extends WebFeature {
         `Artifact changed: "${record.title}" (${record.id}) is now version ${version.n}, published by ${by}. Re-read it before editing or republishing.`,
       );
     }
+  }
+
+  // ---------------------------------------------------------------------
+  // sample: a page asks the model. The call spends the OWNER's provider
+  // quota, so the owner allows it once per artifact; the first call while
+  // unallowed asks through the console and waits for the answer. Calls are
+  // tool-less and memory-less, capped per artifact, and cached briefly.
+  // ---------------------------------------------------------------------
+
+  private async dispatchSample(
+    id: ArtifactId,
+    record: ArtifactRecord,
+    method: string,
+    params: Record<string, unknown>,
+    ws: WebSocket,
+  ): Promise<unknown> {
+    const envelope: ClientMessage = { type: 'rpc', ...params };
+    if (method === 'sample.limits') {
+      return { maxPromptBytes: SAMPLE_MAX_PROMPT_BYTES };
+    }
+    if (method === 'sample.cancel') {
+      const requestId = readNumber(envelope, 'requestId');
+      if (requestId !== undefined) {
+        this.sampleAborts.get(ws)?.get(requestId)?.abort();
+      }
+      return null;
+    }
+    const sampler = this.options.service.getSampler();
+    if (!sampler) throw rpc('capability_disabled', 'no model is available');
+    if (!(await this.ensureSampleConsent(id, record))) {
+      throw rpc(
+        'not_granted',
+        "the owner has not allowed this page to ask the model (allow it from the artifact's viewer)",
+      );
+    }
+    const inFlight = this.samplesInFlight.get(id) ?? 0;
+    if (inFlight >= SAMPLE_MAX_IN_FLIGHT) {
+      throw rpc('rate_limited', 'too many model calls in flight for this page');
+    }
+    const requestId = readNumber(envelope, 'requestId') ?? 0;
+    const tierRaw = readString(envelope, 'modelTier');
+    const tier: ModelTier =
+      tierRaw === 'quick' || tierRaw === 'complex' ? tierRaw : 'default';
+    const useCache = params['cache'] !== false;
+    const cacheKey = `${id}:${tier}:${JSON.stringify(params['input'])}`;
+    const cached = useCache ? this.sampleCache.get(cacheKey) : undefined;
+    if (cached && cached.at + SAMPLE_CACHE_TTL_MS > Date.now()) {
+      ws.send(
+        JSON.stringify({
+          push: 'sample.text',
+          data: { requestId, text: cached.text, delta: cached.text },
+        }),
+      );
+      return {
+        text: cached.text,
+        truncated: cached.truncated,
+        modelTierApplied: cached.modelTierApplied,
+      };
+    }
+    const controller = new AbortController();
+    const perSocket =
+      this.sampleAborts.get(ws) ?? new Map<number, AbortController>();
+    perSocket.set(requestId, controller);
+    this.sampleAborts.set(ws, perSocket);
+    this.samplesInFlight.set(id, inFlight + 1);
+    try {
+      const result = await sampler({
+        input: params['input'],
+        modelTier: tier,
+        signal: controller.signal,
+        onText: (text, delta) => {
+          if (ws.readyState === ws.OPEN) {
+            ws.send(
+              JSON.stringify({
+                push: 'sample.text',
+                data: { requestId, text, delta },
+              }),
+            );
+          }
+        },
+      });
+      if (useCache) {
+        this.sampleCache.set(cacheKey, { ...result, at: Date.now() });
+        if (this.sampleCache.size > SAMPLE_CACHE_MAX) {
+          const oldest = this.sampleCache.keys().next().value;
+          if (oldest !== undefined) this.sampleCache.delete(oldest);
+        }
+      }
+      return result;
+    } catch (error) {
+      if (error instanceof SampleError) {
+        throw rpc(
+          error.code,
+          error.message,
+          error.text ? { text: error.text } : {},
+        );
+      }
+      throw error;
+    } finally {
+      perSocket.delete(requestId);
+      const remaining = (this.samplesInFlight.get(id) ?? 1) - 1;
+      if (remaining <= 0) this.samplesInFlight.delete(id);
+      else this.samplesInFlight.set(id, remaining);
+    }
+  }
+
+  /** True once the owner allowed model calls; asks through the console. */
+  private async ensureSampleConsent(
+    id: ArtifactId,
+    record: ArtifactRecord,
+  ): Promise<boolean> {
+    if (record.sampleConsent) return true;
+    if (!this.ctx || this.ctx.clients.size === 0) return false;
+    const waiters = this.consentWaiters.get(id) ?? new Set();
+    const decision = new Promise<boolean>((resolve) => {
+      waiters.add(resolve);
+      setTimeout(() => {
+        if (waiters.delete(resolve)) resolve(false);
+      }, SAMPLE_CONSENT_TIMEOUT_MS).unref();
+    });
+    if (waiters.size === 1) {
+      this.consentWaiters.set(id, waiters);
+      this.broadcast('artifact_sample_consent_request', {
+        id,
+        title: record.title,
+      });
+    }
+    return decision;
+  }
+
+  private settleSampleConsent(id: ArtifactId, allowed: boolean): void {
+    const waiters = this.consentWaiters.get(id);
+    if (!waiters) return;
+    this.consentWaiters.delete(id);
+    for (const resolve of waiters) resolve(allowed);
   }
 
   // ---------------------------------------------------------------------
@@ -977,6 +1132,10 @@ export class ArtifactsFeature extends WebFeature {
       }
       case 'downloads.save':
         return this.offerDownload(id, record, params);
+      case 'sample':
+      case 'sample.limits':
+      case 'sample.cancel':
+        return this.dispatchSample(id, record, method, params, ws);
       case 'assets.list': {
         const assets = await this.options.service.getAssets(id);
         const page = assets.list({
@@ -1110,3 +1269,16 @@ const DOWNLOAD_TYPES: Readonly<Record<string, string>> = {
   pdf: 'application/pdf',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
+
+/** A recent model answer, replayed for the same prompt within the TTL. */
+interface CachedSample {
+  readonly text: string;
+  readonly truncated: boolean;
+  readonly modelTierApplied: ModelTier;
+  readonly at: number;
+}
+
+const SAMPLE_MAX_IN_FLIGHT = 2;
+const SAMPLE_CACHE_TTL_MS = 5 * 60 * 1000;
+const SAMPLE_CACHE_MAX = 200;
+const SAMPLE_CONSENT_TIMEOUT_MS = 5 * 60 * 1000;

@@ -62,6 +62,9 @@ export class ArtifactsManager extends EventTarget {
     wsManager.addEventListener('artifact_download_offer', (event) => {
       this.dispatchEvent(new CustomEvent('download', { detail: event.detail }));
     });
+    wsManager.addEventListener('artifact_sample_consent_request', (event) => {
+      this.dispatchEvent(new CustomEvent('consent', { detail: event.detail }));
+    });
     wsManager.addEventListener('artifact_open', (event) => {
       this.dispatchEvent(new CustomEvent('open', { detail: event.detail }));
     });

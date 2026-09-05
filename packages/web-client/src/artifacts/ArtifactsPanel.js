@@ -48,6 +48,9 @@ export class ArtifactsPanel {
     manager.addEventListener('download', (event) =>
       this.showDownloadOffer(event.detail),
     );
+    manager.addEventListener('consent', (event) =>
+      this.showConsentRequest(event.detail),
+    );
     manager.addEventListener('share', (event) => {
       const { id, error } = event.detail || {};
       if (error) this.shareError = error;
@@ -764,4 +767,40 @@ ArtifactsPanel.prototype.refreshViewerChrome = function refreshViewerChrome(a) {
     oldBar.remove();
   }
   this.refreshComments();
+};
+
+/**
+ * A page wants to ask the model. That spends the owner's own provider
+ * quota, so the owner allows it once per artifact; the page's first call
+ * waits for this answer.
+ */
+ArtifactsPanel.prototype.showConsentRequest = function showConsentRequest(req) {
+  if (!req || !req.id) return;
+  const existing = document.querySelector(
+    `.artifacts-consent-bar[data-id="${req.id}"]`,
+  );
+  if (existing) return;
+  const bar = el('div', 'artifacts-download-bar artifacts-consent-bar');
+  bar.dataset.id = req.id;
+  bar.appendChild(
+    el(
+      'span',
+      'artifacts-download-text',
+      `“${req.title}” wants to ask the model. That spends your own provider quota; allowing it applies to this artifact until you turn it off.`,
+    ),
+  );
+  const actions = el('div', 'artifacts-comment-actions');
+  const allow = el('button', 'artifacts-btn artifacts-btn--publish', 'Allow');
+  allow.addEventListener('click', () => {
+    this.manager.setSampleConsent(req.id, true);
+    bar.remove();
+  });
+  const deny = el('button', 'artifacts-btn', 'Not now');
+  deny.addEventListener('click', () => {
+    this.manager.setSampleConsent(req.id, false);
+    bar.remove();
+  });
+  actions.append(allow, deny);
+  bar.appendChild(actions);
+  document.body.appendChild(bar);
 };

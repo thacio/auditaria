@@ -10,6 +10,7 @@ import path from 'node:path';
 import { ArtifactStore } from './artifactStore.js';
 import { artifactUrl } from './artifactPaths.js';
 import { AssetStore } from './assets.js';
+import type { Sampler } from './sampleExecutor.js';
 import { CommentStore } from './comments.js';
 import { ArtifactDb } from './dbStore.js';
 import { loadOwnerIdentity, type OwnerIdentity } from './identity.js';
@@ -55,6 +56,7 @@ export class ArtifactService {
   private readonly dbs = new Map<ArtifactId, ArtifactDb>();
   private readonly comments = new Map<ArtifactId, CommentStore>();
   private readonly assets = new Map<ArtifactId, AssetStore>();
+  private sampler: Sampler | null = null;
   /** Notices to prepend to the next tool result, oldest first. */
   private readonly pendingNotices: string[] = [];
   /** Most recently published or attached artifact of this session. */
@@ -86,6 +88,15 @@ export class ArtifactService {
   /** The store when already opened (for synchronous event wiring). */
   peekStore(): ArtifactStore | null {
     return this.store;
+  }
+
+  /** The model-call engine for pages that declare `sample` (set by Config). */
+  setSampler(sampler: Sampler | null): void {
+    this.sampler = sampler;
+  }
+
+  getSampler(): Sampler | null {
+    return this.sampler;
   }
 
   /** The files attached to one artifact, opened on first use. */

@@ -418,6 +418,17 @@ export {
   isAssetId,
 } from './artifacts/assets.js';
 export type { AssetRecord } from './artifacts/assets.js';
+export {
+  SampleError,
+  MAX_PROMPT_BYTES as SAMPLE_MAX_PROMPT_BYTES,
+  createSampler,
+} from './artifacts/sampleExecutor.js';
+export type {
+  Sampler,
+  SampleRequest,
+  SampleResult,
+  ModelTier,
+} from './artifacts/sampleExecutor.js';
 export { ArtifactDb } from './artifacts/dbStore.js';
 export type { AcquireResult, BatchWrite } from './artifacts/dbStore.js';
 export {

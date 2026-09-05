@@ -93,7 +93,8 @@ export type ServerMessageType =
   | 'artifact_share_state'
   | 'artifact_comments_response'
   | 'artifact_comment_event'
-  | 'artifact_download_offer';
+  | 'artifact_download_offer'
+  | 'artifact_sample_consent_request';
 
 /** Messages chat clients send to the server. */
 export type ClientMessageType =
