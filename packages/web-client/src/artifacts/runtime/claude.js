@@ -200,17 +200,120 @@
         profiles: guard((ids) => call('user.profiles', { ids })),
       }),
     db: () => {
+      // The path grammar, checked here so a bad path throws a TypeError
+      // synchronously at ref creation (the server re-checks every call).
+      const SEGMENT = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
+      const checkPath = (path, wantDoc) => {
+        const text = String(path);
+        const segments = text === '' ? [] : text.split('/');
+        if (segments.length > 16) {
+          throw new TypeError(
+            `path has ${segments.length} segments; at most 16 are allowed`,
+          );
+        }
+        for (const segment of segments) {
+          if (segment === '.' || segment === '..' || !SEGMENT.test(segment)) {
+            throw new TypeError(
+              `path segment "${segment}" breaks the grammar (letters, digits, _ - . ~ : @ +; 1-200 characters)`,
+            );
+          }
+        }
+        const even = segments.length % 2 === 0;
+        if (wantDoc && (segments.length === 0 || !even)) {
+          throw new TypeError(
+            `"${text}" is not a document path: it has ${segments.length} segments (a document path has an even number, like "tasks/t1")`,
+          );
+        }
+        if (!wantDoc && even) {
+          throw new TypeError(
+            `"${text}" is not a collection path: it has ${segments.length} segments (a collection path has an odd number, like "tasks")`,
+          );
+        }
+        return text;
+      };
+      const deepFreeze = (value) => {
+        if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+          Object.freeze(value);
+          for (const key of Object.keys(value)) deepFreeze(value[key]);
+        }
+        return value;
+      };
+      const metadata = (pending) =>
+        Object.freeze({ fromCache: false, hasPendingWrites: pending === true });
+      // Snapshots as the contract delivers them: frozen, `data()` accessor.
+      const hydrateDoc = (raw, cache) => {
+        const cached = cache && cache.get(raw.id);
+        if (
+          cached &&
+          cached.version === raw.version &&
+          cached.exists === raw.exists
+        ) {
+          return cached.snap;
+        }
+        const data = raw.exists ? deepFreeze(raw.data || {}) : undefined;
+        const snap = Object.freeze({
+          id: raw.id,
+          exists: raw.exists === true,
+          data: () => data,
+          metadata: metadata(false),
+        });
+        if (cache)
+          cache.set(raw.id, { version: raw.version, exists: raw.exists, snap });
+        return snap;
+      };
+      const hydrateQuery = (raw, state) => {
+        const cache = state ? state.cache : null;
+        const docs = (raw.docs || []).map((d) => hydrateDoc(d, cache));
+        const previous = state ? state.previous : [];
+        const prevIndex = new Map(previous.map((d, i) => [d.id, i]));
+        const nextIndex = new Map(docs.map((d, i) => [d.id, i]));
+        const changes = [];
+        for (const [id, oldIndex] of prevIndex) {
+          if (!nextIndex.has(id)) {
+            changes.push({
+              type: 'removed',
+              doc: previous[oldIndex],
+              oldIndex,
+              newIndex: -1,
+            });
+          }
+        }
+        docs.forEach((doc, newIndex) => {
+          const oldIndex = prevIndex.has(doc.id) ? prevIndex.get(doc.id) : -1;
+          if (oldIndex === -1) {
+            changes.push({ type: 'added', doc, oldIndex: -1, newIndex });
+          } else if (previous[oldIndex] !== doc) {
+            changes.push({ type: 'modified', doc, oldIndex, newIndex });
+          }
+        });
+        if (state) state.previous = docs;
+        const frozenDocs = Object.freeze(docs);
+        const frozenChanges = Object.freeze(
+          changes.map((c) => Object.freeze(c)),
+        );
+        return Object.freeze({
+          docs: frozenDocs,
+          size: frozenDocs.length,
+          empty: frozenDocs.length === 0,
+          docChanges: () => frozenChanges,
+          metadata: metadata(false),
+        });
+      };
       const docRef = (docPath) => ({
         id: docPath.split('/').pop(),
         path: docPath,
-        get: () => call('db.get', { path: docPath }),
+        get: () =>
+          call('db.get', { path: docPath }).then((raw) =>
+            hydrateDoc(raw, null),
+          ),
         set: (data) => call('db.set', { path: docPath, data }),
         update: (data) => call('db.update', { path: docPath, data }),
         delete: () => call('db.delete', { path: docPath }),
         acquire: (options) => call('db.acquire', { path: docPath, options }),
         onSnapshot: (handler, onError) =>
           subscribe({ path: docPath }, handler, onError),
-        collection: (name) => collectionRef(`${docPath}/${String(name)}`),
+        collection: (name) =>
+          collectionRef(checkPath(`${docPath}/${String(name)}`, false)),
       });
       const collectionRef = (colPath, spec) => {
         const query = spec || {
@@ -238,11 +341,19 @@
               },
             }),
           limit: (n) => withSpec({ limit: Number(n) }),
-          get: () => call('db.query', { spec: query }),
+          get: () =>
+            call('db.query', { spec: query }).then((raw) =>
+              hydrateQuery(raw, null),
+            ),
           onSnapshot: (handler, onError) =>
             subscribe({ spec: query }, handler, onError),
           doc: (id) =>
-            docRef(`${colPath}/${id === undefined ? autoId() : String(id)}`),
+            docRef(
+              checkPath(
+                `${colPath}/${id === undefined ? autoId() : String(id)}`,
+                true,
+              ),
+            ),
           add: (data) => {
             const ref = docRef(`${colPath}/${autoId()}`);
             return Promise.resolve(ref.set(data)).then(() => ref);
@@ -253,9 +364,19 @@
         requireHandler('db.onSnapshot', handler);
         let stopped = false;
         let subscriptionId = null;
+        const state = { cache: new Map(), previous: [] };
         const offPush = onPush('db.snapshot', (data) => {
           if (!stopped && data && data.subscriptionId === subscriptionId) {
-            handler(data.snapshot);
+            const raw = data.snapshot || {};
+            try {
+              handler(
+                raw.kind === 'query'
+                  ? hydrateQuery(raw, state)
+                  : hydrateDoc(raw, state.cache),
+              );
+            } catch {
+              /* a page handler must not break the runtime */
+            }
           }
         });
         call('db.subscribe', target).then(
@@ -282,8 +403,14 @@
         );
       };
       return freezeNamespace({
-        get: guard((p) => call('db.get', { path: String(p) })),
-        query: guard((spec) => call('db.query', { spec })),
+        get: guard((p) =>
+          call('db.get', { path: String(p) }).then((raw) =>
+            hydrateDoc(raw, null),
+          ),
+        ),
+        query: guard((spec) =>
+          call('db.query', { spec }).then((raw) => hydrateQuery(raw, null)),
+        ),
         set: guard((p, data) => call('db.set', { path: String(p), data })),
         update: guard((p, data) =>
           call('db.update', { path: String(p), data }),
@@ -297,8 +424,8 @@
         unsubscribe: guard((id) =>
           call('db.unsubscribe', { subscriptionId: id }),
         ),
-        doc: (p) => docRef(String(p)),
-        collection: (p) => collectionRef(String(p)),
+        doc: (p) => docRef(checkPath(p, true)),
+        collection: (p) => collectionRef(checkPath(p, false)),
       });
     },
     assets: () =>

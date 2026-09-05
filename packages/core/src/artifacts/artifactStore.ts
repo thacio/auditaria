@@ -25,6 +25,7 @@ import {
   sha256Hex,
   validateFavicon,
 } from './htmlShell.js';
+import { isPlainObject, validateRules } from './dbEngine.js';
 import { appendJsonl, isCode, readJsonl, writeOnce } from './journal.js';
 import type {
   ArtifactEvent,
@@ -107,6 +108,18 @@ export function validateCapabilities(declaration: CapabilityDeclaration): {
         'invalid_argument',
         `Capability "${name}" must be configured with an object (or true).`,
       );
+    }
+    if (name === 'db') {
+      // Access rules are fixed at publish: reject a bad declaration here.
+      const rules = isPlainObject(config) ? config['rules'] : undefined;
+      try {
+        validateRules(rules);
+      } catch (error) {
+        throw new ArtifactStoreError(
+          'invalid_argument',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     }
     if (UNSERVED_CAPABILITIES.has(name)) unserved.push(name);
   }

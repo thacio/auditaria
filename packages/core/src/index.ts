@@ -401,6 +401,23 @@ export type {
   ArtifactVersion,
   PublishOutcome,
 } from './artifacts/types.js';
+export { ArtifactDb } from './artifacts/dbStore.js';
+export type { AcquireResult, BatchWrite } from './artifacts/dbStore.js';
+export {
+  DbError,
+  MAX_SUBSCRIPTIONS_PER_VIEW,
+  collectionOf,
+  idOf,
+  mayAccess,
+  normalizeQuerySpec,
+  validateRules,
+} from './artifacts/dbEngine.js';
+export type {
+  AccessRule,
+  QuerySpec,
+  StoredDoc,
+  Viewer,
+} from './artifacts/dbEngine.js';
 export { tryParseArtifactDisplay } from './tools/artifact.js';
 export type { ArtifactDisplayData } from './tools/artifact.js';
 // AUDITARIA_ARTIFACTS_END

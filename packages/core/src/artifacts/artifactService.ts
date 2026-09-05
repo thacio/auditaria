@@ -9,6 +9,7 @@
 import path from 'node:path';
 import { ArtifactStore } from './artifactStore.js';
 import { artifactUrl } from './artifactPaths.js';
+import { ArtifactDb } from './dbStore.js';
 import { loadOwnerIdentity, type OwnerIdentity } from './identity.js';
 import type { ArtifactId } from './types.js';
 
@@ -49,6 +50,7 @@ export class ArtifactService {
   private host: ArtifactHost | null = null;
   private readonly filePathToId = new Map<string, ArtifactId>();
   private readonly tracked = new Map<ArtifactId, TrackedArtifact>();
+  private readonly dbs = new Map<ArtifactId, ArtifactDb>();
   /** Notices to prepend to the next tool result, oldest first. */
   private readonly pendingNotices: string[] = [];
   /** Most recently published or attached artifact of this session. */
@@ -80,6 +82,19 @@ export class ArtifactService {
   /** The store when already opened (for synchronous event wiring). */
   peekStore(): ArtifactStore | null {
     return this.store;
+  }
+
+  /** The document database of one artifact, opened on first use. */
+  async getDb(id: ArtifactId): Promise<ArtifactDb> {
+    const store = await this.getStore();
+    await store.require(id);
+    let db = this.dbs.get(id);
+    if (!db) {
+      db = new ArtifactDb(store.paths(id).db);
+      this.dbs.set(id, db);
+    }
+    await db.load();
+    return db;
   }
 
   async getOwnerId(): Promise<string> {

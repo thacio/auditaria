@@ -10,6 +10,19 @@
 import type { WebSocket } from 'ws';
 import {
   ArtifactStoreError,
+  DbError,
+  MAX_SUBSCRIPTIONS_PER_VIEW,
+  collectionOf,
+  idOf,
+  mayAccess,
+  normalizeQuerySpec,
+  validateRules,
+  type AccessRule,
+  type ArtifactDb,
+  type ArtifactRecord,
+  type QuerySpec,
+  type StoredDoc,
+  type Viewer,
   artifactHostname,
   artifactUrl,
   extractTitle,
@@ -72,6 +85,14 @@ export class ArtifactsFeature extends WebFeature {
   private unsubscribers: Array<() => void> = [];
   /** Live runtime sockets per artifact (pages currently open). */
   private readonly runtimeSockets = new Map<ArtifactId, Set<WebSocket>>();
+  /** Live db subscriptions per runtime socket (capped per view). */
+  private readonly subscriptions = new Map<
+    WebSocket,
+    Map<number, LiveSubscription>
+  >();
+  private nextSubscriptionId = 1;
+  /** Databases whose change events already fan out to subscribers. */
+  private readonly wiredDbs = new WeakSet<ArtifactDb>();
   private shares: ShareManager | null = null;
   private static cleanupRegistered = false;
   private static readonly liveManagers = new Set<ShareManager>();
@@ -364,8 +385,245 @@ export class ArtifactsFeature extends WebFeature {
   }
 
   // ---------------------------------------------------------------------
-  // Runtime socket (one per open page). This milestone only delivers
-  // version pushes; capability RPC arrives with the db milestone.
+  // db capability. The store is viewer-agnostic; this layer applies the
+  // viewer's level and `{self}` privacy on every call, and fans out
+  // change pushes to the pages subscribed to the affected documents.
+  // ---------------------------------------------------------------------
+
+  private async dbFor(id: ArtifactId): Promise<ArtifactDb> {
+    const db = await this.options.service.getDb(id);
+    if (!this.wiredDbs.has(db)) {
+      this.wiredDbs.add(db);
+      db.on('change', (paths) => {
+        void this.fanOutDbChange(id, paths);
+      });
+    }
+    return db;
+  }
+
+  /** On the local listener every runtime socket belongs to the owner. */
+  private async viewerOf(): Promise<Viewer> {
+    return { id: await this.options.service.getOwnerId(), level: 'owner' };
+  }
+
+  private rulesOf(record: ArtifactRecord): AccessRule[] {
+    const declared = record.capabilities['db'];
+    const raw = isRecord(declared) ? declared['rules'] : undefined;
+    try {
+      return validateRules(raw);
+    } catch {
+      return [];
+    }
+  }
+
+  private docSnapshot(
+    path: string,
+    doc: StoredDoc | null,
+  ): Record<string, unknown> {
+    if (!doc) return { kind: 'doc', id: idOf(path), exists: false };
+    return {
+      kind: 'doc',
+      id: idOf(doc.path),
+      exists: true,
+      data: doc.data,
+      version: doc.version,
+    };
+  }
+
+  private querySnapshot(
+    db: ArtifactDb,
+    spec: QuerySpec,
+    rules: readonly AccessRule[],
+    viewer: Viewer,
+  ): Record<string, unknown> {
+    const visible = db
+      .query(spec)
+      .filter((doc) => mayAccess(rules, viewer, doc.path, 'read'));
+    const window = spec.limit === null ? visible : visible.slice(0, spec.limit);
+    return {
+      kind: 'query',
+      docs: window.map((doc) => ({
+        id: idOf(doc.path),
+        exists: true,
+        data: doc.data,
+        version: doc.version,
+      })),
+    };
+  }
+
+  private async dispatchDb(
+    id: ArtifactId,
+    record: ArtifactRecord,
+    method: string,
+    params: Record<string, unknown>,
+    ws: WebSocket,
+  ): Promise<unknown> {
+    const db = await this.dbFor(id);
+    const viewer = await this.viewerOf();
+    const rules = this.rulesOf(record);
+    const envelope: ClientMessage = { type: 'rpc', ...params };
+    const pathOf = (): string => {
+      const path = readString(envelope, 'path');
+      if (path === undefined) throw rpc('invalid_argument', 'path is required');
+      return path;
+    };
+    const guardWrite = (path: string): void => {
+      if (!mayAccess(rules, viewer, path, 'write')) {
+        throw rpc('invalid_argument', `this viewer may not write ${path}`);
+      }
+    };
+    try {
+      switch (method) {
+        case 'db.get': {
+          const path = pathOf();
+          const doc = db.get(path);
+          const visible = mayAccess(rules, viewer, path, 'read');
+          return this.docSnapshot(path, visible ? doc : null);
+        }
+        case 'db.query':
+          return this.querySnapshot(
+            db,
+            normalizeQuerySpec(params['spec']),
+            rules,
+            viewer,
+          );
+        case 'db.set': {
+          const path = pathOf();
+          guardWrite(path);
+          await db.set(path, params['data']);
+          return null;
+        }
+        case 'db.update': {
+          const path = pathOf();
+          guardWrite(path);
+          await db.update(path, params['data']);
+          return null;
+        }
+        case 'db.delete': {
+          const path = pathOf();
+          guardWrite(path);
+          await db.delete(path);
+          return null;
+        }
+        case 'db.acquire': {
+          const path = pathOf();
+          guardWrite(path);
+          const options = params['options'];
+          if (!isRecord(options)) {
+            throw rpc(
+              'invalid_argument',
+              'acquire needs {holder, ttlMs?, data?}',
+            );
+          }
+          const optionEnvelope: ClientMessage = { type: 'rpc', ...options };
+          const holder = readString(optionEnvelope, 'holder');
+          if (holder === undefined) {
+            throw rpc('invalid_argument', 'acquire needs a holder string');
+          }
+          return await db.acquire(path, {
+            holder,
+            ttlMs: readNumber(optionEnvelope, 'ttlMs'),
+            data: options['data'],
+          });
+        }
+        case 'db.subscribe': {
+          const perSocket =
+            this.subscriptions.get(ws) ?? new Map<number, LiveSubscription>();
+          if (perSocket.size >= MAX_SUBSCRIPTIONS_PER_VIEW) {
+            throw rpc(
+              'resource_exhausted',
+              `at most ${MAX_SUBSCRIPTIONS_PER_VIEW} subscriptions per view`,
+            );
+          }
+          const target: LiveSubscription['target'] = isRecord(params['spec'])
+            ? { spec: normalizeQuerySpec(params['spec']) }
+            : { path: pathOf() };
+          if ('path' in target) db.get(target.path); // validates the grammar
+          const subscriptionId = this.nextSubscriptionId++;
+          const subscription: LiveSubscription = {
+            id: subscriptionId,
+            artifactId: id,
+            target,
+          };
+          perSocket.set(subscriptionId, subscription);
+          this.subscriptions.set(ws, perSocket);
+          // The first snapshot follows the reply, never precedes it.
+          setImmediate(() => {
+            void this.pushSnapshot(ws, subscription);
+          });
+          return { subscriptionId };
+        }
+        case 'db.unsubscribe': {
+          const subscriptionId = readNumber(envelope, 'subscriptionId');
+          if (subscriptionId !== undefined) {
+            this.subscriptions.get(ws)?.delete(subscriptionId);
+          }
+          return null;
+        }
+        default:
+          throw rpc('capability_removed', `${method} is not part of db`);
+      }
+    } catch (error) {
+      if (error instanceof DbError) throw rpc(error.code, error.message);
+      if (error instanceof TypeError)
+        throw rpc('invalid_argument', error.message);
+      throw error;
+    }
+  }
+
+  private async pushSnapshot(
+    ws: WebSocket,
+    subscription: LiveSubscription,
+  ): Promise<void> {
+    const store = this.store;
+    if (!store || ws.readyState !== ws.OPEN) return;
+    const record = await store.get(subscription.artifactId);
+    if (!record || record.deletedAt) return;
+    try {
+      const db = await this.dbFor(subscription.artifactId);
+      const viewer = await this.viewerOf();
+      const rules = this.rulesOf(record);
+      const { target } = subscription;
+      const snapshot =
+        'path' in target
+          ? this.docSnapshot(
+              target.path,
+              mayAccess(rules, viewer, target.path, 'read')
+                ? db.get(target.path)
+                : null,
+            )
+          : this.querySnapshot(db, target.spec, rules, viewer);
+      ws.send(
+        JSON.stringify({
+          push: 'db.snapshot',
+          data: { subscriptionId: subscription.id, snapshot },
+        }),
+      );
+    } catch (error) {
+      this.ctx?.logger.error('Artifact db snapshot failed:', error);
+    }
+  }
+
+  private async fanOutDbChange(
+    id: ArtifactId,
+    paths: readonly string[],
+  ): Promise<void> {
+    const collections = new Set(paths.map((path) => collectionOf(path)));
+    for (const [ws, perSocket] of this.subscriptions) {
+      for (const subscription of perSocket.values()) {
+        if (subscription.artifactId !== id) continue;
+        const { target } = subscription;
+        const affected =
+          'path' in target
+            ? paths.includes(target.path)
+            : collections.has(target.spec.path);
+        if (affected) await this.pushSnapshot(ws, subscription);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Runtime socket (one per open page): capability RPC + pushes.
   // ---------------------------------------------------------------------
 
   private handleRuntimeSocket(ws: WebSocket, hostHeader: string): void {
@@ -379,6 +637,7 @@ export class ArtifactsFeature extends WebFeature {
     this.runtimeSockets.set(id, sockets);
     ws.on('close', () => {
       sockets.delete(ws);
+      this.subscriptions.delete(ws);
       if (sockets.size === 0) this.runtimeSockets.delete(id);
     });
     ws.on('message', (raw) => {
@@ -395,7 +654,7 @@ export class ArtifactsFeature extends WebFeature {
       const method = readString(envelope, 'method') ?? '';
       const rawParams = call['params'];
       const params = isRecord(rawParams) ? rawParams : {};
-      this.dispatchRpc(id, method, params).then(
+      this.dispatchRpc(id, method, params, ws).then(
         (result) => ws.send(JSON.stringify({ id: callId, result })),
         (error: unknown) =>
           ws.send(JSON.stringify({ id: callId, error: rpcError(error) })),
@@ -413,6 +672,7 @@ export class ArtifactsFeature extends WebFeature {
     id: ArtifactId,
     method: string,
     params: Record<string, unknown>,
+    ws: WebSocket,
   ): Promise<unknown> {
     const store = this.store;
     if (!store) throw rpc('unavailable', 'store is not open');
@@ -478,6 +738,15 @@ export class ArtifactsFeature extends WebFeature {
           throw error;
         }
       }
+      case 'db.get':
+      case 'db.query':
+      case 'db.set':
+      case 'db.update':
+      case 'db.delete':
+      case 'db.acquire':
+      case 'db.subscribe':
+      case 'db.unsubscribe':
+        return this.dispatchDb(id, record, method, params, ws);
       default:
         throw rpc(
           'capability_disabled',
@@ -518,4 +787,11 @@ function rpcError(error: unknown): RpcError {
     'upstream_error',
     error instanceof Error ? error.message : String(error),
   );
+}
+
+/** One live `onSnapshot` registration on a runtime socket. */
+interface LiveSubscription {
+  readonly id: number;
+  readonly artifactId: ArtifactId;
+  readonly target: { readonly path: string } | { readonly spec: QuerySpec };
 }
