@@ -228,6 +228,12 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
         this.assertStillStarting(runtime);
       }
 
+      // AUDITARIA_ARTIFACTS: deep links open the console on an artifact's
+      // viewer (the client reads the path once connected).
+      http.mount('/artifact/:id', (_req, res) => {
+        res.sendFile('index.html', { root: webClientRoot });
+      });
+
       // Static files last so feature routes take precedence.
       http.mount(createStaticAssetsHandler(webClientRoot));
 

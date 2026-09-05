@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { ArtifactStore } from './artifactStore.js';
-import { artifactUrl } from './artifactPaths.js';
+import { artifactUrl, viewerUrl } from './artifactPaths.js';
 import { AssetStore } from './assets.js';
 import type { Sampler } from './sampleExecutor.js';
 import { CommentStore } from './comments.js';
@@ -31,6 +31,15 @@ export interface ArtifactHost {
    * the page, comments waiting, …). Delivery is the host's business.
    */
   notify(text: string): void;
+  /**
+   * Opens a public, session-only share of an artifact (the viewer's
+   * Publish button) and resolves its address; absent when sharing is not
+   * available on this host.
+   */
+  share?(id: ArtifactId): Promise<{ url: string }>;
+  unshare?(id: ArtifactId): Promise<void>;
+  /** The public address while shared in this session, else null. */
+  shareUrlOf?(id: ArtifactId): string | null;
 }
 
 /** A base-version handle tracked per artifact in one session. */
@@ -155,10 +164,44 @@ export class ArtifactService {
     return this.host;
   }
 
-  /** Public URL of an artifact on the console's port, or null when not hosted. */
+  /** The bare page's URL on its own origin, or null when not hosted. */
   urlFor(id: ArtifactId): string | null {
     const port = this.host?.getPort() ?? null;
     return port === null ? null : artifactUrl(id, port);
+  }
+
+  /** The console viewer's URL (page + chrome), or null when not hosted. */
+  viewerUrlFor(id: ArtifactId): string | null {
+    const port = this.host?.getPort() ?? null;
+    return port === null ? null : viewerUrl(id, port);
+  }
+
+  // ---------------------------------------------------------------------
+  // Session change listeners (the terminal's artifact strip follows them)
+  // ---------------------------------------------------------------------
+
+  private readonly sessionListeners = new Set<() => void>();
+
+  onSessionChange(listener: () => void): () => void {
+    this.sessionListeners.add(listener);
+    return () => {
+      this.sessionListeners.delete(listener);
+    };
+  }
+
+  private notifySessionChange(): void {
+    for (const listener of this.sessionListeners) {
+      try {
+        listener();
+      } catch {
+        /* a listener must not break the service */
+      }
+    }
+  }
+
+  /** Ids this session published or attached, most recent last. */
+  sessionArtifactIds(): ArtifactId[] {
+    return Array.from(this.tracked.keys());
   }
 
   // ---------------------------------------------------------------------
@@ -189,11 +232,14 @@ export class ArtifactService {
 
   track(id: ArtifactId, baseVersion: number, published: boolean): void {
     const existing = this.tracked.get(id);
+    // Re-inserting keeps "most recent last" ordering for the strip.
+    this.tracked.delete(id);
     this.tracked.set(id, {
       baseVersion,
       publishedHere: published || existing?.publishedHere === true,
     });
     this.recentId = id;
+    this.notifySessionChange();
   }
 
   untrack(id: ArtifactId): void {
@@ -202,6 +248,7 @@ export class ArtifactService {
       if (value === id) this.filePathToId.delete(key);
     }
     if (this.recentId === id) this.recentId = null;
+    this.notifySessionChange();
   }
 
   trackedIds(): ArtifactId[] {

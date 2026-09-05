@@ -18,6 +18,7 @@ import { isNarrowWidth } from '../utils/isNarrowWidth.js';
 import { ToastDisplay, shouldShowToast } from './ToastDisplay.js';
 import { DetailedMessagesDisplay } from './DetailedMessagesDisplay.js';
 import { ShortcutsHelp } from './ShortcutsHelp.js';
+import { ArtifactStrip } from './ArtifactStrip.js'; // AUDITARIA_ARTIFACTS
 import { InputPrompt } from './InputPrompt.js';
 import { Footer } from './Footer.js';
 import { StatusRow } from './StatusRow.js';
@@ -175,6 +176,8 @@ export const Composer = ({ isFocused = true }: { isFocused?: boolean }) => {
         />
       )}
 
+      {/* AUDITARIA_ARTIFACTS: this session's artifacts, under the footer */}
+      {showUiDetails && !isScreenReaderEnabled && <ArtifactStrip />}
       {showUiDetails &&
         !settings.merged.ui.hideFooter &&
         !isScreenReaderEnabled && <Footer />}

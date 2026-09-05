@@ -33,6 +33,7 @@ import {
   type Viewer,
   artifactHostname,
   artifactUrl,
+  viewerUrl,
   extractTitle,
   parseArtifactReference,
   unwrapDocument,
@@ -56,7 +57,11 @@ import {
   createArtifactHost,
   runtimeDirFor,
 } from '../artifacts/artifactHost.js';
-import { ShareManager, type TunnelFactory } from '../artifacts/shareSession.js';
+import {
+  ShareManager,
+  type ShareState,
+  type TunnelFactory,
+} from '../artifacts/shareSession.js';
 import { startQuickTunnel } from '../../hive/HiveTunnel.js';
 import { registerCleanup } from '../../../utils/cleanup.js';
 
@@ -66,6 +71,8 @@ export interface ArtifactListRow extends ArtifactSummary {
   readonly hostname: string;
   /** Public address while shared in this session, else null. */
   readonly shareUrl: string | null;
+  /** The console viewer (page + chrome): the address people get. */
+  readonly viewerUrl: string;
 }
 
 export interface ArtifactsFeatureOptions {
@@ -226,6 +233,12 @@ export class ArtifactsFeature extends WebFeature {
         }
       },
       notify: (text) => this.options.notify?.(text),
+      share: async (id) => {
+        const state = await this.startShare(id);
+        return { url: state.url };
+      },
+      unshare: (id) => this.stopShare(id),
+      shareUrlOf: (id) => this.shares?.get(id)?.url ?? null,
     };
     this.options.service.setHost(host);
   }
@@ -265,6 +278,7 @@ export class ArtifactsFeature extends WebFeature {
       url: artifactUrl(row.id, port),
       hostname: artifactHostname(row.id),
       shareUrl: this.shares?.get(row.id)?.url ?? null,
+      viewerUrl: viewerUrl(row.id, port),
     }));
   }
 
@@ -358,30 +372,48 @@ export class ArtifactsFeature extends WebFeature {
     }
   }
 
-  /** Publish (start a public share) or unpublish an artifact. */
-  private async share(message: ClientMessage): Promise<void> {
-    const id = this.idOf(message);
+  /** Opens a session-only public share; every console hears about it. */
+  async startShare(id: ArtifactId): Promise<ShareState> {
     const shares = this.shares;
-    if (!id || !shares) return;
-    const op = readString(message, 'op');
+    if (!shares) throw new Error('the web interface is not running');
+    await (await this.options.service.getStore()).require(id);
     try {
-      if (op === 'start') {
-        const state = await shares.start(id);
-        this.broadcast('artifact_share_state', {
-          id,
-          url: state.url,
-          startedAt: state.startedAt,
-        });
-      } else if (op === 'stop') {
-        await shares.stop(id);
-        this.broadcast('artifact_share_state', { id, url: null });
-      }
+      const state = await shares.start(id);
+      this.broadcast('artifact_share_state', {
+        id,
+        url: state.url,
+        startedAt: state.startedAt,
+      });
+      return state;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       this.ctx?.logger.error('Artifact share failed:', error);
       this.broadcast('artifact_share_state', { id, url: null, error: text });
+      throw error;
+    } finally {
+      void this.broadcastList();
     }
+  }
+
+  async stopShare(id: ArtifactId): Promise<void> {
+    const shares = this.shares;
+    if (!shares) return;
+    await shares.stop(id);
+    this.broadcast('artifact_share_state', { id, url: null });
     void this.broadcastList();
+  }
+
+  /** The viewer's Publish / Unpublish button. */
+  private async share(message: ClientMessage): Promise<void> {
+    const id = this.idOf(message);
+    if (!id) return;
+    const op = readString(message, 'op');
+    try {
+      if (op === 'start') await this.startShare(id);
+      else if (op === 'stop') await this.stopShare(id);
+    } catch {
+      /* already broadcast as artifact_share_state with an error */
+    }
   }
 
   private idOf(message: ClientMessage): ArtifactId | null {

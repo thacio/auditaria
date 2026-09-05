@@ -13,7 +13,7 @@ import { theme } from '../../semantic-colors.js';
 
 /** Terminal hyperlink (OSC 8); terminals without support show the text. */
 export function terminalLink(url: string, text: string = url): string {
-  return `]8;;${url}${text}]8;;`;
+  return `\u001b]8;;${url}\u0007${text}\u001b]8;;\u0007`;
 }
 
 /**

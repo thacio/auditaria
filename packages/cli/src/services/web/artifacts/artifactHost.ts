@@ -249,12 +249,12 @@ export function createArtifactHost(options: ArtifactHostOptions): VirtualHost {
     const target = await resolveArtifact(req, res);
     if (!target) return;
     const assetId = req.params['assetId'];
-    if (!isAssetId(assetId)) {
-      res.status(404).type('text/plain').send('Not Found');
-      return;
-    }
     const assets = await service.getAssets(target.id);
-    const asset = assets.get(assetId);
+    // By id (immutable), or by file name so a page can reference an asset
+    // uploaded together with it before any id was known.
+    const asset = isAssetId(assetId)
+      ? assets.get(assetId)
+      : assets.byName(decodeURIComponent(assetId));
     if (!asset) {
       res.status(404).type('text/plain').send('Not Found');
       return;

@@ -264,13 +264,11 @@ export class ShareSession {
     // Attached files are part of the page; served read-only, immutable.
     app.get('/__assets/:assetId', async (req, res) => {
       const assetId = req.params['assetId'];
-      if (!isAssetId(assetId)) {
-        res.status(404).type('text/plain').send('Not Found');
-        return;
-      }
       try {
         const assets = await service.getAssets(this.id);
-        const asset = assets.get(assetId);
+        const asset = isAssetId(assetId)
+          ? assets.get(assetId)
+          : assets.byName(decodeURIComponent(assetId));
         if (!asset) {
           res.status(404).type('text/plain').send('Not Found');
           return;

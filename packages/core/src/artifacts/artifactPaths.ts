@@ -107,6 +107,21 @@ export function artifactUrl(id: ArtifactId, port: number): string {
 }
 
 /**
+ * The console's viewer page for an artifact: the page framed with its
+ * chrome (versions, comments, Publish). This is the address people get;
+ * {@link artifactUrl} is the bare page the viewer frames.
+ */
+export function viewerUrl(id: ArtifactId, port: number): string {
+  return `http://localhost:${port}/artifact/${id}`;
+}
+
+/** The artifact id in a viewer URL path, or null. */
+export function artifactIdFromViewerPath(pathname: string): ArtifactId | null {
+  const match = /^\/artifact\/([0-9a-f]{16})\/?$/.exec(pathname);
+  return match ? match[1] : null;
+}
+
+/**
  * Accepts the forms an agent may use to name an artifact: a bare id, an
  * artifact URL (any port), or `artifact:<id>`. Returns null otherwise.
  */
@@ -119,7 +134,10 @@ export function parseArtifactReference(value: string): ArtifactId | null {
   }
   try {
     const url = new URL(text);
-    return artifactIdFromHostname(url.hostname);
+    return (
+      artifactIdFromHostname(url.hostname) ??
+      artifactIdFromViewerPath(url.pathname)
+    );
   } catch {
     return null;
   }

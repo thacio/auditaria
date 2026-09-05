@@ -1578,12 +1578,28 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
   `allow-scripts allow-same-origin allow-forms`, version picker, restore,
   open in tab, copy link, Publish/Unpublish + share bar, Comments sidebar,
   download-offer and model-consent bars; the frame is KEPT across chrome
-  refreshes — `renderedFrameBase`/`refreshViewerChrome`). CLI:
+  refreshes — `renderedFrameBase`/`refreshViewerChrome`). The address the
+  tool prints and every UI copies is the VIEWER deep link
+  `http://localhost:<port>/artifact/<id>[?v=N]` (served as the console
+  shell by a route in `WebInterfaceService`; `client.js` opens the viewer
+  from the path once connected), so a direct link carries the chrome like
+  Claude's; the bare page URL is named beside it. CLI: a session strip
+  under the footer (`ui/components/ArtifactStrip.tsx`, mounted in
+  `Composer.tsx`: this session's artifacts as OSC-8 links, `ctrl+]` opens
+  the most recent; follows `ArtifactService.onSessionChange`),
   `/artifacts` picker after Claude Code's (`enter attach · o open · c copy
-  url · d delete · p pin · / search · esc`) + subcommands list/open/copy/
-  attach/delete/restore (`ui/commands/artifactsCommand.tsx`), Ink card
+  url · s share · d delete · p pin · / search · esc`) + subcommands
+  list/open/copy/attach/share/unshare/delete/restore
+  (`ui/commands/artifactsCommand.tsx`; share goes through the core→CLI
+  `ArtifactHost.share/unshare/shareUrlOf` seam), Ink card
   `ArtifactCardDisplay.tsx`, notices (page republish, comments sent) as
-  info items via `WebInterfaceService` `artifact_notice`.
+  info items via `WebInterfaceService` `artifact_notice`. Tool extras past
+  Claude's contract, from an agent's review: `publish` takes `assets`
+  (files attached in the same call, referenced as `/__assets/<file name>`
+  from the first version), `read` takes `out_dir`, results name the base
+  version, `list` shows capabilities and STALE bases; the description is
+  compact and the action reference lives in the schema's parameter
+  descriptions (MCP consumers see those in full).
 - **Wire protocol** (`protocol.ts`): server `artifact_list/_event/
   _versions_response/_open/_share_state/_comments_response/_comment_event/
   _download_offer/_sample_consent_request`; client `artifact_list/_versions/

@@ -382,7 +382,9 @@ export type { ArtifactHost } from './artifacts/artifactService.js';
 export {
   artifactHostname,
   artifactIdFromHostname,
+  artifactIdFromViewerPath,
   artifactUrl,
+  viewerUrl,
   isArtifactId,
   parseArtifactReference,
 } from './artifacts/artifactPaths.js';

@@ -47,6 +47,8 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
 interface Row extends ArtifactSummary {
   readonly url: string | null;
   readonly attached: boolean;
+  /** Published at a public address in this session. */
+  readonly shared: boolean;
 }
 
 interface PickerProps {
@@ -57,13 +59,14 @@ interface PickerProps {
   onAttach: (row: Row) => Promise<string>;
   onDelete: (row: Row) => Promise<string>;
   onPin: (row: Row) => Promise<string>;
+  onShare: (row: Row) => Promise<string>;
 }
 
 const VISIBLE_ROWS = 12;
 
 /**
  * The `/artifacts` picker, after Claude Code's: a filterable list with
- * `enter attach · o open · c copy url · d delete · p pin · / search · esc`.
+ * `enter attach · o open · c copy url · s share · d delete · p pin · / search · esc`.
  */
 export const ArtifactsPickerDialog: React.FC<PickerProps> = (props) => {
   const [rows, setRows] = useState(props.rows);
@@ -171,6 +174,19 @@ export const ArtifactsPickerDialog: React.FC<PickerProps> = (props) => {
         case 'd':
           if (selected) setConfirmDelete(selected);
           return true;
+        case 's':
+          if (selected) {
+            runAction('Publishing', async () => {
+              const message = await props.onShare(selected);
+              setRows((current) =>
+                current.map((r) =>
+                  r.id === selected.id ? { ...r, shared: true } : r,
+                ),
+              );
+              return message;
+            });
+          }
+          return true;
         default:
           return false;
       }
@@ -217,7 +233,7 @@ export const ArtifactsPickerDialog: React.FC<PickerProps> = (props) => {
           const isSelected = start + index === cursor;
           const meta = [
             row.attached ? 'attached' : null,
-            'private',
+            row.shared ? 'shared' : 'private',
             `v${row.latestVersion}`,
             relativeTime(row.updatedAt),
           ]
@@ -263,8 +279,8 @@ export const ArtifactsPickerDialog: React.FC<PickerProps> = (props) => {
           <Text color={theme.text.accent}>{toast}</Text>
         ) : (
           <Text color={theme.text.secondary}>
-            enter attach · o open · c copy url · d delete · p pin · / search ·
-            esc close
+            enter attach · o open · c copy url · s share · d delete · p pin · /
+            search · esc close
           </Text>
         )}
       </Box>
@@ -281,8 +297,9 @@ async function rowsOf(service: ArtifactService): Promise<Row[]> {
   const store = await service.getStore();
   return (await store.list()).map((row) => ({
     ...row,
-    url: service.urlFor(row.id),
+    url: service.viewerUrlFor(row.id),
     attached: service.baseVersionOf(row.id) !== undefined,
+    shared: (service.getHost()?.shareUrlOf?.(row.id) ?? null) !== null,
   }));
 }
 
@@ -292,11 +309,11 @@ async function ensureUrl(
   service: ArtifactService,
   id: string,
 ): Promise<string> {
-  let url = service.urlFor(id);
+  let url = service.viewerUrlFor(id);
   if (!url && context.web) {
     const started = await context.web.start();
     if (started.messageType === 'error') throw new Error(started.content);
-    url = service.urlFor(id);
+    url = service.viewerUrlFor(id);
   }
   if (!url) {
     throw new Error('The web interface is not running — run /web first.');
@@ -350,6 +367,10 @@ const actions = (context: CommandContext, service: ArtifactService) => ({
     service.untrack(row.id);
     return 'Artifact deleted';
   },
+  share: async (row: Row): Promise<string> => {
+    await ensureUrl(context, service, row.id);
+    return shareNow(context, service, row.title, row.id);
+  },
   pin: async (row: Row): Promise<string> => {
     const store = await service.getStore();
     await store.setPinned(row.id, !row.pinned);
@@ -384,6 +405,7 @@ const openPicker = async (
         onAttach={act.attach}
         onDelete={act.remove}
         onPin={act.pin}
+        onShare={act.share}
       />
     ),
   };
@@ -508,5 +530,54 @@ export const artifactsCommand: SlashCommand = {
         return `Restored ${record.favicon} ${record.title}.`;
       }),
     },
+    {
+      name: 'share',
+      description:
+        'Publish an artifact at a public address (a cloudflared tunnel) for this session only',
+      kind: CommandKind.BUILT_IN,
+      action: withId(async (context, service, id) => {
+        const store = await service.getStore();
+        const record = await store.require(id);
+        await ensureUrl(context, service, id);
+        return shareNow(context, service, record.title, id);
+      }),
+    },
+    {
+      name: 'unshare',
+      description:
+        'Stop sharing an artifact (its public address stops working)',
+      kind: CommandKind.BUILT_IN,
+      action: withId(async (_context, service, id) => {
+        const host = service.getHost();
+        if (!host?.unshare) {
+          throw new Error(
+            'The web interface is not running — nothing is shared.',
+          );
+        }
+        await host.unshare(id);
+        return `Unpublished artifact ${id}. Its public address no longer works.`;
+      }),
+    },
   ],
 };
+
+/** Opens the session-only public share and explains its lifetime. */
+async function shareNow(
+  context: CommandContext,
+  service: ArtifactService,
+  title: string,
+  id: string,
+): Promise<string> {
+  const host = service.getHost();
+  if (!host?.share) {
+    throw new Error('The web interface is not running — run /web first.');
+  }
+  const { url } = await host.share(id);
+  await copyToClipboard(url, context.services.settings.merged).catch(
+    () => undefined,
+  );
+  return [
+    `Published ✻ ${title} at ${url} (copied to the clipboard).`,
+    'Anyone with this link can view the latest version while Auditaria is running. The link stops working when Auditaria closes; run /artifacts share again for a new one, or /artifacts unshare to stop now.',
+  ].join('\n');
+}

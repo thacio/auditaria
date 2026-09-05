@@ -122,6 +122,17 @@ export class AssetStore {
     return this.assets.get(id) ?? null;
   }
 
+  /** The newest asset with this file name (a re-upload wins). */
+  byName(name: string): AssetRecord | null {
+    let found: AssetRecord | null = null;
+    for (const asset of this.assets.values()) {
+      if (asset.name === name && (!found || asset.at > found.at)) {
+        found = asset;
+      }
+    }
+    return found;
+  }
+
   /** Newest first, paged by an opaque `after` cursor (the last id seen). */
   list(options: { after?: string; limit?: number } = {}): {
     assets: AssetRecord[];

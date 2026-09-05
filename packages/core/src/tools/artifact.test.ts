@@ -98,7 +98,12 @@ describe('ArtifactTool', () => {
     expect(String(first.llmContent)).toMatch(
       /^Published "Deploy Failures" as artifact [0-9a-f]{16}, version 1\./,
     );
-    expect(String(first.llmContent)).toContain('URL: http://art-');
+    expect(String(first.llmContent)).toContain(
+      'URL: http://localhost:8629/artifact/',
+    );
+    expect(String(first.llmContent)).toContain(
+      'Base version for this session: 1',
+    );
     expect(host.openInBrowser).toHaveBeenCalledTimes(1);
 
     const card = tryParseArtifactDisplay(first.returnDisplay);
@@ -111,7 +116,7 @@ describe('ArtifactTool', () => {
       },
     });
     const id = card!.artifact.id;
-    expect(card!.artifact.url).toBe(`http://art-${id}.localhost:8629/`);
+    expect(card!.artifact.url).toBe(`http://localhost:8629/artifact/${id}`);
 
     await writeFile(file, fragment('Deploy Failures'), 'utf-8');
     const second = await run({ file_path: file, label: 'Second pass' });
@@ -233,7 +238,7 @@ describe('ArtifactTool', () => {
     const list = String((await run({ action: 'list' })).llmContent);
     expect(list).toContain('1 artifact(s)');
     expect(list).toContain(
-      `📋 Listed — http://art-${id}.localhost:8629/ (v1 · attached)`,
+      `📋 Listed — http://localhost:8629/artifact/${id} (v1 · attached)`,
     );
     expect(list).toContain('A listed page');
     expect(

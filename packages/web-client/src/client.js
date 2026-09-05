@@ -188,6 +188,20 @@ class AuditariaWebClient {
       // WEB_INTERFACE_END
 
       if (this.artifactsButton) this.artifactsButton.disabled = false;
+      // A deep link (http://localhost:<port>/artifact/<id>[?v=N]) opens the
+      // viewer on that artifact once; the address bar is then tidied.
+      const deepLink = /^\/artifact\/([0-9a-f]{16})\/?$/.exec(
+        location.pathname,
+      );
+      if (deepLink && this.artifactsPanel && !this.artifactDeepLinkOpened) {
+        this.artifactDeepLinkOpened = true;
+        const version = Number(new URLSearchParams(location.search).get('v'));
+        this.artifactsPanel.open(
+          deepLink[1],
+          Number.isInteger(version) && version > 0 ? version : null,
+        );
+        history.replaceState(null, '', '/');
+      }
       // Enable Knowledge Base button and request status
       if (this.knowledgeBaseButton) {
         this.knowledgeBaseButton.disabled = false;

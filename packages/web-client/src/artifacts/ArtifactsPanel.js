@@ -284,7 +284,9 @@ export class ArtifactsPanel {
     const copy = iconButton('⧉', 'Copy link');
     copy.addEventListener('click', (e) => {
       e.stopPropagation();
-      copyText(a.url).then(() => toast(this.container, `Copied ${a.url}`));
+      copyText(a.viewerUrl).then(() =>
+        toast(this.container, `Copied ${a.viewerUrl}`),
+      );
     });
     const del = iconButton('🗑', 'Delete');
     del.addEventListener('click', (e) => {
@@ -402,13 +404,17 @@ export class ArtifactsPanel {
       tools.appendChild(restore);
     }
     const openTab = el('a', 'artifacts-btn', 'Open in new tab ↗');
-    openTab.href = served === a.latestVersion ? a.url : `${a.url}v/${served}/`;
+    // A new tab gets the viewer (chrome included), pinned to this version.
+    openTab.href =
+      served === a.latestVersion ? a.viewerUrl : `${a.viewerUrl}?v=${served}`;
     openTab.target = '_blank';
     openTab.rel = 'noopener';
     tools.appendChild(openTab);
     const copy = el('button', 'artifacts-btn', 'Copy link');
     copy.addEventListener('click', () =>
-      copyText(a.url).then(() => toast(this.container, `Copied ${a.url}`)),
+      copyText(a.viewerUrl).then(() =>
+        toast(this.container, `Copied ${a.viewerUrl}`),
+      ),
     );
     tools.appendChild(copy);
     const share = this.manager.shareOf(a.id);
