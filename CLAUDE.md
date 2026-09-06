@@ -2404,6 +2404,29 @@ After that, in the execution phase, write the codes with your implementation.
   removal of automatic trust acceptance, the 1 s dispatch gap, image previews
   in the web `MessageManager`.
 
+### September 2026 — Codex and Copilot on the one turn pipeline; live external-agent model lists
+
+- **Codex** (`ccde42782b`): `codex/codexPtyDriver.ts` + `codex/codexTurnObserver.ts`
+  drive the real Codex TUI in a PTY (rollout + per-session `-c hooks.*`),
+  the provider-agnostic turn machinery is extracted into
+  `terminal/turnObserver.ts` (`ProviderTurnObserver`; the Claude observer
+  became a subclass with its tests untouched). Shell-free provider spawning
+  (`utils/resolveExecutable.ts`) and one live model-id list
+  (`providers/providerModelIds.ts`). Details: Section 13 ("Interactive PTY
+  driver"), Section 15b, `.auditaria/codex-tui-sync-plan.md`, comparison with
+  Astra's app-server-relay design in `.auditaria/codex-tui-sync-comparison.md`.
+- **Copilot** (`e2b7a2de70`): `copilot/copilotPtyDriver.ts` rewritten onto the
+  same base with `copilot/copilotTurnObserver.ts` (events.jsonl + hooks from a
+  user-level hooks file with an env-scoped durable relay); the manager's
+  legacy `onBackground*` adapter is gone. `external_agent_session` rebuilds
+  its description and model enum on every schema read and kicks the throttled
+  Copilot (ACP) and Codex (`codex/codexModelRefresh.ts`, app-server metadata
+  handshake) refreshes. Details: Section 14, Section 15b,
+  `.auditaria/copilot-tui-sync-plan.md`.
+- Live checks (all through the real app over the WebSocket protocol, cheapest
+  models `gpt-5.3-codex-spark` / `gpt-5-mini`): Codex 13/13, Copilot 13/13
+  (`scratchpad e2e/{codex,copilot}-tui-sync.e2e.cjs`).
+
 ### September 2026 — Codex & Copilot model lists driven by the CLIs' own catalogs
 
 - **Change Type**: Removed the hand-maintained model tables that drift every
