@@ -745,95 +745,9 @@ export const AppContainer = (props: AppContainerProps) => {
     };
   }, [handleEditorClose, openEditorDialog]);
 
-  // AUDITARIA_CLAUDE_PROVIDER_START: Surface user-initiated turns that
-  // happened directly in the live PTY (via the web-terminal viewer) so
-  // the chat catches up. providerManager forwards from the active
-  // driver; no-op on providers that don't expose the background hooks.
-  //
-  // We ALSO mirror these turns into GeminiChat.history (the chat
-  // structure used by /compress, /resume, and provider switching) so
-  // they survive into compaction summaries instead of vanishing.
-  useEffect(() => {
-    const pm = config.getProviderManager();
-    if (!pm || typeof pm.onBackgroundUserMessage !== 'function') return;
-
-    // Helper — push into the mirrored chat history. Wrapped in try/catch
-    // so a missing chat client (early in startup) doesn't blow up the
-    // history-manager add that just succeeded.
-    const mirrorToChat = (role: 'user' | 'model', text: string) => {
-      try {
-        const chat = config.getGeminiClient()?.getChat();
-        chat?.addHistory({
-          role,
-          parts: [{ text }],
-        });
-      } catch {
-        /* ignore — chat not yet available */
-      }
-    };
-
-    const offUser = pm.onBackgroundUserMessage(({ text }) => {
-      if (!text) return;
-      historyManager.addItem({ type: MessageType.USER, text }, Date.now());
-      mirrorToChat('user', text);
-    });
-    const offAssistant = pm.onBackgroundAssistantText(({ text }) => {
-      if (!text) return;
-      historyManager.addItem({ type: MessageType.GEMINI, text }, Date.now());
-      mirrorToChat('model', text);
-    });
-
-    // Optional channels — providerManager exposes them for any driver
-    // that implements them. Today only Claude does.
-    const offErr =
-      typeof pm.onBackgroundError === 'function'
-        ? pm.onBackgroundError(({ message }) => {
-            if (!message) return;
-            historyManager.addItem(
-              { type: MessageType.ERROR, text: message },
-              Date.now(),
-            );
-          })
-        : () => {};
-    const offCompact =
-      typeof pm.onBackgroundCompactionSummary === 'function'
-        ? pm.onBackgroundCompactionSummary(({ text }) => {
-            historyManager.addItem(
-              {
-                type: MessageType.INFO,
-                text: text
-                  ? `Context compacted in the live terminal. Summary: ${text.slice(0, 280)}${text.length > 280 ? '…' : ''}`
-                  : 'Context compacted in the live terminal.',
-              },
-              Date.now(),
-            );
-          })
-        : () => {};
-
-    return () => {
-      try {
-        offUser();
-      } catch {
-        /* ignore */
-      }
-      try {
-        offAssistant();
-      } catch {
-        /* ignore */
-      }
-      try {
-        offErr();
-      } catch {
-        /* ignore */
-      }
-      try {
-        offCompact();
-      } catch {
-        /* ignore */
-      }
-    };
-  }, [config, historyManager]);
-  // AUDITARIA_CLAUDE_PROVIDER_END
+  // AUDITARIA_CLAUDE_PROVIDER: turns typed into the provider terminal are
+  // rendered by useGeminiStream through useProviderExternalTurns (the same
+  // pipeline as chat turns) — nothing to wire here anymore.
 
   useEffect(() => {
     if (
@@ -2783,6 +2697,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
     submitQueryRef.current = submitQuery;
   }, [submitQuery]);
 
+  // AUDITARIA_CLAUDE_PROVIDER: web messages sent while a turn is responding
+  // (a chat turn, or a turn typed into the provider terminal) used to reach
+  // submitQuery directly, which silently drops them. Queue plain-text
+  // messages exactly like the composer does; they run when the turn ends.
+  const webQueueRef = useRef({ streamingState, addMessage });
+  webQueueRef.current = { streamingState, addMessage };
+
   // Create a completely stable function that will never change
   const stableWebSubmitQuery = useCallback((query: PartListUnion) => {
     if (submitQueryRef.current) {
@@ -2794,6 +2715,33 @@ Logging in with Google... Restarting Gemini CLI to continue.
             : typeof query === 'object' && query !== null
               ? [query]
               : [{ text: String(query) }];
+      // AUDITARIA_CLAUDE_PROVIDER: queue while busy (text-only messages).
+      const queueState = webQueueRef.current;
+      if (queueState.streamingState !== StreamingState.Idle) {
+        const parts =
+          typeof normalized === 'string' ? [{ text: normalized }] : normalized;
+        const texts: string[] = [];
+        let textOnly = true;
+        for (const p of parts) {
+          if (
+            typeof p === 'object' &&
+            p !== null &&
+            typeof p.text === 'string' &&
+            !('inlineData' in p)
+          ) {
+            texts.push(p.text);
+          } else {
+            textOnly = false;
+          }
+        }
+        if (textOnly) {
+          const text = texts.join('\n');
+          if (text.trim() && !text.trimStart().startsWith('/')) {
+            queueState.addMessage(text);
+            return;
+          }
+        }
+      }
       void submitQueryRef.current(normalized);
     }
   }, []); // Empty dependency array - this function never changes

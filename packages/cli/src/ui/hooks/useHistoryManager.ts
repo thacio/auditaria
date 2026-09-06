@@ -100,7 +100,8 @@ export function useHistory({
           if (
             lastItem.type === 'user' &&
             newItem.type === 'user' &&
-            lastItem.text === newItem.text
+            lastItem.text === newItem.text &&
+            !newItem.providerTurnId // AUDITARIA_CLAUDE_PROVIDER: provider-observed turns are distinct submissions
           ) {
             return prevHistory; // Don't add the duplicate
           }

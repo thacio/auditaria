@@ -327,6 +327,13 @@ export type {
   InteractivePromptResolvedEvent,
   InteractivePromptAnswer,
   InteractivePromptResponse,
+  // AUDITARIA_CLAUDE_PROVIDER: external (terminal / system-initiated) turns
+  ExternalTurn,
+  ExternalTurnSource,
+  ExternalTurnCapableDriver,
+  ProviderNotice,
+  ProviderDriverStatus,
+  ProviderRecoveryCapableDriver,
 } from './providers/types.js';
 export { ProviderEventType } from './providers/types.js'; // AUDITARIA_SESSION_MANAGEMENT
 export {
@@ -357,6 +364,15 @@ export {
 // AUDITARIA_PROVIDER_TERMINAL: provider-agnostic web-terminal mirror singleton
 // (formerly claudePtyMirror — generalized for Claude/Copilot/Codex/agy PTYs)
 export { providerPtyMirror } from './providers/terminal/ptyMirror.js';
+// AUDITARIA_CLAUDE_PROVIDER: process-wide bus for provider turns the UI did
+// not start (typed in the web terminal / auto-continued) + provider notices
+export {
+  providerTurnBus,
+  type ManagedExternalTurn,
+} from './providers/externalTurnBus.js';
+// AUDITARIA_CLAUDE_PROVIDER: readable line for Claude's self-submitted
+// `<task-notification>` prompts (async sub-agent / background task done)
+export { describeSystemPrompt } from './providers/claude/claudeTurnObserver.js';
 // AUDITARIA_PROVIDER_TERMINAL: headless screen oracle for the web viewer's
 // "Live screen" mode (duplication-immune snapshots of the provider TUI)
 export { ProviderScreenMirror } from './providers/terminal/screenMirror.js';

@@ -29,6 +29,16 @@ export enum ProviderEventType {
   // calls providerManager.respondToPrompt(promptId, response).
   InteractivePromptStart = 'interactive_prompt_start',
   InteractivePromptResolved = 'interactive_prompt_resolved',
+  // AUDITARIA_CLAUDE_PROVIDER: the turn was cut short by the user (Esc /
+  // Ctrl+C in the chat or in the provider terminal). Terminal event.
+  Aborted = 'aborted',
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: emitted instead of Finished when the user
+// interrupted the turn. `reason` is informational.
+export interface ProviderAbortedEvent {
+  type: ProviderEventType.Aborted;
+  reason?: string;
 }
 
 export interface ProviderContentEvent {
@@ -170,7 +180,95 @@ export type ProviderEvent =
   | ProviderCompactionSummaryEvent
   // AUDITARIA_CLAUDE_PROVIDER
   | InteractivePromptStartEvent
-  | InteractivePromptResolvedEvent;
+  | InteractivePromptResolvedEvent
+  | ProviderAbortedEvent;
+
+// AUDITARIA_CLAUDE_PROVIDER_START: External turns and notices.
+//
+// A PTY-driven provider (Claude today, Copilot/Codex/agy later) runs turns
+// that Auditaria did not start: the user typed into the mirrored terminal, or
+// the CLI auto-continued (a background task notification). Those turns are
+// delivered here as the SAME ProviderEvent stream `sendMessage` produces, so
+// the manager and the UI render them through the one pipeline they already
+// have. Facts that are not part of a turn (a `/clear` typed in the terminal,
+// a permission dialog waiting for a human, a sub-agent finishing) travel as
+// notices.
+
+/** Who started the turn. `system` = the CLI itself (task notification…). */
+export type ExternalTurnSource = 'terminal' | 'system';
+
+export interface ExternalTurn {
+  /** The provider's own prompt id (Claude's prompt_id) or a synthetic one. */
+  promptId: string;
+  source: ExternalTurnSource;
+  /** What the user (or the CLI) submitted. */
+  userText: string;
+  /** Turn events in provider order; ends with Finished, Aborted or Error. */
+  events: AsyncIterable<ProviderEvent>;
+  /** Interrupt the turn in the provider (Esc / Ctrl+C in the PTY). */
+  interrupt(): void;
+}
+
+export type ProviderNotice =
+  | {
+      kind: 'attention';
+      phase: 'start' | 'end';
+      id: string;
+      what: 'permission' | 'question' | 'elicitation' | 'dialog' | 'trust';
+      toolName?: string;
+      detail?: string;
+    }
+  | {
+      kind: 'session';
+      source: string;
+      sessionId: string;
+      transcriptPath?: string;
+    }
+  | { kind: 'local_command'; command?: string; output: string }
+  | {
+      kind: 'subagent';
+      phase: 'start' | 'stop';
+      agentId: string;
+      agentType: string;
+      summary?: string;
+    }
+  | { kind: 'model'; model: string }
+  | { kind: 'user_message'; text: string }
+  | { kind: 'info'; text: string }
+  | { kind: 'error'; message: string };
+
+/** Optional driver capability — the manager duck-types for it. */
+export interface ExternalTurnCapableDriver {
+  onExternalTurn(listener: (turn: ExternalTurn) => void): () => void;
+  onNotice(listener: (notice: ProviderNotice) => void): () => void;
+  /** True while ANY turn (chat-started or external) is running. */
+  isTurnActive(): boolean;
+}
+
+/** What `/provider status` shows. */
+export interface ProviderDriverStatus {
+  ptyAlive: boolean;
+  sessionId?: string;
+  /** The running turn, if any. */
+  turn?: { promptId: string; source: 'chat' | ExternalTurnSource };
+  /** Interactive pickers waiting for an answer. */
+  pendingPrompts: number;
+}
+
+/** Optional driver capability: local recovery + a CLI terminal hand-off
+ *  (`/provider terminal|status|cancel|restart`). */
+export interface ProviderRecoveryCapableDriver {
+  /** The provider TUI's current screen as plain text. */
+  screen(): Promise<string>;
+  /** Raw keystrokes for the provider TUI. */
+  writeRawInput(bytes: string): Promise<void>;
+  /** Cancel whatever the provider is doing (Esc in the TUI). */
+  interruptCurrentTurn(): void;
+  /** Kill the provider process; the next message starts it again. */
+  restart(): void;
+  getStatus(): ProviderDriverStatus;
+}
+// AUDITARIA_CLAUDE_PROVIDER_END
 
 // AUDITARIA_ATTACHMENTS: Image attachment for providers that support images.
 // Codex uses filePath (temp file + -i flag), Copilot uses data (inline base64 via ACP).

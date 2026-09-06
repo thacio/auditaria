@@ -39,12 +39,29 @@ import { SearchAddon } from 'xterm-search';
 const MIRROR_BG = '#1e1e1e';
 const MIRROR_FG = '#d4d4d4';
 
-const PIP_DEFAULT_WIDTH = 560;
-const PIP_DEFAULT_HEIGHT = 320;
+const PIP_DEFAULT_WIDTH = 480;
+const PIP_DEFAULT_HEIGHT = 270;
 const PIP_MIN_WIDTH = 320;
 const PIP_MIN_HEIGHT = 180;
-const PIP_DEFAULT_X = 24;
-const PIP_DEFAULT_Y = 24;
+// The PiP docks just above the bottom-right ">_" toggle button (16px
+// margins, 48px button) and is always clamped inside the viewport — a
+// persisted position from a wider window must never leave it off-screen.
+const PIP_MARGIN = 16;
+const PIP_DOCK_BOTTOM = 16 + 48 + 12; // button bottom + button height + gap
+function defaultPipPosition(width, height) {
+  return {
+    x: Math.max(0, window.innerWidth - width - PIP_MARGIN),
+    y: Math.max(0, window.innerHeight - height - PIP_DOCK_BOTTOM),
+  };
+}
+function clampPipPosition(pos, width, height) {
+  const maxX = Math.max(0, window.innerWidth - width - PIP_MARGIN);
+  const maxY = Math.max(0, window.innerHeight - height - PIP_MARGIN);
+  return {
+    x: Math.min(Math.max(0, pos.x), maxX),
+    y: Math.min(Math.max(0, pos.y), maxY),
+  };
+}
 
 // AUDITARIA_PROVIDER_TERMINAL: persist a tiny blob of viewer state across
 // page reloads so the user doesn't have to re-toggle the terminal and
@@ -156,8 +173,8 @@ export class ProviderTerminalViewer {
     this.modeBtn = null;
     /** @type {'hidden'|'modal'|'pip'} */
     this.mode = 'hidden';
-    this.pipPosition = { x: PIP_DEFAULT_X, y: PIP_DEFAULT_Y };
     this.pipSize = { width: PIP_DEFAULT_WIDTH, height: PIP_DEFAULT_HEIGHT };
+    this.pipPosition = null; // null = dock above the toggle button
     // Load persisted state. Mode is restored opportunistically — if it
     // was 'modal' or 'pip', we'll open the panel on construction so a
     // page reload mid-conversation isn't disruptive.
@@ -482,6 +499,26 @@ export class ProviderTerminalViewer {
   }
 
   applyPipLayout() {
+    // Keep the panel small enough for the viewport, docked above the ">_"
+    // button by default, and never off-screen (persisted positions from a
+    // wider window used to push it outside the browser to the right).
+    const maxW = Math.max(PIP_MIN_WIDTH, window.innerWidth - 2 * PIP_MARGIN);
+    const maxH = Math.max(
+      PIP_MIN_HEIGHT,
+      window.innerHeight - PIP_DOCK_BOTTOM - PIP_MARGIN,
+    );
+    this.pipSize = {
+      width: Math.min(this.pipSize.width, maxW),
+      height: Math.min(this.pipSize.height, maxH),
+    };
+    const wanted =
+      this.pipPosition ??
+      defaultPipPosition(this.pipSize.width, this.pipSize.height);
+    this.pipPosition = clampPipPosition(
+      wanted,
+      this.pipSize.width,
+      this.pipSize.height,
+    );
     this.panel.style.width = `${this.pipSize.width}px`;
     this.panel.style.height = `${this.pipSize.height}px`;
     this.panel.style.left = `${this.pipPosition.x}px`;
@@ -558,6 +595,9 @@ export class ProviderTerminalViewer {
   }
 
   hide() {
+    // The user closed the panel: do not auto-reopen it (PiP-on-activity)
+    // until the page reloads or the provider PTY restarts.
+    this._userHid = true;
     this.mode = 'hidden';
     this.persistState();
     this.panel.style.display = 'none';
@@ -567,6 +607,9 @@ export class ProviderTerminalViewer {
   // ─── PiP drag ────────────────────────────────────────────────────────
 
   bindDocumentDragHandlers() {
+    window.addEventListener('resize', () => {
+      if (this.mode === 'pip') this.applyPipLayout();
+    });
     this.header.addEventListener('mousedown', (e) => {
       if (this.mode !== 'pip') return;
       if (e.target.closest('button')) return;
@@ -903,6 +946,7 @@ export class ProviderTerminalViewer {
 
   bindWsEvents() {
     this.wsManager.addEventListener('provider_pty_state', (e) => {
+      const wasActive = this.ptyActive;
       this.ptyActive = !!(e.detail && e.detail.active);
       const label =
         e.detail && typeof e.detail.label === 'string' ? e.detail.label : '';
@@ -913,15 +957,25 @@ export class ProviderTerminalViewer {
       if (this.activeDot) {
         this.activeDot.style.display = this.ptyActive ? 'block' : 'none';
       }
+      // A provider PTY came alive (first message of the session, or a
+      // restart): surface it as picture-in-picture right away so the user
+      // sees what the provider is doing, unless they closed the panel.
+      if (this.ptyActive && !wasActive) {
+        this._userHid = false;
+      }
+      if (this.ptyActive && this.mode === 'hidden' && !this._userHid) {
+        this.enterPip();
+      }
     });
     // AUDITARIA_PROVIDER_TERMINAL: server asks us to surface the terminal so
     // the user can answer an interactive picker here (e.g. Claude's
     // AskUserQuestion, instead of a modal that fights this terminal for
     // focus). Only open if currently hidden so we don't disrupt an existing
     // modal/PiP layout the user already arranged.
-    this.wsManager.addEventListener('provider_pty_open', () => {
+    this.wsManager.addEventListener('provider_pty_open', (e) => {
       if (this.mode === 'hidden') {
-        this.show();
+        if (e.detail && e.detail.mode === 'pip') this.enterPip();
+        else this.show();
       }
     });
     this.wsManager.addEventListener('provider_pty_data', (e) => {

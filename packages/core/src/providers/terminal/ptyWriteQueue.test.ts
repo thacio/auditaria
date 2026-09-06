@@ -50,3 +50,40 @@ describe('PtyWriteQueue.writeChunked', () => {
     expect(writes.join('')).toBe(payload);
   });
 });
+
+describe('PtyWriteQueue gate and lease', () => {
+  it('buffers typist bytes during an atomic block and delivers them after it, in order', async () => {
+    const writes: string[] = [];
+    const q = new PtyWriteQueue((b) => writes.push(b));
+    let typed: Promise<void> | undefined;
+    await q.withAtomicBlock(async () => {
+      await q.writeAtomic('prompt', 'system');
+      typed = q.writeAtomic('k', 'web-typist'); // used to be dropped
+      await q.writeAtomic('\r', 'system');
+    });
+    await typed;
+    expect(writes).toEqual(['prompt', '\r', 'k']);
+  });
+
+  it('serialises atomic blocks', async () => {
+    const writes: string[] = [];
+    const q = new PtyWriteQueue((b) => writes.push(b));
+    const first = q.withAtomicBlock(async () => {
+      await q.writeAtomic('a1', 'system');
+      await new Promise((r) => setTimeout(r, 10));
+      await q.writeAtomic('a2', 'system');
+    });
+    const second = q.withAtomicBlock(async () => {
+      await q.writeAtomic('b1', 'system');
+    });
+    await Promise.all([first, second]);
+    expect(writes).toEqual(['a1', 'a2', 'b1']);
+  });
+
+  it('rejects the caller when the PTY write fails', async () => {
+    const q = new PtyWriteQueue(() => {
+      throw new Error('EPIPE');
+    });
+    await expect(q.writeAtomic('x', 'system')).rejects.toThrow('EPIPE');
+  });
+});

@@ -631,12 +631,42 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
     localStorage. Bus generalized July 2026 to
     `providers/terminal/ptyMirror.ts` (`providerPtyMirror`, shared with
     Copilot — see Section 22).
-  - **Background hook watcher**: When the user types a turn directly into
-    the live PTY via the web terminal, a `setInterval(150ms)` watcher
-    drains hook events + transcript delta and emits user-message,
-    assistant-text, tool markers, errors, and compaction summary
-    incrementally to the chat UI via providerManager's `onBackground*`
-    methods. Paused while a chat-initiated sendMessage is running.
+  - **One turn pipeline, any trigger (September 2026)**: a single
+    `ClaudeTurnObserver` (`claude/claudeTurnObserver.ts`) is the only
+    reader of Claude's hook relay JSONL and session transcript, and turns
+    both into ONE ordered `ProviderEvent` stream per turn — whether the
+    prompt was typed by `sendMessage` (chat, CLI or web), typed by the user
+    into the mirrored web terminal, or started by Claude itself (background
+    task / async sub-agent `<task-notification>`). `sendMessage` claims the
+    next turn before typing; a turn nobody claimed is delivered through
+    `onExternalTurn` → `ProviderManager.runTurn` (the one translate-and-
+    mirror loop, shared with chat turns) → `providerTurnBus` →
+    `useProviderExternalTurns` → `useGeminiStream.processGeminiStreamEvents`,
+    so the CLI chat and the web chat render terminal-typed turns with the
+    same tool cards, text, thinking, errors, compaction and "responding"
+    state as chat turns, live and in transcript order. The transcript is the
+    primary source (written per content block, it leads the hooks by
+    seconds — verified live), hooks are the structured complement
+    (UserPromptSubmit = acceptance + prompt text, PostToolUse/Failure =
+    results, Stop/StopFailure, PermissionRequest/Notification = the TUI is
+    waiting on a human, SessionStart clear/resume, Subagent*, PostModelSwitch).
+    Notices (`ProviderNotice`: attention, session, local_command, subagent,
+    model, user_message, info, error) travel on the same bus; an attention
+    notice opens the web terminal (`webTerminalBridge`). Esc in the chat
+    interrupts an external turn like a chat turn (same abort ref). Kill
+    switch: `AUDITARIA_CLAUDE_EXTERNAL_TURNS=0`. Verified live facts the
+    observer relies on: Esc/Ctrl+C mid-turn writes a
+    `[Request interrupted by user…]` user line and no Stop; a message typed
+    while a turn runs is queued and injected into the SAME turn
+    (UserPromptSubmit re-fires with the running prompt_id); `/clear` =
+    SessionEnd + SessionStart(source clear, NEW session id, followed under
+    the same PTY without respawn); `/compact` = SessionStart(source compact,
+    SAME id) + `compact_boundary` (carries preTokens) + `isCompactSummary`
+    line; `/mcp`, `/model`, `/help` fire no hooks, only
+    `system/local_command` lines when dismissed; the trust dialog lists
+    "No, exit" FIRST (a bare Enter exits Claude — the driver now moves the
+    cursor to "Yes"). The web terminal viewer opens itself in PiP when the
+    provider PTY comes alive.
   - **/tui fullscreen auto-enabled**: After SessionStart we send
     `/tui fullscreen\r` to dodge the xterm scrollback-duplication bug in
     Claude Code 2.1.x (anthropics/claude-code#49086, #51828). Opt-out
@@ -2109,10 +2139,11 @@ After that, in the execution phase, write the codes with your implementation.
   d191917b89 (background watcher), 60b79f732b (/tui fullscreen),
   b525f51760 (live PreToolUse text markers + errors + compaction
   summary), f1653f0e78 (localStorage + drag-resize), 3b5e7e51d8 (Fable).
-- **Known caveats**: Background tool calls show as text markers
-  ("↪ Calling Bash: …"), not rich tool-group cards — the rich-rendering
-  attempt was reverted (commits 19a4e6379f, 8ca6f6df77) because it
-  didn't read right in practice.
+- **Superseded (September 2026)**: the background watcher and its text
+  markers ("↪ Calling Bash: …") were replaced by the one turn pipeline
+  (`ClaudeTurnObserver` + `ProviderManager.runTurn` + `providerTurnBus`),
+  which renders terminal-typed turns through the chat's own event path —
+  see Section 12 and "September 2026 — One turn pipeline" below.
 
 ### June 2026 — Alternative LLM Providers (Google Antigravity / `agy`)
 
@@ -2180,6 +2211,85 @@ After that, in the execution phase, write the codes with your implementation.
 - **Tests**: 17 new unit tests (CopilotTurnTracker/args 11, JsonlFileTail 6);
   e2e validated live (fresh spawn + tool turn on same PTY + resume across
   driver instances). Build, typecheck, lint green.
+
+### September 2026 — One turn pipeline for chat- and terminal-started Claude turns
+
+- **Change Type**: Architecture fix in the Claude provider — the two
+  divergent pipelines (chat turns via `sendMessage`/`processTurnEvents`/
+  `yieldEventsFromTranscript`; terminal-typed turns via the "background
+  watcher" text markers) became ONE: `ClaudeTurnObserver` reads the hook
+  relay + transcript once and yields the same `ProviderEvent` stream for
+  any turn; `ProviderManager.runTurn` (extracted from `handleSendMessage`)
+  translates + mirrors it; external turns reach the UI over
+  `providerTurnBus` and render through `useGeminiStream`'s own
+  `processGeminiStreamEvents` (`useProviderExternalTurns`). Terminal-typed
+  turns now show live tool cards, text in transcript order, thinking,
+  errors, compaction and the responding state, in the CLI and the web.
+- **Design + evidence**: `.auditaria/tui-sync-plan.md` (case matrix,
+  empirical findings from the haiku probe harness, design). Astra's
+  independent solution to the same brief lives on branch `astra-tui-sync`
+  (`.auditaria/tui-sync-plan-astra.md`, `.auditaria/tui-sync-report-astra.md`);
+  the side-by-side assessment is `.auditaria/tui-sync-comparison.md`.
+- **Also fixed on the way**: chat-turn text ordering (text blocks used to
+  land after Stop, now before the tool cards that follow them); the
+  trust-dialog Enter that exited Claude; `/clear` typed in the terminal is
+  followed without respawn and resets the mirror; Windows PTY kill leaves
+  no zombie `claude.exe` (they made later ConPTY spawns fail, error 216);
+  new hooks registered (PostToolUseFailure, PermissionRequest, Elicitation,
+  PreCompact, SubagentStart/Stop, PostModelSwitch); a chat prompt is never
+  typed into an open TUI dialog (Esc first, else a visible error); no
+  silent hangs — every wait has a ceiling that ends in a visible item.
+- **Files**: new `core/providers/claude/claudeTurnObserver.ts` (+19 tests),
+  `core/providers/externalTurnBus.ts`,
+  `core/providers/terminal/asyncEventQueue.ts` (+tests),
+  `cli/src/ui/hooks/useProviderExternalTurns.ts`; rewritten
+  `claudeCLIDriver.ts` (2695 → ~900 lines); `providerManager.ts` (`runTurn`,
+  `onExternalTurn`/`onNotice` wiring, legacy `onBackground*` adapter kept
+  for the Copilot PTY driver); `types.ts` (Aborted event, ExternalTurn,
+  ProviderNotice); `useGeminiStream.ts` (one hook call); `AppContainer.tsx`
+  (old effect removed); `web-client ProviderTerminalViewer.js` (PiP on
+  activation). `claudeTranscriptDetector.test.ts` retired (its logic lives
+  in the observer tests).
+- **E2E**: `scratchpad e2e/tui-sync.e2e.cjs` pattern — spawn
+  `bundle/gemini.js --web --web-browser=false --model claude-code:haiku` in a
+  PTY with workspace settings that disable auto-update, drive `user_message`
+  and `provider_pty_input` over the WebSocket, compare the `history_item`
+  sequences of the chat path and the terminal path (13 checks).
+- **Merged from Astra's independent solution (same day)**: `MessageDisplay`
+  hook batches (`message_id`, `index`, `delta`, `final`; can arrive out of
+  order; for short messages they fire AFTER the transcript block) become
+  provisional live text — the observer emits the contiguous prefix as Content
+  and, when the canonical transcript block lands, only the remainder (a
+  replayed stream is ignored); the PostCompact hook's `compact_summary` is
+  used directly (~1 s before the transcript copy); `attachment/queued_command`
+  entries show a queued message once; `PtyWriteQueue` buffers competing
+  typists during an atomic block instead of dropping their bytes, serialises
+  blocks and rejects on PTY write failure; `JsonlFileTail` re-arms on path
+  switch / truncation / same-size rewrite and bounds reads; `/provider
+  terminal|status|cancel|restart` (`ui/commands/providerCommand.ts`) gives
+  CLI-only users an in-terminal hand-off (`ProviderTerminalHandoff.tsx`: the
+  TUI screen from `ProviderScreenMirror.plainScreen()`, keystrokes forwarded,
+  Ctrl+Q returns to chat) so a trust/permission/picker dialog is never a dead
+  end without the web; identical consecutive terminal prompts are two
+  submissions (`HistoryItemUser.providerTurnId` bypasses the dedupe). A turn
+  Claude starts by itself (the `<task-notification>` it enqueues when an
+  async sub-agent or background Bash task finishes) is announced as one
+  readable INFO line via `describeSystemPrompt` ("Background task finished:
+  Agent "…" finished (3.4 s, 0 tool uses) — result: PONG · Claude continues
+  on its own."), never as raw XML; the raw text still goes to the mirror.
+  Robustness rule learned from the merge (intermittent doubled user/answer
+  items + a spurious "did not accept the prompt" error in 2 of 4 e2e runs):
+  a hook that arrives AFTER a turn finalized must never open a turn —
+  `MessageDisplay` for short messages fires after the transcript block and
+  after the settle-finalize; `applyDisplay` therefore never calls
+  `ensureTurn()`, replays are matched against the previous turn's texts
+  (`recentTexts`) too, and a `UserPromptSubmit` whose text matches the pending
+  chat claim starts that claimed turn even while a synthetic/stale turn is
+  still open (Claude runs one turn at a time).
+  Deliberately NOT merged: Astra's parallel presentation path (blocks/
+  snapshot/presenter beside the Gemini renderer), `tui: default` on Windows,
+  removal of automatic trust acceptance, the 1 s dispatch gap, image previews
+  in the web `MessageManager`.
 
 ### September 2026 — Codex & Copilot model lists driven by the CLIs' own catalogs
 

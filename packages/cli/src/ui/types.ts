@@ -172,6 +172,10 @@ export interface HistoryItemBase {
 export type HistoryItemUser = HistoryItemBase & {
   type: 'user';
   text: string;
+  // AUDITARIA_CLAUDE_PROVIDER: identity of a turn the provider observed
+  // (typed in its terminal). Two identical prompts are two real submissions,
+  // so the consecutive-duplicate suppression must not drop the second.
+  providerTurnId?: string;
   // WEB_INTERFACE_START: Add attachments support for multimodal messages
   attachments?: Array<{
     type: string;

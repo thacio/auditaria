@@ -129,6 +129,7 @@ interface AttachmentMeta {
 }
 import { useWebInterface } from '../contexts/WebInterfaceContext.js'; // WEB_INTERFACE AUDITARIA
 import { useClaudeInteractivePromptDialog } from './useClaudeInteractivePromptDialog.jsx'; // AUDITARIA_CLAUDE_PROVIDER
+import { useProviderExternalTurns } from './useProviderExternalTurns.js'; // AUDITARIA_CLAUDE_PROVIDER
 
 type ToolResponseWithParts = ToolCallResponseInfo & {
   llmContent?: PartListUnion;
@@ -2053,6 +2054,21 @@ export const useGeminiStream = (
       setThought,
     ],
   );
+
+  // AUDITARIA_CLAUDE_PROVIDER: turns the user typed into the provider
+  // terminal (or the provider CLI started by itself) render through the
+  // very same processGeminiStreamEvents as chat turns.
+  useProviderExternalTurns({
+    addItem,
+    processGeminiStreamEvents,
+    setIsResponding,
+    setThought,
+    pendingHistoryItemRef,
+    setPendingHistoryItem,
+    abortControllerRef,
+    isRespondingRef,
+  });
+
   const submitQuery = useCallback(
     async (
       query: PartListUnion,

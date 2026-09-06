@@ -30,6 +30,13 @@ export class JsonlFileTail {
   private lastSize = 0;
   /** Serialises drains — concurrent callers queue behind each other. */
   private chain: Promise<unknown> = Promise.resolve();
+  // AUDITARIA_CLAUDE_PROVIDER: fences for a path switch (native /clear,
+  // /resume) and for file replacement / truncation / same-size rewrite —
+  // any of them re-arms the tail from the start instead of reading garbage
+  // from a stale byte offset.
+  private path?: string;
+  private inode?: number;
+  private mtime?: number;
 
   constructor(private readonly getPath: () => string | undefined) {}
 
@@ -38,6 +45,9 @@ export class JsonlFileTail {
     this.cursor = offset;
     this.leftover = Buffer.alloc(0);
     this.lastSize = offset;
+    this.path = this.getPath();
+    this.inode = undefined;
+    this.mtime = undefined;
   }
 
   /** Move the cursor to the file's current end (skip existing content). */
@@ -85,6 +95,21 @@ export class JsonlFileTail {
     try {
       const stat = await fsp.stat(path);
       size = stat.size;
+      // AUDITARIA_CLAUDE_PROVIDER: a different file, a replaced file, a
+      // truncated file, or a same-size rewrite → start over from offset 0.
+      if (
+        this.path !== path ||
+        (this.inode !== undefined && this.inode !== stat.ino) ||
+        size < this.cursor ||
+        (size === this.cursor &&
+          this.mtime !== undefined &&
+          this.mtime !== stat.mtimeMs)
+      ) {
+        this.reset(0);
+      }
+      this.path = path;
+      this.inode = stat.ino;
+      this.mtime = stat.mtimeMs;
     } catch {
       return none;
     }
@@ -96,17 +121,19 @@ export class JsonlFileTail {
     try {
       const fh = await fsp.open(path, 'r');
       try {
-        const len = size - this.cursor;
+        // Bounded reads: a huge backlog is drained across several calls, and
+        // only the bytes actually read advance the cursor.
+        const len = Math.min(size - this.cursor, 4 * 1024 * 1024);
         const buf = Buffer.alloc(len);
-        await fh.read(buf, 0, len, this.cursor);
-        chunk = buf;
+        const { bytesRead } = await fh.read(buf, 0, len, this.cursor);
+        chunk = buf.subarray(0, bytesRead);
       } finally {
         await fh.close();
       }
     } catch {
       return { entries: [], grew, size };
     }
-    this.cursor = size;
+    this.cursor += chunk.length;
 
     // Work on BYTES until the last newline so a multi-byte UTF-8 character
     // split across reads is never decoded in halves. Scanning for 0x0A on

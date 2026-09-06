@@ -75,6 +75,28 @@ export class ProviderScreenMirror {
     return this.term.rows;
   }
 
+  /**
+   * AUDITARIA_CLAUDE_PROVIDER: the current viewport as plain text (one line
+   * per row, trailing whitespace trimmed) — what a CLI-only terminal hand-off
+   * shows, and what dialog/idle classification should look at instead of
+   * ANSI history. Sequenced after pending writes like snapshot().
+   */
+  plainScreen(): Promise<string> {
+    if (this.disposed) return Promise.resolve('');
+    return new Promise((resolve) => {
+      this.term.write('', () => {
+        const buffer = this.term.buffer.active;
+        const lines: string[] = [];
+        for (let i = 0; i < this.term.rows; i++) {
+          lines.push(
+            buffer.getLine(buffer.viewportY + i)?.translateToString(true) ?? '',
+          );
+        }
+        resolve(lines.join('\n'));
+      });
+    });
+  }
+
   /** Feed raw PTY bytes. Parsing is asynchronous; snapshot() sequences after. */
   write(bytes: string): void {
     if (this.disposed) return;

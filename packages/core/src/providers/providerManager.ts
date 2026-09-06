@@ -7,7 +7,6 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventEmitter } from 'node:events';
 import type { Content, Part, PartListUnion } from '@google/genai';
 import {
   GeminiEventType,
@@ -24,7 +23,18 @@ import type {
   ProviderReasoningEffort,
   CodexReasoningEffort,
   AttachmentFile,
+  ProviderEvent, // AUDITARIA_CLAUDE_PROVIDER: external turns
+  ExternalTurn, // AUDITARIA_CLAUDE_PROVIDER: external turns
+  ExternalTurnCapableDriver, // AUDITARIA_CLAUDE_PROVIDER: external turns
+  ProviderNotice, // AUDITARIA_CLAUDE_PROVIDER: external turns
+  ProviderRecoveryCapableDriver, // AUDITARIA_CLAUDE_PROVIDER: /provider recovery
+  ProviderDriverStatus, // AUDITARIA_CLAUDE_PROVIDER: /provider recovery
 } from './types.js';
+import {
+  providerTurnBus,
+  type ManagedExternalTurn,
+} from './externalTurnBus.js'; // AUDITARIA_CLAUDE_PROVIDER: external turns
+import { AsyncEventQueue } from './terminal/asyncEventQueue.js'; // AUDITARIA_CLAUDE_PROVIDER: legacy background adapter
 import {
   clampReasoningEffortForProvider,
   clampCodexReasoningEffortForModel,
@@ -280,6 +290,36 @@ function isBackgroundCapableDriver(
   );
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: drivers with a live terminal the user can take
+// over from the CLI (`/provider …`).
+function isRecoveryCapableDriver(
+  d: ProviderDriver | null,
+): d is ProviderDriver & ProviderRecoveryCapableDriver {
+  if (!d) return false;
+  const cast = d as ProviderDriver & Partial<ProviderRecoveryCapableDriver>;
+  return (
+    typeof cast.screen === 'function' &&
+    typeof cast.writeRawInput === 'function' &&
+    typeof cast.interruptCurrentTurn === 'function' &&
+    typeof cast.restart === 'function' &&
+    typeof cast.getStatus === 'function'
+  );
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: drivers that deliver full external turns (the
+// same ProviderEvent stream as sendMessage) plus notices — Claude today.
+function isExternalTurnCapableDriver(
+  d: ProviderDriver | null,
+): d is ProviderDriver & ExternalTurnCapableDriver {
+  if (!d) return false;
+  const cast = d as ProviderDriver & Partial<ExternalTurnCapableDriver>;
+  return (
+    typeof cast.onExternalTurn === 'function' &&
+    typeof cast.onNotice === 'function' &&
+    typeof cast.isTurnActive === 'function'
+  );
+}
+
 export class ProviderManager {
   private driver: ProviderDriver | null = null;
   private callCount = 0;
@@ -289,13 +329,9 @@ export class ProviderManager {
   // isTurnActive() — the UI's StreamingState cannot see turns typed directly
   // into a live provider PTY, this can.
   private turnActive = false;
-  // AUDITARIA_CLAUDE_PROVIDER: Out-of-band channel for events the active
-  // driver discovers between sendMessage calls (e.g. user typed
-  // directly into the live PTY via the web terminal viewer, Claude
-  // processed it, transcript appended). The UI subscribes via
-  // onBackgroundUserMessage / onBackgroundAssistantText below.
-  private backgroundEmitter = new EventEmitter();
-  private backgroundUnsubscribers: Array<() => void> = [];
+  // AUDITARIA_CLAUDE_PROVIDER: subscriptions on the active driver's external
+  // turn / notice channels (see wireExternalTurnForwarding).
+  private externalUnsubscribers: Array<() => void> = [];
   private mcpServers?: Record<string, ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
   private toolRegistry?: ToolRegistry; // AUDITARIA_CLAUDE_PROVIDER: For tool bridging
   private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
@@ -353,111 +389,203 @@ export class ProviderManager {
     this.wireToolOutputHandler();
   }
 
-  // AUDITARIA_CLAUDE_PROVIDER_START: Public subscribe API for background
-  // events. UI (AppContainer) calls these once on mount; we route the
-  // active driver's background events through our local emitter so the
-  // subscription survives driver re-creation across provider switches.
+  // AUDITARIA_CLAUDE_PROVIDER_START: External turns + notices.
+  //
+  // A PTY-driven driver reports turns Auditaria did not start (typed in the
+  // mirrored web terminal, or auto-continued by the CLI after a background
+  // task / sub-agent) as the SAME ProviderEvent stream `sendMessage` yields.
+  // They go through `runTurn` — the one translate-and-mirror loop — and
+  // reach the UI over the process-wide `providerTurnBus` as
+  // ServerGeminiStreamEvent streams, so the UI renders them with the exact
+  // code path of a chat turn. Facts that are not turn events (a `/clear`
+  // typed in the terminal, a dialog waiting for a human, a sub-agent
+  // finishing) travel as notices on the same bus.
 
-  /** User message typed directly into the live PTY between sendMessages. */
-  onBackgroundUserMessage(
-    handler: (data: { text: string }) => void,
-  ): () => void {
-    this.backgroundEmitter.on('user-message', handler);
-    return () => this.backgroundEmitter.off('user-message', handler);
-  }
-
-  /** Assistant text emitted in a turn the user initiated via the live PTY. */
-  onBackgroundAssistantText(
-    handler: (data: { text: string }) => void,
-  ): () => void {
-    this.backgroundEmitter.on('assistant-text', handler);
-    return () => this.backgroundEmitter.off('assistant-text', handler);
-  }
-
-  /** Background API errors (Claude StopFailure during a web-PTY turn). */
-  onBackgroundError(handler: (data: { message: string }) => void): () => void {
-    this.backgroundEmitter.on('error', handler);
-    return () => this.backgroundEmitter.off('error', handler);
-  }
-
-  /** Compaction summary text produced by a /compact in the live PTY. */
-  onBackgroundCompactionSummary(
-    handler: (data: { text: string }) => void,
-  ): () => void {
-    this.backgroundEmitter.on('compaction-summary', handler);
-    return () => this.backgroundEmitter.off('compaction-summary', handler);
-  }
-
-  // AUDITARIA_HIVE_FEATURE_START: Global turn-activity signal. True while a
-  // chat-initiated provider turn or a native /compact runs. Turns the user
-  // types DIRECTLY into a live provider PTY never pass handleSendMessage —
-  // they surface as background events, so recent background activity also
-  // counts as busy (a turn actively producing output). The 15s window is a
-  // heuristic; the hive drain loop re-checks periodically, so a stale-busy
-  // reading only delays delivery, never loses a message.
-  private lastBackgroundActivity = 0;
-
+  // AUDITARIA_HIVE_FEATURE: Global turn-activity signal. True while a
+  // chat-initiated provider turn, a native /compact, or an external turn
+  // runs. Drivers with the observer report exactly; the legacy text-only
+  // background API (Copilot) keeps the 15 s recent-activity heuristic.
   isTurnActive(): boolean {
     if (this.turnActive) return true;
-    // Positive signal from the driver beats the time heuristic: a long tool
-    // execution inside a background turn produces no background events for
-    // minutes, so the 15s window alone reads "idle" mid-turn and a headless
-    // delivery gets typed into the live PTY (queued input → injected into
-    // the RUNNING turn; observed live as a false DLQ + dead-letter).
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    const driver = this.driver as {
-      isBackgroundTurnActive?: () => boolean;
-    } | null;
     try {
-      if (driver?.isBackgroundTurnActive?.()) return true;
+      if (
+        isExternalTurnCapableDriver(this.driver) &&
+        this.driver.isTurnActive()
+      ) {
+        return true;
+      }
     } catch {
       /* driver signal is best-effort */
     }
-    return Date.now() - this.lastBackgroundActivity < 15_000;
+    return Date.now() - this.lastLegacyBackgroundActivity < 15_000;
   }
-  // AUDITARIA_HIVE_FEATURE_END
+  private lastLegacyBackgroundActivity = 0;
 
   /**
-   * Subscribe to the active driver's background events. Called once after
-   * each driver creation in getOrCreateDriver, and again when the driver
-   * is replaced. Each call tears down the previous subscriptions before
-   * setting up new ones so we don't leak forwarders.
+   * Subscribe to the active driver's external-turn channels. Called after
+   * each driver creation; tears down the previous subscriptions first.
    */
-  private wireBackgroundForwarding(): void {
-    for (const off of this.backgroundUnsubscribers) {
+  private wireExternalTurnForwarding(): void {
+    for (const off of this.externalUnsubscribers) {
       try {
         off();
       } catch {
         /* ignore */
       }
     }
-    this.backgroundUnsubscribers = [];
-
-    if (!isBackgroundCapableDriver(this.driver)) return;
-
-    const offUser = this.driver.onBackgroundUserMessage((data) => {
-      this.lastBackgroundActivity = Date.now(); // AUDITARIA_HIVE_FEATURE
-      this.backgroundEmitter.emit('user-message', data);
-    });
-    const offAssistant = this.driver.onBackgroundAssistantText((data) => {
-      this.lastBackgroundActivity = Date.now(); // AUDITARIA_HIVE_FEATURE
-      this.backgroundEmitter.emit('assistant-text', data);
-    });
-    this.backgroundUnsubscribers.push(offUser, offAssistant);
-
-    // Optional channels — drivers may not implement these.
-    if (typeof this.driver.onBackgroundError === 'function') {
-      const offErr = this.driver.onBackgroundError((data) => {
-        this.backgroundEmitter.emit('error', data);
-      });
-      this.backgroundUnsubscribers.push(offErr);
+    this.externalUnsubscribers = [];
+    const driver = this.driver;
+    if (isExternalTurnCapableDriver(driver)) {
+      this.externalUnsubscribers.push(
+        driver.onExternalTurn((turn) => this.dispatchExternalTurn(turn)),
+        driver.onNotice((notice) => this.dispatchNotice(notice)),
+      );
+      return;
     }
-    if (typeof this.driver.onBackgroundCompactionSummary === 'function') {
-      const offCompact = this.driver.onBackgroundCompactionSummary((data) => {
-        this.backgroundEmitter.emit('compaction-summary', data);
-      });
-      this.backgroundUnsubscribers.push(offCompact);
+    if (isBackgroundCapableDriver(driver)) {
+      // Legacy adapter (Copilot PTY driver): its text-only background events
+      // become minimal external turns through the same pipeline.
+      this.externalUnsubscribers.push(
+        driver.onBackgroundUserMessage(({ text }) => {
+          this.lastLegacyBackgroundActivity = Date.now();
+          this.dispatchLegacyTurn(text, []);
+        }),
+        driver.onBackgroundAssistantText(({ text }) => {
+          this.lastLegacyBackgroundActivity = Date.now();
+          this.dispatchLegacyTurn('', [
+            { type: ProviderEventType.Content, text },
+          ]);
+        }),
+      );
+      if (typeof driver.onBackgroundError === 'function') {
+        this.externalUnsubscribers.push(
+          driver.onBackgroundError(({ message }) =>
+            this.dispatchNotice({ kind: 'error', message }),
+          ),
+        );
+      }
+      if (typeof driver.onBackgroundCompactionSummary === 'function') {
+        this.externalUnsubscribers.push(
+          driver.onBackgroundCompactionSummary(({ text }) =>
+            this.dispatchNotice({
+              kind: 'info',
+              text: text
+                ? `Context compacted in the live terminal. Summary: ${text.slice(0, 280)}${text.length > 280 ? '…' : ''}`
+                : 'Context compacted in the live terminal.',
+            }),
+          ),
+        );
+      }
     }
+  }
+
+  private getMirrorChat(): GeminiChat | undefined {
+    try {
+      return this.appConfig?.getGeminiClient()?.getChat();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** An external turn from the driver: run it through the one pipeline and
+   *  hand the translated stream to the UI (or drain it when headless). */
+  private dispatchExternalTurn(turn: ExternalTurn): void {
+    const chat = this.getMirrorChat();
+    const controller = new AbortController();
+    const promptId = `${turn.source}:${turn.promptId}`;
+    const self = this; // eslint-disable-line @typescript-eslint/no-this-alias
+    const stream =
+      (async function* (): AsyncGenerator<ServerGeminiStreamEvent> {
+        self.turnActive = true;
+        try {
+          if (chat) {
+            yield* self.runTurn(
+              turn.events,
+              chat,
+              promptId,
+              turn.userText,
+              controller.signal,
+            );
+          } else {
+            for await (const ev of turn.events) {
+              const adapted = adaptProviderEvent(ev);
+              if (adapted) yield adapted;
+            }
+          }
+        } finally {
+          self.turnActive = false;
+        }
+      })();
+    const managed: ManagedExternalTurn = {
+      promptId,
+      source: turn.source,
+      userText: turn.userText,
+      stream,
+      interrupt: () => {
+        controller.abort();
+        turn.interrupt();
+      },
+    };
+    if (!providerTurnBus.emitTurn(managed)) {
+      // Nobody rendering (headless): still consume so the mirror stays in sync.
+      void (async () => {
+        try {
+          for await (const _ of stream) {
+            /* drained */
+          }
+        } catch (e) {
+          dbg('external turn drain failed', e);
+        }
+      })();
+    }
+  }
+
+  private dispatchLegacyTurn(userText: string, events: ProviderEvent[]): void {
+    const queue = new AsyncEventQueue<ProviderEvent>();
+    for (const ev of events) queue.push(ev);
+    queue.push({ type: ProviderEventType.Finished });
+    queue.end();
+    this.dispatchExternalTurn({
+      promptId: `legacy-${Date.now()}`,
+      source: 'terminal',
+      userText,
+      events: queue,
+      interrupt: () => {},
+    });
+  }
+
+  /** Notices: the manager acts on session changes (keep the mirrored chat
+   *  in step with what Claude actually holds) and forwards everything. */
+  private dispatchNotice(notice: ProviderNotice): void {
+    if (notice.kind === 'session') {
+      const client = (() => {
+        try {
+          return this.appConfig?.getGeminiClient();
+        } catch {
+          return undefined;
+        }
+      })();
+      if (client && notice.source === 'clear') {
+        // Claude's context is empty now; so must the mirror be. Not
+        // onHistoryModified(): the user cleared on purpose, nothing to carry.
+        void client.resetChat().catch((e) => dbg('mirror reset failed', e));
+      } else if (
+        client &&
+        notice.source === 'resume' &&
+        notice.transcriptPath
+      ) {
+        const path = notice.transcriptPath;
+        void import('./claude/claudeSessionLoader.js')
+          .then(({ loadClaudeSessionAsContent }) =>
+            loadClaudeSessionAsContent(path),
+          )
+          .then((history) => {
+            if (history.length > 0) client.setHistory(history);
+          })
+          .catch((e) => dbg('mirror resume load failed', e));
+      }
+    }
+    providerTurnBus.emitNotice(notice);
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
 
@@ -597,6 +725,42 @@ export class ProviderManager {
   canRespondToPrompts(): boolean {
     return typeof this.driver?.respondToPrompt === 'function';
   }
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: local recovery for `/provider …`.
+  // Duck-typed on the driver (ProviderRecoveryCapableDriver); undefined when
+  // the active provider has no live terminal.
+  private recoveryDriver():
+    | (ProviderDriver & ProviderRecoveryCapableDriver)
+    | undefined {
+    return isRecoveryCapableDriver(this.driver) ? this.driver : undefined;
+  }
+
+  supportsRecovery(): boolean {
+    return this.recoveryDriver() !== undefined;
+  }
+
+  getProviderScreen(): Promise<string> | undefined {
+    return this.recoveryDriver()?.screen();
+  }
+
+  writeProviderInput(bytes: string): Promise<void> {
+    const d = this.recoveryDriver();
+    if (!d) return Promise.reject(new Error('No live provider terminal.'));
+    return d.writeRawInput(bytes);
+  }
+
+  interruptActiveTurn(): void {
+    this.recoveryDriver()?.interruptCurrentTurn();
+  }
+
+  restartProvider(): void {
+    this.recoveryDriver()?.restart();
+  }
+
+  getProviderStatus(): ProviderDriverStatus | undefined {
+    return this.recoveryDriver()?.getStatus();
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   // AUDITARIA_CLAUDE_PROVIDER: Forward a user's interactive-prompt response to
   // the active driver. The UI calls this after collecting the user's pick
@@ -841,20 +1005,6 @@ export class ProviderManager {
     // Intent consumed — subsequent turns default to 'continue'.
     this.nextTurn = { kind: 'continue' };
 
-    // AUDITARIA_CLAUDE_PROVIDER: Mirror only the original prompt to GeminiChat.history
-    // (not the conversation summary prefix — that's context injection, not conversation).
-    chat.addHistory({ role: 'user', parts: [{ text: prompt }] });
-    const modelParts: Part[] = [];
-    const toolIdToName = new Map<string, string>();
-    let accumulatedText = '';
-
-    // AUDITARIA_CLAUDE_PROVIDER: Two-phase compaction tracking
-    let compactionPreTokens = 0;
-    let awaitingCompactionSummary = false;
-
-    let eventCount = 0;
-    let codexActualTokens: number | undefined; // AUDITARIA_CODEX_PROVIDER: actual context from session JSONL
-
     // AUDITARIA_ATTACHMENTS: Prepare image attachments for the driver.
     // Codex: write temp files (uses -i flag). Copilot: pass inline base64 (ACP protocol).
     let attachmentFiles: AttachmentFile[] = [];
@@ -873,18 +1023,89 @@ export class ProviderManager {
     }
 
     try {
-      for await (const event of driver.sendMessage(
-        effectivePrompt,
+      // AUDITARIA_CLAUDE_PROVIDER: one translate-and-mirror loop for chat AND
+      // external turns (see runTurn).
+      yield* this.runTurn(
+        driver.sendMessage(
+          effectivePrompt,
+          signal,
+          effectiveContext,
+          attachmentFiles.length > 0 ? attachmentFiles : undefined,
+        ),
+        chat,
+        promptId,
+        prompt,
         signal,
-        effectiveContext,
-        attachmentFiles.length > 0 ? attachmentFiles : undefined,
-      )) {
+        systemContext,
+      );
+    } finally {
+      this.turnActive = false; // AUDITARIA_HIVE_FEATURE
+
+      // AUDITARIA_ATTACHMENTS: Clean up temp files (only for drivers that wrote them)
+      const tempFiles = attachmentFiles.filter((f) => f.filePath);
+      if (tempFiles.length > 0) {
+        cleanupAttachmentFiles(tempFiles);
+        dbg(`cleaned up ${tempFiles.length} attachment temp files`);
+      }
+
+      // AUDITARIA_REWIND_START: Create file checkpoint snapshot after turn (even on error/abort)
+      try {
+        const fcm = this.appConfig?.getFileCheckpointManager();
+        dbg(
+          `[REWIND] finally block: fcm=${!!fcm}, claudeSessionId=${this.driver?.getSessionId?.() || 'none'}`,
+        );
+        if (fcm) {
+          dbg('[REWIND] calling createSnapshotFromAdapter...');
+          await fcm.createSnapshotFromAdapter({
+            provider: this.config.type,
+            timestamp: Date.now(),
+          });
+          dbg(`[REWIND] snapshot created, hasSnapshots=${fcm.hasSnapshots()}`);
+        }
+      } catch (fcmError) {
+        dbg('[REWIND] file checkpoint snapshot failed (non-fatal)', fcmError);
+      }
+      // AUDITARIA_REWIND_END
+    }
+
+    return new Turn(chat, promptId);
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: The one translate-and-mirror loop.
+  // Consumes a driver ProviderEvent stream (from sendMessage OR an external
+  // turn), mirrors it into GeminiChat.history (user text, model parts, tool
+  // responses, compaction), and yields ServerGeminiStreamEvents for the UI.
+  // Ends with the token estimate that keeps the footer honest.
+  private async *runTurn(
+    events: AsyncIterable<ProviderEvent>,
+    chat: GeminiChat,
+    promptId: string,
+    prompt: string,
+    signal: AbortSignal,
+    systemContext?: string,
+  ): AsyncGenerator<ServerGeminiStreamEvent> {
+    // AUDITARIA_CLAUDE_PROVIDER: Mirror only the original prompt to GeminiChat.history
+    // (not the conversation summary prefix — that's context injection, not conversation).
+    chat.addHistory({ role: 'user', parts: [{ text: prompt }] });
+    const modelParts: Part[] = [];
+    const toolIdToName = new Map<string, string>();
+    let accumulatedText = '';
+
+    // AUDITARIA_CLAUDE_PROVIDER: Two-phase compaction tracking
+    let compactionPreTokens = 0;
+    let awaitingCompactionSummary = false;
+
+    let eventCount = 0;
+    let codexActualTokens: number | undefined; // AUDITARIA_CODEX_PROVIDER: actual context from session JSONL
+
+    try {
+      for await (const event of events) {
         eventCount++;
         if (signal.aborted) {
           // Flush any accumulated model parts before returning
           flushModelParts(chat, modelParts, accumulatedText);
           dbg('signal aborted, returning');
-          return new Turn(chat, promptId);
+          return;
         }
 
         // AUDITARIA_CLAUDE_PROVIDER_START: Phase-1 interactive-prompt passthrough.
@@ -908,6 +1129,15 @@ export class ProviderManager {
             type: GeminiEventType.InteractivePromptResolved,
             value: event,
           };
+          continue;
+        }
+        // AUDITARIA_CLAUDE_PROVIDER: the user interrupted the turn (Esc /
+        // Ctrl+C in chat or in the provider terminal) → same UI as a
+        // cancelled Gemini turn.
+        if (event.type === ProviderEventType.Aborted) {
+          flushModelParts(chat, modelParts, accumulatedText);
+          accumulatedText = '';
+          yield { type: GeminiEventType.UserCancelled };
           continue;
         }
         // AUDITARIA_CLAUDE_PROVIDER_END
@@ -1188,38 +1418,9 @@ export class ProviderManager {
 
       dbg('handleSendMessage ERROR during iteration', e);
       throw e;
-    } finally {
-      this.turnActive = false; // AUDITARIA_HIVE_FEATURE
-
-      // AUDITARIA_ATTACHMENTS: Clean up temp files (only for drivers that wrote them)
-      const tempFiles = attachmentFiles.filter((f) => f.filePath);
-      if (tempFiles.length > 0) {
-        cleanupAttachmentFiles(tempFiles);
-        dbg(`cleaned up ${tempFiles.length} attachment temp files`);
-      }
-
-      // AUDITARIA_REWIND_START: Create file checkpoint snapshot after turn (even on error/abort)
-      try {
-        const fcm = this.appConfig?.getFileCheckpointManager();
-        dbg(
-          `[REWIND] finally block: fcm=${!!fcm}, claudeSessionId=${this.driver?.getSessionId?.() || 'none'}`,
-        );
-        if (fcm) {
-          dbg('[REWIND] calling createSnapshotFromAdapter...');
-          await fcm.createSnapshotFromAdapter({
-            provider: this.config.type,
-            timestamp: Date.now(),
-          });
-          dbg(`[REWIND] snapshot created, hasSnapshots=${fcm.hasSnapshots()}`);
-        }
-      } catch (fcmError) {
-        dbg('[REWIND] file checkpoint snapshot failed (non-fatal)', fcmError);
-      }
-      // AUDITARIA_REWIND_END
     }
-
-    return new Turn(chat, promptId);
   }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   setConfig(config: ProviderConfig): void {
     const optionsChanged = !areProviderOptionsEqual(
@@ -1329,17 +1530,16 @@ export class ProviderManager {
   }
 
   dispose(): void {
-    // AUDITARIA_CLAUDE_PROVIDER: tear down background forwarders before
+    // AUDITARIA_CLAUDE_PROVIDER: tear down external-turn forwarders before
     // we dispose the driver they're subscribed to.
-    for (const off of this.backgroundUnsubscribers) {
+    for (const off of this.externalUnsubscribers) {
       try {
         off();
       } catch {
         /* ignore */
       }
     }
-    this.backgroundUnsubscribers = [];
-    this.backgroundEmitter.removeAllListeners();
+    this.externalUnsubscribers = [];
     this.driver?.dispose();
     this.driver = null;
     // AUDITARIA_CLAUDE_PROVIDER: Stop tool executor server (only if we own it — borrowed
@@ -1470,10 +1670,9 @@ export class ProviderManager {
       );
     }
 
-    // AUDITARIA_CLAUDE_PROVIDER: Wire background-turn forwarding from
-    // the newly-created driver into our local emitter. No-op for drivers
-    // that don't implement the BackgroundCapableDriver shape.
-    this.wireBackgroundForwarding();
+    // AUDITARIA_CLAUDE_PROVIDER: Wire external-turn / notice forwarding from
+    // the newly-created driver (legacy background API adapted for Copilot).
+    this.wireExternalTurnForwarding();
 
     return this.driver;
   }
