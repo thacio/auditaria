@@ -8,13 +8,14 @@
 // with alternative LLM providers. Follows the browser_agent pattern (action-based,
 // session management, Bridgeable for MCP).
 
+import type { FunctionDeclaration } from '@google/genai';
 import type { Config } from '../config/config.js';
+import { isRecord } from '../utils/markdownUtils.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
-import {} from '../providers/types.js'; // AUDITARIA_AGY_PROVIDER // AUDITARIA_CODEX_PROVIDER
 import {
   getAllProviderModelIds,
   getProviderModelIds,
@@ -50,6 +51,31 @@ const ids = (provider: Parameters<typeof getProviderModelIds>[0]): string =>
 const allModelIds = (): string[] => getAllProviderModelIds();
 const asProviderModelKey = (v: string): ProviderModelKey | undefined =>
   PROVIDER_MODEL_KEYS.find((k) => k === v);
+
+/** The `model` parameter, rebuilt from the live lists on every schema read. */
+const buildModelProperty = () => ({
+  type: 'string',
+  description:
+    'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
+    'Claude models: ' +
+    ids('claude') +
+    ' (all run with a 1M-token context window except haiku at 200K; opusplan uses Opus while planning and Sonnet while executing). ' +
+    'Codex models: ' +
+    ids('codex') +
+    '. ' +
+    'Copilot models: ' +
+    (ids('copilot') || 'auto') +
+    '. ' +
+    'Antigravity (agy) models: ' +
+    ids('agy') +
+    '. ' +
+    'Gemini models: ' +
+    ids('auditaria') +
+    ' (default: ' +
+    DEFAULT_GEMINI_MODEL +
+    ').',
+  enum: allModelIds(),
+});
 
 interface ExternalAgentSessionParams {
   action: Action;
@@ -137,6 +163,27 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
     return true;
   }
 
+  // AUDITARIA_AGENT_SESSION: the tool instance lives for the whole session
+  // but the Codex/Copilot model lists are refreshed in the background —
+  // rebuild the advertised description and model enum on every read so
+  // function declarations (and MCP tools/list) always carry the CURRENT
+  // lists, the same ones the /model menu shows.
+  override getSchema(modelId?: string): FunctionDeclaration {
+    const base = super.getSchema(modelId);
+    const params = isRecord(base.parametersJsonSchema)
+      ? base.parametersJsonSchema
+      : {};
+    const props = isRecord(params['properties']) ? params['properties'] : {};
+    return {
+      ...base,
+      description: buildDescription(),
+      parametersJsonSchema: {
+        ...params,
+        properties: { ...props, model: buildModelProperty() },
+      },
+    };
+  }
+
   constructor(
     private readonly config: Config,
     messageBus: MessageBus,
@@ -170,29 +217,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
             description:
               'The message to send to the sub-agent. Required for "send".',
           },
-          model: {
-            type: 'string',
-            description:
-              'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
-              'Claude models: ' +
-              ids('claude') +
-              ' (all run with a 1M-token context window except haiku at 200K; opusplan uses Opus while planning and Sonnet while executing). ' +
-              'Codex models: ' +
-              ids('codex') +
-              '. ' +
-              'Copilot models: ' +
-              (ids('copilot') || 'auto') +
-              '. ' +
-              'Antigravity (agy) models: ' +
-              ids('agy') +
-              '. ' +
-              'Gemini models: ' +
-              ids('auditaria') +
-              ' (default: ' +
-              DEFAULT_GEMINI_MODEL +
-              ').',
-            enum: allModelIds(),
-          },
+          model: buildModelProperty(),
           mode: {
             type: 'string',
             description:

@@ -12,8 +12,8 @@
  * Stop line used to hang a turn.
  */
 
-import { writeFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 export function hookRelaySource(envVar: string): string {
@@ -54,11 +54,30 @@ process.stdin.on('end', () => {
 export function ensureHookRelayScript(
   providerId: string,
   envVar: string,
+  options: { stable?: boolean } = {},
 ): string {
-  const file = join(
-    tmpdir(),
-    `auditaria-${providerId}-hook-relay-${process.pid}.cjs`,
-  );
-  if (!existsSync(file)) writeFileSync(file, hookRelaySource(envVar), 'utf8');
+  // `stable`: one durable path shared by every Auditaria process — for CLIs
+  // whose hooks live in a user-level file that outlives us (Copilot): a relay
+  // path with a PID (or under a temp dir the OS may purge) would dangle after
+  // we exit and error in the user's own sessions.
+  let file: string;
+  if (options.stable) {
+    const dir = join(homedir(), '.auditaria');
+    mkdirSync(dir, { recursive: true });
+    file = join(dir, `${providerId}-hook-relay.cjs`);
+  } else {
+    file = join(
+      tmpdir(),
+      `auditaria-${providerId}-hook-relay-${process.pid}.cjs`,
+    );
+  }
+  const source = hookRelaySource(envVar);
+  let current: string | undefined;
+  try {
+    current = readFileSync(file, 'utf8');
+  } catch {
+    current = undefined;
+  }
+  if (current !== source) writeFileSync(file, source, 'utf8');
   return file;
 }

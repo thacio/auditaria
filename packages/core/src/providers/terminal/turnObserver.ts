@@ -701,7 +701,7 @@ export abstract class ProviderTurnObserver {
 
 /** `<task-notification>`, `<system-reminder>`… are the CLI talking to itself. */
 export function classifyExternalSource(text: string): ExternalTurnSource {
-  return /^\s*<(task-notification|system-reminder|local-command|turn_aborted)/i.test(
+  return /^\s*<(task-notification|system-reminder|local-command|turn_aborted|system_notification)/i.test(
     text,
   )
     ? 'system'

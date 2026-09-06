@@ -34,7 +34,6 @@ import {
   providerTurnBus,
   type ManagedExternalTurn,
 } from './externalTurnBus.js'; // AUDITARIA_CLAUDE_PROVIDER: external turns
-import { AsyncEventQueue } from './terminal/asyncEventQueue.js'; // AUDITARIA_CLAUDE_PROVIDER: legacy background adapter
 import {
   clampReasoningEffortForProvider,
   clampCodexReasoningEffortForModel,
@@ -266,32 +265,6 @@ export type NextTurnIntent =
 // directly through the live PTY, e.g. by the web terminal viewer).
 // Duck-typed so we don't have to put these on the generic ProviderDriver
 // interface (only Claude needs them today).
-interface BackgroundCapableDriver {
-  onBackgroundUserMessage(
-    handler: (data: { text: string }) => void,
-  ): () => void;
-  onBackgroundAssistantText(
-    handler: (data: { text: string }) => void,
-  ): () => void;
-  onBackgroundError?(handler: (data: { message: string }) => void): () => void;
-  onBackgroundCompactionSummary?(
-    handler: (data: { text: string }) => void,
-  ): () => void;
-}
-
-function isBackgroundCapableDriver(
-  d: ProviderDriver | null,
-): d is ProviderDriver & BackgroundCapableDriver {
-  if (!d) return false;
-  const cast = d as ProviderDriver & Partial<BackgroundCapableDriver>;
-  return (
-    typeof cast.onBackgroundUserMessage === 'function' &&
-    typeof cast.onBackgroundAssistantText === 'function'
-  );
-}
-
-// AUDITARIA_CLAUDE_PROVIDER: drivers with a live terminal the user can take
-// over from the CLI (`/provider …`).
 function isRecoveryCapableDriver(
   d: ProviderDriver | null,
 ): d is ProviderDriver & ProviderRecoveryCapableDriver {
@@ -417,9 +390,8 @@ export class ProviderManager {
     } catch {
       /* driver signal is best-effort */
     }
-    return Date.now() - this.lastLegacyBackgroundActivity < 15_000;
+    return false;
   }
-  private lastLegacyBackgroundActivity = 0;
 
   /**
    * Subscribe to the active driver's external-turn channels. Called after
@@ -441,41 +413,6 @@ export class ProviderManager {
         driver.onNotice((notice) => this.dispatchNotice(notice)),
       );
       return;
-    }
-    if (isBackgroundCapableDriver(driver)) {
-      // Legacy adapter (Copilot PTY driver): its text-only background events
-      // become minimal external turns through the same pipeline.
-      this.externalUnsubscribers.push(
-        driver.onBackgroundUserMessage(({ text }) => {
-          this.lastLegacyBackgroundActivity = Date.now();
-          this.dispatchLegacyTurn(text, []);
-        }),
-        driver.onBackgroundAssistantText(({ text }) => {
-          this.lastLegacyBackgroundActivity = Date.now();
-          this.dispatchLegacyTurn('', [
-            { type: ProviderEventType.Content, text },
-          ]);
-        }),
-      );
-      if (typeof driver.onBackgroundError === 'function') {
-        this.externalUnsubscribers.push(
-          driver.onBackgroundError(({ message }) =>
-            this.dispatchNotice({ kind: 'error', message }),
-          ),
-        );
-      }
-      if (typeof driver.onBackgroundCompactionSummary === 'function') {
-        this.externalUnsubscribers.push(
-          driver.onBackgroundCompactionSummary(({ text }) =>
-            this.dispatchNotice({
-              kind: 'info',
-              text: text
-                ? `Context compacted in the live terminal. Summary: ${text.slice(0, 280)}${text.length > 280 ? '…' : ''}`
-                : 'Context compacted in the live terminal.',
-            }),
-          ),
-        );
-      }
     }
   }
 
@@ -555,20 +492,6 @@ export class ProviderManager {
         }
       })();
     }
-  }
-
-  private dispatchLegacyTurn(userText: string, events: ProviderEvent[]): void {
-    const queue = new AsyncEventQueue<ProviderEvent>();
-    for (const ev of events) queue.push(ev);
-    queue.push({ type: ProviderEventType.Finished });
-    queue.end();
-    this.dispatchExternalTurn({
-      promptId: `legacy-${Date.now()}`,
-      source: 'terminal',
-      userText,
-      events: queue,
-      interrupt: () => {},
-    });
   }
 
   /** Notices: the manager acts on session changes (keep the mirrored chat

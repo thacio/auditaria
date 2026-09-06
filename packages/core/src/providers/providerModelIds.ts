@@ -12,7 +12,11 @@
 
 import { AGY_MODEL_IDS, CLAUDE_MODEL_IDS, getCodexModelIds } from './types.js';
 import { AUDITARIA_MODEL_IDS } from '../config/models.js';
-import { getCachedCopilotModels } from './copilot/copilotCLIDriver.js';
+import {
+  getCachedCopilotModels,
+  refreshCopilotModelsCache,
+} from './copilot/copilotCLIDriver.js';
+import { refreshCodexModelsCache } from './codex/codexModelRefresh.js';
 
 export type ProviderModelKey =
   | 'claude'
@@ -29,15 +33,23 @@ export const PROVIDER_MODEL_KEYS: readonly ProviderModelKey[] = [
   'auditaria',
 ];
 
-/** Model ids the provider offers today, without the shared 'auto' entry. */
+/**
+ * Model ids the provider offers today, without the shared 'auto' entry.
+ * Reading a live list also kicks the provider's throttled background
+ * refresh (Copilot: ACP metadata handshake into its cache; Codex: a
+ * metadata-only app-server handshake that makes Codex rewrite its own
+ * `models_cache.json`), the same way the `/model` menu keeps itself current.
+ */
 export function getProviderModelIds(provider: ProviderModelKey): string[] {
   const notAuto = (ids: readonly string[]) => ids.filter((id) => id !== 'auto');
   switch (provider) {
     case 'claude':
       return notAuto(CLAUDE_MODEL_IDS);
     case 'codex':
+      void refreshCodexModelsCache().catch(() => undefined);
       return notAuto(getCodexModelIds());
     case 'copilot':
+      void refreshCopilotModelsCache().catch(() => undefined);
       return notAuto(getCachedCopilotModels().map((m) => m.value));
     case 'agy':
       return notAuto(AGY_MODEL_IDS);

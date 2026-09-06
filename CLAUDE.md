@@ -941,6 +941,33 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
     (no cursor rewind); `supportsImages()` returns false for copilot-cli
     unless `AUDITARIA_COPILOT_ACP=1` (Telegram/Discord warn instead of
     failing the turn).
+- **On the shared turn pipeline (September 2026)**: `copilotPtyDriver.ts`
+  was rewritten onto `terminal/turnObserver.ts` — `copilot/copilotTurnObserver.ts`
+  (`ProviderTurnObserver` subclass) is the only reader of `events.jsonl` AND
+  of Copilot's hooks, and yields the same `ProviderEvent` stream for
+  chat-typed, terminal-typed (`external turns` → `providerTurnBus` →
+  `useProviderExternalTurns`) and self-started (`<system_notification>`)
+  turns; the driver implements `ExternalTurnCapableDriver` +
+  `ProviderRecoveryCapableDriver` (`/provider status|cancel|restart|terminal`
+  work), and the manager's legacy `onBackground*` adapter is gone (Copilot
+  was its last user). Hooks are installed ONCE in the user-level
+  `~/.copilot/hooks/auditaria.json` (loaded at CLI start; no per-invocation
+  flag) and relayed by a STABLE temp script that no-ops unless
+  `AUDITARIA_COPILOT_HOOK_FILE` is set — only our spawned sessions set it,
+  the user's own sessions are unaffected; `preToolUse` is never installed
+  (fail-closed). Verified on 1.0.83: `userPromptSubmitted` ~0.3 s after
+  Enter (before events.jsonl exists at the first prompt), `sessionStart`
+  carries the session id (a NEW id after `/clear`, whose `sessionEnd` has
+  `reason:"user_exit"`), `agentStop` ONCE at the true end, `permissionRequest`
+  fires even under `--allow-all` (announced only if still unanswered after
+  1.5 s), a mid-turn message arrives as `user.message{delivery:"steering"}`
+  in the same run (Enter while a shell tool runs also backgrounds that
+  command → later `<system_notification>` prompt), Esc leaves NO witness in
+  either channel (chat aborts finalize locally; terminal Esc relies on the
+  screen + idle fallback), `--no-auto-update` is passed (the npm launcher
+  re-executes the newest self-updated build under `~/.copilot/pkg/`).
+  Plan/evidence: `.auditaria/copilot-tui-sync-plan.md`; probes in the
+  session scratchpad `copilot-probes/`.
 - **Copilot CLI HAS a hooks system (VALIDATED LIVE, currently unused by our
   driver — planned redundant channel)**:
   https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks
@@ -1040,6 +1067,18 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
   `codexCLIDriver.ts` (raw TOML path for `model_instructions_file` when no
   shell strips quotes) and both Copilot ACP spawn sites. The Codex PTY driver
   resolves the vendor `codex.exe` behind the shim.
+- **Live lists (September 2026)**: `external_agent_session` overrides
+  `getSchema()` so its description and `model` enum are rebuilt from
+  `providerModelIds.ts` on EVERY read (function declarations and the MCP
+  `tools/list` carry the current lists, not the ones from construction);
+  reading a live list kicks the provider's throttled refresh — Copilot's ACP
+  metadata handshake (`refreshCopilotModelsCache`) and the new
+  `codex/codexModelRefresh.ts` (a metadata-only `codex app-server`
+  `initialize` + `model/list` handshake, no model turn; verified: Codex
+  rewrites its own `models_cache.json` when that process starts, so the
+  catalog picks the new list up by mtime). `codex/codexExecutable.ts` holds
+  the shell-free Codex binary resolver shared by the PTY driver and the
+  refresh.
 - **One model list**: `providers/providerModelIds.ts` (`getProviderModelIds`,
   `getAllProviderModelIds`, `providerOfModelId`) reads the same live sources
   the `/model` menu uses (Codex `models_cache.json`, Copilot's cached ACP

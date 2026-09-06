@@ -3,66 +3,62 @@
  * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  *
- * AUDITARIA_COPILOT_PROVIDER + AUDITARIA_PROVIDER_TERMINAL:
- * Interactive-mode GitHub Copilot CLI driver — the first consumer of the
- * provider-terminal abstraction (PtySession + providerPtyMirror +
- * JsonlFileTail).
+ * AUDITARIA_COPILOT_PROVIDER + AUDITARIA_PROVIDER_TERMINAL: Interactive
+ * Copilot driver — the REAL GitHub Copilot TUI in a persistent PTY, mirrored
+ * live to the web terminal, one turn pipeline for chat-typed, terminal-typed
+ * and self-started turns (see `copilotTurnObserver`).
  *
- * Why this exists: the original Copilot driver speaks ACP (agent-to-agent,
- * `copilot --acp --stdio`) — clean but headless. Driving the real TUI in a
- * PTY gives users the same live experience as the Claude provider: the
- * bidirectional web-terminal mirror, TUI slash commands (/model, /usage,
- * /login), and turns typed directly into the terminal surfacing in chat.
- *
- * Architecture (validated live against Copilot CLI 1.0.67):
- *   1. Spawn `copilot --session-id <uuid> --allow-all` in a PTY (the real
- *      copilot.exe, not the npm .cmd shim — cmd.exe wrapping breaks raw
- *      mode and survives kills). `--session-id` lets us PRE-ASSIGN the id,
- *      so the session-state path is known before spawn (no agy-style
- *      dir-diff discovery). Respawns use `--resume <uuid>`.
- *   2. The TUI writes a structured event log LIVE to
- *      `~/.copilot/session-state/<uuid>/events.jsonl`:
- *        user.message / assistant.turn_start / assistant.message (full text
- *        + model + outputTokens + toolRequests) / tool.execution_start /
- *        tool.execution_complete / assistant.turn_end / session.*
- *      We tail it with a byte cursor and map entries to ProviderEvents.
- *   3. Prompts are typed into the TUI (body, gap, CR — same technique as
- *      the Claude driver). The `user.message` event is positive
- *      confirmation the TUI ACCEPTED the prompt; if it doesn't appear we
- *      retry (Enter, then clear-and-retype) — a channel Claude doesn't have.
- *   4. Turn completion: `assistant.turn_end` fires per INFERENCE STEP, not
- *      per user turn — after tool calls a new turn_start (turnId+1) follows
- *      immediately. The reliable rule: a turn_end whose latest
- *      assistant.message carried NO toolRequests (and no tool still open),
- *      settled for a short window with no further event growth.
- *   5. The PTY persists across sendMessage calls (persistent session, warm
- *      TUI). Abort sends Esc (cancels the in-flight generation without
- *      nuking the TUI). Killed only in dispose()/interrupt().
- *   6. A background watcher drains events between chat-initiated turns so
- *      turns the user types directly into the (web-mirrored) terminal
- *      surface in Auditaria's chat — same duck-typed onBackground* interface
- *      the Claude driver exposes; providerManager forwards it unchanged.
- *
- * The ACP driver remains available as a fallback via
- * `AUDITARIA_COPILOT_ACP=1` (and stays the default for headless contexts:
- * sub-agent sessions and Teams threads).
+ * Verified on Copilot CLI 1.0.83 (Windows), see `.auditaria/copilot-tui-sync-plan.md`:
+ *   - `--session-id <uuid>` pre-assigns the session, so
+ *     `~/.copilot/session-state/<id>/events.jsonl` is known before the first
+ *     prompt (the file appears AT the first prompt); respawns `--resume <id>`;
+ *   - hooks are loaded from the user-level `~/.copilot/hooks/*.json` at CLI
+ *     start (no per-invocation flag): we keep ONE file there whose relay
+ *     no-ops unless `AUDITARIA_COPILOT_HOOK_FILE` is set, so the user's own
+ *     sessions are unaffected. Never a `preToolUse` hook (fail-closed);
+ *   - `userPromptSubmitted` confirms a typed prompt within ~0.3 s;
+ *     `agentStop` marks the true end of an agent run; `sessionEnd` = `/clear`
+ *     (the next prompt's `sessionStart` carries the new id);
+ *   - the TUI enables focus reporting and ignores Enter while "unfocused":
+ *     focus-in is asserted before every typed prompt; the input is cleared
+ *     with a double Esc; Esc aborts a running turn (no file witness).
  */
 
-import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-import { homedir } from 'node:os';
 import { EventEmitter } from 'node:events';
+import { execSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type {
-  ProviderDriver,
-  ProviderEvent,
   AttachmentFile,
-  InteractivePromptOption,
+  ExternalTurn,
+  ExternalTurnCapableDriver,
+  ProviderDriver,
+  ProviderDriverStatus,
+  ProviderEvent,
+  ProviderNotice,
+  ProviderRecoveryCapableDriver,
 } from '../types.js';
 import { ProviderEventType } from '../types.js';
+import type { CopilotDriverConfig } from './types.js';
+import { CopilotTurnObserver } from './copilotTurnObserver.js';
 import { PtySession } from '../terminal/ptySession.js';
 import { JsonlFileTail } from '../terminal/jsonlTail.js';
-import { summariseToolArgs } from '../terminal/textUtils.js';
-import type { CopilotDriverConfig } from './types.js';
+import { ProviderScreenMirror } from '../terminal/screenMirror.js';
+import { ensureHookRelayScript } from '../terminal/hookRelay.js';
+import {
+  isPlainObject,
+  pickString,
+  type HookEvent,
+  type ObservedTurn,
+} from '../terminal/turnObserver.js';
 import {
   injectAgentsMd,
   buildMcpConfigArg,
@@ -70,326 +66,72 @@ import {
 } from './shared.js';
 
 const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
-function dbg(...args: unknown[]) {
-  if (DEBUG) console.log('[DEBUG][COPILOT_PTY]', ...args); // eslint-disable-line no-console
+function dbg(...args: unknown[]): void {
+  // eslint-disable-next-line no-console
+  if (DEBUG) console.log('[DEBUG][COPILOT_PTY]', ...args);
 }
 
-// Tuning constants (validated empirically against Copilot CLI 1.0.67).
-// Ready timeout is generous: cold starts (first run after a self-update,
-// skill/MCP loading) have been observed to exceed 30s.
-const TUI_READY_TIMEOUT_MS = 60_000;
-/** Extra settle after the TUI chrome renders before we type (fresh spawn). */
-const READY_GRACE_FRESH_MS = 1500;
-/** Resume replays history + reconnects MCP — give it longer before typing. */
-const READY_GRACE_RESUME_MS = 3000;
-/** Event-quiet window after a final-looking turn_end before we finalize.
- *  Continuation turns start within milliseconds, so this is generous. */
-const TURN_SETTLE_MS = 1200;
-/** No user.message after typing → first retry (Enter re-press). */
-const PROMPT_CONFIRM_MS = 10_000;
-/** Ladder step for the clear-and-retype retry. */
-const PROMPT_RETRY_MS = 8_000;
-/** No echo of the typed prompt in PTY output after this → input was
- *  swallowed (TUI churn / focus trap); recover fast instead of waiting. */
-const ECHO_WAIT_MS = 3_000;
-/** Echo-verified retype attempts per PTY life before the respawn escalation. */
-const MAX_TYPE_ATTEMPTS = 3;
-/** After the TUI footer renders, wait up to this long for the startup
- *  notification burst (gh check, "MCP Servers reloaded") to land before
- *  typing — input typed during that churn gets swallowed. */
-const STARTUP_CHURN_MAX_MS = 12_000;
-/** Slash commands may produce no events at all — finalize after this. */
-const SLASH_IDLE_DONE_MS = 20_000;
-/** A session.error with no completion following → fail the turn after this. */
-const ERROR_SETTLE_MS = 3_000;
-/** Accepted turn, no open tools, event log silent this long → finalize.
- *  Long on purpose: a single inference step writes no events until it ends,
- *  so this must comfortably exceed the longest silent generation. */
-const NO_EVENT_IDLE_MS = 180_000;
-const STOP_TIMEOUT_MS = 30 * 60_000; // parity with the Claude driver
-const POLL_INTERVAL_MS = 100;
-const BACKGROUND_POLL_MS = 300;
-
-const ESC = '\x1b';
-/**
- * Focus-in report (mode 1004). The Copilot TUI enables focus reporting; the
- * web-terminal viewer (xterm.js) therefore sends focus-out (ESC [O) whenever
- * the user clicks from the mirrored terminal back to the chat input — and an
- * "unfocused" Copilot input box IGNORES Enter (typed text accumulates,
- * nothing submits; validated live). Asserting focus-in before every typed
- * prompt neutralizes the stale focus-out. Harmless when already focused.
- */
+const PTY_COLS = 200;
+const PTY_ROWS = 50;
+const OBSERVER_TICK_MS = 100;
+/** Startup: the footer must show (a first launch after an update takes ~45 s). */
+const READY_TIMEOUT_MS = 90_000;
+const DIALOG_WAIT_MS = 10 * 60_000;
+const PROMPT_ACCEPT_TIMEOUT_MS = 3_000;
+const MAX_PROMPT_RESUBMITS = 3;
+const PROMPT_ACCEPT_CEILING_MS = 25_000;
+const SLASH_ACCEPT_TIMEOUT_MS = 8_000;
 const FOCUS_IN = '\x1b[I';
+const ESC = '\x1b';
+const PASTE_START = '\x1b[200~';
+const PASTE_END = '\x1b[201~';
+export const COPILOT_HOOK_FILE_ENV = 'AUDITARIA_COPILOT_HOOK_FILE';
+/** Command hooks we relay. `preToolUse` is deliberately absent (fail-closed). */
+export const COPILOT_HOOK_EVENTS = [
+  'sessionStart',
+  'sessionEnd',
+  'userPromptSubmitted',
+  'postToolUse',
+  'postToolUseFailure',
+  'permissionRequest',
+  'agentStop',
+  'subagentStart',
+  'subagentStop',
+  'errorOccurred',
+  'preCompact',
+  'notification',
+] as const;
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return v !== null && typeof v === 'object' && !Array.isArray(v);
+/** What the TUI screen shows besides the idle input box. */
+export type CopilotScreenState =
+  | 'starting'
+  | 'input'
+  | 'working'
+  | 'trust'
+  | 'login'
+  | 'picker'
+  | 'unknown';
+
+/** Classify the TUI's current screen (plain text). Exported for tests. */
+export function classifyCopilotScreen(screen: string): CopilotScreenState {
+  const s = screen.replace(/\s+/g, ' ');
+  if (/trust (this |the )?(folder|directory|files)|do you trust/i.test(s))
+    return 'trust';
+  if (/sign in|log in|\/login|not (logged|signed) in|device code/i.test(s))
+    return 'login';
+  if (/esc interrupt|Working/i.test(s)) return 'working';
+  if (/Loading: \d+ hooks|Loading MCP|Connecting to MCP/i.test(s))
+    return 'starting';
+  if (
+    /↑\/↓ (to )?(navigate|select)|enter to (select|confirm)/i.test(s) &&
+    !/\/ commands/i.test(s.slice(-200))
+  )
+    return 'picker';
+  if (/\? help|\/ commands/i.test(s)) return 'input';
+  return 'unknown';
 }
 
-function pickString(
-  obj: Record<string, unknown>,
-  key: string,
-): string | undefined {
-  const v = obj[key];
-  return typeof v === 'string' ? v : undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Pure per-turn event tracker (exported for unit tests).
-//
-// Feed it batches of parsed events.jsonl entries; it returns the
-// ProviderEvents to yield and tracks turn-completion state:
-//   - promptAccepted: the TUI acknowledged our typed prompt (user.message)
-//   - completionCandidateAt: set when an assistant.turn_end looked FINAL
-//     (latest assistant.message had no toolRequests and no tool is open);
-//     cleared whenever a new turn_start arrives (agentic continuation).
-// ---------------------------------------------------------------------------
-
-export class CopilotTurnTracker {
-  promptAccepted = false;
-  completionCandidateAt: number | undefined = undefined;
-  /** session.compaction_start was observed (compaction is running). */
-  compactionStarted = false;
-  /** session.compaction_complete with success=true was observed. */
-  compactionSucceeded = false;
-  /** session.error payload — fatal for the turn (fail fast, don't wait 30min). */
-  fatalError: string | undefined = undefined;
-
-  private modelEmitted = false;
-  private lastAssistantHadToolRequests = false;
-  private openToolIds = new Set<string>();
-  /** ask_user tool calls surfaced as InteractivePromptStart (awaiting answer). */
-  private surfacedAskIds = new Set<string>();
-  private outputTokens = 0;
-  private accumulatedText = '';
-  private lastWarning: string | undefined = undefined;
-
-  /**
-   * @param manualCompact true when the typed prompt was `/compact` — a
-   * session.compaction_complete then ENDS the turn (the TUI runs the
-   * command without any assistant turn events). For normal turns a
-   * compaction_complete is an auto-compact happening mid-turn: surface it
-   * but keep waiting for the real turn end.
-   */
-  constructor(private readonly manualCompact = false) {}
-
-  ingest(entries: unknown[], now: number = Date.now()): ProviderEvent[] {
-    const events: ProviderEvent[] = [];
-    for (const raw of entries) {
-      if (!isRecord(raw)) continue;
-      const entryType = raw['type'];
-      if (typeof entryType !== 'string') continue;
-      const data = isRecord(raw['data']) ? raw['data'] : {};
-
-      switch (entryType) {
-        case 'user.message':
-          this.promptAccepted = true;
-          break;
-
-        case 'assistant.turn_start':
-          // Agentic continuation (or first step) — not final.
-          this.completionCandidateAt = undefined;
-          break;
-
-        case 'assistant.message': {
-          const model = pickString(data, 'model');
-          if (model && !this.modelEmitted) {
-            this.modelEmitted = true;
-            events.push({ type: ProviderEventType.ModelInfo, model });
-          }
-          // Claude-family models via Copilot expose readable reasoning;
-          // GPT-family carries only reasoningOpaque (skip).
-          const reasoning = pickString(data, 'reasoning');
-          if (reasoning) {
-            events.push({ type: ProviderEventType.Thinking, text: reasoning });
-          }
-          const content = pickString(data, 'content');
-          if (content) {
-            this.accumulatedText +=
-              (this.accumulatedText ? '\n' : '') + content;
-            events.push({ type: ProviderEventType.Content, text: content });
-          }
-          const toolRequests = data['toolRequests'];
-          this.lastAssistantHadToolRequests =
-            Array.isArray(toolRequests) && toolRequests.length > 0;
-          const out = data['outputTokens'];
-          if (typeof out === 'number') this.outputTokens += out;
-          break;
-        }
-
-        case 'tool.execution_start': {
-          const toolId = pickString(data, 'toolCallId');
-          const toolName = pickString(data, 'toolName');
-          if (toolId && toolName) {
-            this.openToolIds.add(toolId);
-            const args = data['arguments'];
-            events.push({
-              type: ProviderEventType.ToolUse,
-              toolName,
-              toolId,
-              input: isRecord(args) ? args : {},
-            });
-            // Copilot's ask_user tool renders an interactive picker in the
-            // TUI (probe-validated args: {question, choices[], allow_freeform}).
-            // Surface it like Claude's AskUserQuestion so the CLI layer can
-            // route the user to the terminal (web viewer opens + focuses).
-            // The picker blocks the turn until answered; openToolIds already
-            // prevents any completion/idle finalize meanwhile.
-            if (toolName === 'ask_user') {
-              this.surfacedAskIds.add(toolId);
-              const argsRec = isRecord(args) ? args : {};
-              const question =
-                pickString(argsRec, 'question') ??
-                'Copilot is asking a question';
-              const rawChoices = argsRec['choices'];
-              const options: InteractivePromptOption[] = Array.isArray(
-                rawChoices,
-              )
-                ? rawChoices
-                    .filter((c) => typeof c === 'string')
-                    .map((c: string) => ({ id: c, label: c }))
-                : [];
-              events.push({
-                type: ProviderEventType.InteractivePromptStart,
-                promptId: toolId,
-                kind: 'ask-user',
-                title: question,
-                questions: [
-                  {
-                    id: 'q-0',
-                    question,
-                    options,
-                    multiSelect: false,
-                  },
-                ],
-                toolName: 'ask_user',
-                timeoutMs: 60 * 60_000, // 1h — the user may take a while
-              });
-            }
-          }
-          break;
-        }
-
-        case 'tool.execution_complete': {
-          const toolId = pickString(data, 'toolCallId');
-          if (toolId) {
-            this.openToolIds.delete(toolId);
-            // Close any ask_user prompt the UI surfaced for this call.
-            if (this.surfacedAskIds.delete(toolId)) {
-              events.push({
-                type: ProviderEventType.InteractivePromptResolved,
-                promptId: toolId,
-                response: { kind: 'answered', answers: [] },
-              });
-            }
-            const result = isRecord(data['result']) ? data['result'] : {};
-            let output = pickString(result, 'content') ?? '';
-            if (!output && result['content'] !== undefined) {
-              try {
-                output = JSON.stringify(result['content']);
-              } catch {
-                output = String(result['content']);
-              }
-            }
-            events.push({
-              type: ProviderEventType.ToolResult,
-              toolId,
-              output,
-              isError: data['success'] === false,
-            });
-          }
-          break;
-        }
-
-        case 'assistant.turn_end':
-          // Final only when the model's last message requested no tools and
-          // nothing is still executing — otherwise a new turn follows with
-          // the tool results.
-          if (
-            !this.lastAssistantHadToolRequests &&
-            this.openToolIds.size === 0
-          ) {
-            this.completionCandidateAt = now;
-          } else {
-            this.completionCandidateAt = undefined;
-          }
-          break;
-
-        // Copilot's /compact (and auto-compaction) writes structured events
-        // (validated live on 1.0.67):
-        //   session.compaction_start    {systemTokens, conversationTokens, …}
-        //   session.compaction_complete {success, preCompactionTokens,
-        //                                postCompactionTokens, messagesRemoved}
-        case 'session.compaction_start':
-          this.compactionStarted = true;
-          break;
-
-        case 'session.compaction_complete': {
-          const success = data['success'] !== false;
-          const preRaw = data['preCompactionTokens'];
-          const preTokens = typeof preRaw === 'number' ? preRaw : 0;
-          if (success) {
-            this.compactionSucceeded = true;
-            events.push({
-              type: ProviderEventType.Compacted,
-              preTokens,
-              trigger: this.manualCompact ? 'manual' : 'auto',
-            });
-          }
-          if (this.manualCompact) {
-            // /compact produces no assistant turn — this event IS the end.
-            this.completionCandidateAt = now;
-          }
-          break;
-        }
-
-        case 'session.warning': {
-          const msg = pickString(data, 'message') ?? pickString(data, 'error');
-          if (msg) this.lastWarning = msg;
-          break;
-        }
-
-        case 'session.error': {
-          const msg =
-            pickString(data, 'message') ??
-            pickString(data, 'error') ??
-            'unknown session error';
-          this.lastWarning = msg;
-          this.fatalError = msg;
-          break;
-        }
-
-        default:
-          break;
-      }
-    }
-    return events;
-  }
-
-  hasOpenTools(): boolean {
-    return this.openToolIds.size > 0;
-  }
-
-  getUsage(): { outputTokens: number } | undefined {
-    return this.outputTokens > 0
-      ? { outputTokens: this.outputTokens }
-      : undefined;
-  }
-
-  getAccumulatedText(): string {
-    return this.accumulatedText;
-  }
-
-  getLastWarning(): string | undefined {
-    return this.lastWarning;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Args builder (exported for unit tests).
-// `--session-id <uuid>` pre-assigns a NEW session's id; `--resume <uuid>`
-// reopens an existing one (same session-state dir, events.jsonl appends).
-// ---------------------------------------------------------------------------
-
+/** CLI args for the interactive TUI. Exported for tests. */
 export function buildCopilotPtyArgs(opts: {
   sessionId: string;
   resume: boolean;
@@ -403,7 +145,7 @@ export function buildCopilotPtyArgs(opts: {
   } else {
     args.push('--session-id', opts.sessionId);
   }
-  args.push('--allow-all');
+  args.push('--allow-all', '--no-auto-update');
   if (opts.model && opts.model !== 'auto') {
     args.push('--model', opts.model);
   }
@@ -416,39 +158,90 @@ export function buildCopilotPtyArgs(opts: {
   return args;
 }
 
-// ---------------------------------------------------------------------------
-// Driver
-// ---------------------------------------------------------------------------
+/** The user-level hooks file content for `relayPath`. Exported for tests. */
+export function buildCopilotHooksFile(relayPath: string): string {
+  const quote = (v: string) => `"${v.replace(/"/g, '\\"')}"`;
+  const hooks: Record<string, unknown[]> = {};
+  for (const event of COPILOT_HOOK_EVENTS) {
+    hooks[event] = [
+      {
+        type: 'command',
+        bash: `${quote(process.execPath)} ${quote(relayPath)} ${event}`,
+        // PowerShell needs the call operator for a quoted program path.
+        powershell: `& ${quote(process.execPath)} ${quote(relayPath)} ${event}`,
+        timeoutSec: 20,
+      },
+    ];
+  }
+  return JSON.stringify(
+    {
+      version: 1,
+      // Relay no-ops unless AUDITARIA_COPILOT_HOOK_FILE is set — only the
+      // sessions Auditaria spawns set it; the user's own sessions are untouched.
+      hooks,
+    },
+    null,
+    2,
+  );
+}
 
-export class CopilotPtyDriver implements ProviderDriver {
+export class CopilotPtyDriver
+  implements
+    ProviderDriver,
+    ExternalTurnCapableDriver,
+    ProviderRecoveryCapableDriver
+{
   readonly canResume = true;
-
   private session: PtySession | null = null;
   private sessionId: string | undefined;
   /** True once the current sessionId exists on disk → respawns use --resume. */
   private useResume = false;
-  /**
-   * True only after the FULL spawn path completed (TUI ready + events tail
-   * positioned + watcher started). A spawn whose readiness wait failed can
-   * leave the process alive — such a session must be torn down and
-   * respawned, never reused (its events tail was never positioned).
-   */
-  private spawnReady = false;
   private exePath: string | null = null;
-  private eventsTail = new JsonlFileTail(() => this.eventsPath());
-  private turnInFlight = false;
-
-  // Background (web-terminal typed) turn surfacing — same duck-typed shape
-  // as the Claude driver; providerManager forwards it automatically.
-  private backgroundEmitter = new EventEmitter();
-  private backgroundTimer: NodeJS.Timeout | null = null;
-  private bgTickInFlight = false;
+  private hookDir: string | null = null;
+  private hookFilePath: string | null = null;
+  private started = false;
+  private hadAcceptedTurn = false;
+  private typedPrompt: string | null = null;
+  private truncatedPrompt: { got: number; typed: number } | null = null;
+  private readonly hookTail = new JsonlFileTail(
+    () => this.hookFilePath ?? undefined,
+  );
+  private readonly eventsTail = new JsonlFileTail(() => this.eventsPath());
+  private readonly observer: CopilotTurnObserver;
+  private observerTimer: NodeJS.Timeout | null = null;
+  private readonly externalEmitter = new EventEmitter();
+  private screenMirror: ProviderScreenMirror | null = null;
+  private lastScreen: string | null = null;
 
   constructor(private readonly config: CopilotDriverConfig) {
     dbg('constructor', { model: config.model, cwd: config.cwd });
+    this.observer = new CopilotTurnObserver({
+      drainHooks: () => this.drainHooks(),
+      drainTranscript: async () => {
+        const { entries, grew } = await this.eventsTail.drain();
+        if (DEBUG && entries.length) {
+          dbg(
+            'events',
+            entries.map((e) => (isPlainObject(e) ? String(e['type']) : '?')),
+          );
+        }
+        return { entries, grew };
+      },
+      ptyShowsInputPrompt: () => this.screenState() === 'input',
+      onExternalTurn: (turn) => {
+        this.hadAcceptedTurn = true;
+        this.externalEmitter.emit('turn', this.toExternalTurn(turn));
+      },
+      onNotice: (notice) => this.externalEmitter.emit('notice', notice),
+      onSessionChange: (sessionId, source) =>
+        this.handleSessionChange(sessionId, source),
+      onPromptAccepted: () => {
+        this.hadAcceptedTurn = true;
+      },
+    });
   }
 
-  // ─── ProviderDriver surface ───────────────────────────────────────────
+  // ── ProviderDriver ─────────────────────────────────────────────────────────
 
   getSessionId(): string | undefined {
     return this.sessionId;
@@ -459,55 +252,36 @@ export class CopilotPtyDriver implements ProviderDriver {
     this.sessionId = id;
     this.useResume = true;
     this.eventsTail.reset(0);
-    if (previous !== id && this.session?.isAlive()) {
-      dbg('setSessionId: session changed — killing PTY for respawn');
-      this.session.kill();
-      this.spawnReady = false;
-    }
+    if (previous !== id && this.session?.isAlive()) this.killSession();
   }
 
   resetSession(): void {
-    this.session?.kill();
-    this.spawnReady = false;
     this.sessionId = undefined;
     this.useResume = false;
     this.eventsTail.reset(0);
+    if (this.session?.isAlive()) this.killSession();
   }
 
   async interrupt(): Promise<void> {
-    this.session?.kill();
+    this.interruptCurrentTurn();
   }
 
   dispose(): void {
-    this.stopBackgroundWatcher();
-    this.backgroundEmitter.removeAllListeners();
-    this.session?.kill();
-    this.session = null;
-    this.spawnReady = false;
+    this.stopObserver();
+    this.observer.dispose();
+    this.externalEmitter.removeAllListeners();
+    this.screenMirror?.dispose();
+    this.screenMirror = null;
+    this.killSession();
+    if (this.hookFilePath) {
+      try {
+        unlinkSync(this.hookFilePath);
+      } catch {
+        /* ignore */
+      }
+      this.hookFilePath = null;
+    }
   }
-
-  // ─── Background event subscriptions (duck-typed BackgroundCapableDriver) ──
-
-  onBackgroundUserMessage(
-    handler: (data: { text: string }) => void,
-  ): () => void {
-    this.backgroundEmitter.on('user-message', handler);
-    return () => this.backgroundEmitter.off('user-message', handler);
-  }
-
-  onBackgroundAssistantText(
-    handler: (data: { text: string }) => void,
-  ): () => void {
-    this.backgroundEmitter.on('assistant-text', handler);
-    return () => this.backgroundEmitter.off('assistant-text', handler);
-  }
-
-  onBackgroundError(handler: (data: { message: string }) => void): () => void {
-    this.backgroundEmitter.on('error', handler);
-    return () => this.backgroundEmitter.off('error', handler);
-  }
-
-  // ─── sendMessage ──────────────────────────────────────────────────────
 
   async *sendMessage(
     prompt: string,
@@ -516,7 +290,6 @@ export class CopilotPtyDriver implements ProviderDriver {
     attachmentFiles?: AttachmentFile[],
   ): AsyncGenerator<ProviderEvent> {
     if (signal.aborted) return;
-
     if (attachmentFiles?.length) {
       yield {
         type: ProviderEventType.Error,
@@ -527,332 +300,188 @@ export class CopilotPtyDriver implements ProviderDriver {
       };
       return;
     }
-
-    // Copilot reads AGENTS.md at session start; keep it fresh anyway so a
-    // respawn (or Copilot re-read) picks up the latest context.
-    if (systemContext) {
-      injectAgentsMd(this.config.cwd, systemContext);
-    }
+    if (systemContext) injectAgentsMd(this.config.cwd, systemContext);
 
     const spawnError = await this.ensureSpawned(signal);
     if (spawnError) {
       yield { type: ProviderEventType.Error, message: spawnError };
       return;
     }
-    // `let`: the recovery ladder may respawn the PTY mid-turn (retry 3).
-    let session = this.session!;
+    const session = this.session!;
+    if (signal.aborted) return;
 
-    this.turnInFlight = true;
-    try {
-      // Flush any events from turns the user drove directly in the web
-      // terminal BEFORE our prompt, so they surface as background chat
-      // entries rather than bleeding into this turn's stream.
-      await this.backgroundTick(true);
-
-      const trimmed = prompt.trimStart();
-      const isSlash = trimmed.startsWith('/');
-      const isCompact = /^\/compact\b/i.test(trimmed);
-      const tracker = new CopilotTurnTracker(isCompact);
-
-      // Abort wiring BEFORE the prompt is typed, so a cancellation landing
-      // during the typing window still sends Esc (otherwise the cancelled
-      // prompt would silently execute).
-      let aborted = false;
-      const onAbort = () => {
-        aborted = true;
-        // Esc cancels the in-flight generation; the TUI (and session)
-        // survives for the next turn. Ctrl+C would risk exiting the TUI.
-        void session.writeSystem(ESC);
+    let state = this.screenState();
+    if (state === 'picker') {
+      await session.writeSystem(ESC);
+      await delay(400);
+      state = this.screenState();
+    }
+    if (state === 'trust' || state === 'login' || state === 'picker') {
+      yield {
+        type: ProviderEventType.Error,
+        message: `Copilot's terminal is showing a ${describeState(state)}, so the message was not sent. Answer it in the provider terminal (/provider terminal, or the web terminal) and send again.`,
       };
-      signal.addEventListener('abort', onAbort, { once: true });
-      if (signal.aborted && !aborted) onAbort();
+      return;
+    }
 
-      try {
-        const deadline = Date.now() + STOP_TIMEOUT_MS;
-        let typedAt = Date.now();
-        let lastGrowthAt = Date.now();
-        // Closed-loop typing state. The TUI can swallow typed input entirely
-        // (notification / instruction-reload churn, focus trapped in a popup
-        // or expanded pane after mouse interaction in the mirrored terminal).
-        // The input box ECHOES what actually reaches it, so we verify the
-        // echo in the PTY output and retype quickly instead of waiting blind.
-        let echoSeen = false;
-        let enterRetried = false;
-        let attempts = 0;
-        let respawnsUsed = 0;
+    dbg('sendMessage: claiming', {
+      prompt: prompt.slice(0, 60),
+      active: this.observer.isTurnActive(),
+    });
+    const claim = this.observer.claimNextTurn(prompt);
+    this.typedPrompt = prompt;
+    this.truncatedPrompt = null;
+    const isSlash = prompt.trimStart().startsWith('/');
+    void this.typePrompt(session, prompt);
+    let typedAt = Date.now();
+    const firstTypedAt = typedAt;
+    let resubmits = 0;
+    let userAborted = false;
 
-        const typeAttempt = async () => {
-          // Assert terminal focus first — a stale focus-out from the web
-          // viewer makes the input box ignore Enter (see FOCUS_IN).
-          await session.writeSystem(FOCUS_IN);
-          // Fresh output buffer so the echo check only sees post-type bytes
-          // (a prompt quoting on-screen text must not self-match).
-          session.clearRecentOutput();
-          dbg('typing prompt', { chars: prompt.length, isSlash, attempts });
-          await session.typeSubmit(prompt);
-          typedAt = Date.now();
-          echoSeen = false;
-          enterRetried = false;
-        };
-        const recoverAndRetype = async () => {
-          // Copilot's input clears with DOUBLE-Esc (the first arms the
-          // "esc again to clear input" hint) — this also closes popups /
-          // expanded panes. Then retype with focus asserted.
-          await session.writeSystem(ESC);
-          await new Promise<void>((r) => setTimeout(r, 250));
-          await session.writeSystem(ESC);
-          await new Promise<void>((r) => setTimeout(r, 300));
-          await typeAttempt();
-        };
+    const abortHandler = () => {
+      userAborted = true;
+      void session.writeSystem(ESC);
+      this.observer.abortCurrentTurn('aborted');
+    };
+    signal.addEventListener('abort', abortHandler, { once: true });
 
-        await typeAttempt();
+    const acceptanceTimer = setInterval(() => {
+      if (claim.accepted || claim.done || !session.isAlive()) return;
+      const waited = Date.now() - typedAt;
+      if (isSlash) {
+        if (waited >= SLASH_ACCEPT_TIMEOUT_MS)
+          this.observer.releaseClaim('local');
+        return;
+      }
+      if (waited < PROMPT_ACCEPT_TIMEOUT_MS) return;
+      if (Date.now() - firstTypedAt >= PROMPT_ACCEPT_CEILING_MS) {
+        this.observer.releaseClaim('timeout');
+        return;
+      }
+      if (resubmits >= MAX_PROMPT_RESUBMITS) return;
+      resubmits++;
+      typedAt = Date.now();
+      dbg('prompt not accepted — re-asserting focus-in + CR', {
+        attempt: resubmits,
+      });
+      void session.writeSystem(FOCUS_IN + '\r');
+    }, 500);
 
-        while (Date.now() < deadline) {
-          if (aborted || signal.aborted) {
-            dbg('turn aborted');
-            // Skip whatever the aborted turn already wrote — otherwise the
-            // background watcher replays it as ghost chat entries (including
-            // a duplicate of our own user message).
-            await this.eventsTail.seekToEnd();
-            return;
-          }
-
-          const { entries, grew } = await this.eventsTail.drain();
-          if (grew) lastGrowthAt = Date.now();
-          for (const ev of tracker.ingest(entries)) yield ev;
-
-          // Prompt-acceptance ladder. user.message in events.jsonl is
-          // positive confirmation the TUI took our prompt; without it the
-          // CR may have been swallowed (resume replay, focus race).
-          if (!tracker.promptAccepted) {
-            if (isSlash) {
-              // TUI-level slash commands (e.g. /model, /usage) never write
-              // a user.message. /compact DOES write compaction events (the
-              // tracker finalizes on session.compaction_complete); other
-              // commands get a quiet moment, then finish — the user sees
-              // the result in the terminal mirror. Gate on event growth too
-              // so a long-running /compact isn't cut off mid-compaction,
-              // and never fabricate a Compacted we didn't observe (a wrong
-              // one would wipe the mirrored history while Copilot's real
-              // context stayed intact — compactNative falls back to
-              // Gemini-side compression instead).
-              if (
-                !tracker.compactionStarted &&
-                Date.now() - Math.max(typedAt, lastGrowthAt) >
-                  SLASH_IDLE_DONE_MS
-              ) {
-                dbg('slash command idle-finalize');
-                yield { type: ProviderEventType.Finished };
-                return;
-              }
-            } else {
-              if (!echoSeen && this.promptEchoVisible(session, prompt)) {
-                echoSeen = true;
-                dbg('prompt echo confirmed in PTY output');
-              }
-              const sinceTyped = Date.now() - typedAt;
-              // Only interfere while nothing has happened since we typed —
-              // if events grew, the turn likely started and acceptance is
-              // on its way; an Esc now could cancel a live generation.
-              const noTurnActivity = lastGrowthAt <= typedAt;
-
-              const attemptFailed =
-                // Echo never appeared: input went nowhere (swallowed by
-                // churn / focus trap) — recover fast.
-                (!echoSeen && noTurnActivity && sinceTyped > ECHO_WAIT_MS) ||
-                // Echo present, Enter re-pressed, still no acceptance:
-                // something is eating the submit — full retype.
-                (echoSeen &&
-                  enterRetried &&
-                  noTurnActivity &&
-                  sinceTyped > PROMPT_CONFIRM_MS + PROMPT_RETRY_MS);
-
-              if (attemptFailed) {
-                attempts++;
-                if (attempts <= MAX_TYPE_ATTEMPTS) {
-                  dbg(`typing attempt failed — recovery retype #${attempts}`);
-                  await recoverAndRetype();
-                } else if (respawnsUsed === 0) {
-                  dbg('retypes exhausted — respawn + fresh attempt cycle');
-                  respawnsUsed = 1;
-                  attempts = 0;
-                  // Nuclear option: the TUI is in a state keystrokes can't
-                  // fix. Respawn resuming the SAME session (context intact
-                  // on disk); the echo-verified typing loop then gets a
-                  // full set of attempts against the fresh TUI.
-                  session.kill();
-                  const respawnErr = await this.ensureSpawned(signal);
-                  if (respawnErr) {
-                    yield {
-                      type: ProviderEventType.Error,
-                      message:
-                        'Copilot TUI stopped accepting input and the ' +
-                        'recovery respawn failed: ' +
-                        respawnErr,
-                    };
-                    return;
-                  }
-                  session = this.session!;
-                  await typeAttempt();
-                } else {
-                  yield {
-                    type: ProviderEventType.Error,
-                    message:
-                      'The Copilot TUI did not accept the prompt (no ' +
-                      'user.message event appeared), even after a recovery ' +
-                      'respawn. It may be showing a dialog or login screen — ' +
-                      'open the web terminal to check. Last terminal output:\n' +
-                      this.ptyTail(session),
-                  };
-                  return;
-                }
-              } else if (
-                echoSeen &&
-                !enterRetried &&
-                noTurnActivity &&
-                sinceTyped > PROMPT_CONFIRM_MS
-              ) {
-                // Text reached the input box but wasn't submitted — the CR
-                // was likely swallowed. Press Enter once before escalating.
-                dbg('echo present but no acceptance — pressing Enter');
-                enterRetried = true;
-                await session.writeSystem('\r');
-              }
-            }
-          }
-
-          // Completion: final-looking turn_end + event-quiet settle window.
-          if (
-            tracker.completionCandidateAt !== undefined &&
-            Date.now() - lastGrowthAt >= TURN_SETTLE_MS
-          ) {
-            dbg('turn complete');
-            // The Compacted event itself is emitted by the tracker from
-            // session.compaction_complete; here we only attach a summary if
-            // any assistant text accompanied the compaction.
-            if (isCompact && tracker.compactionSucceeded) {
-              const summary = tracker.getAccumulatedText();
-              if (summary.trim().length > 0) {
-                yield {
-                  type: ProviderEventType.CompactionSummary,
-                  summary,
-                };
-              }
-            }
+    try {
+      for await (const event of claim.events) {
+        if (signal.aborted) return;
+        if (event.type === ProviderEventType.Aborted) {
+          dbg('sendMessage: claim ended', {
+            reason: event.reason,
+            accepted: claim.accepted,
+            userAborted,
+          });
+          if (userAborted) return;
+          if (event.reason === 'local') {
             yield {
-              type: ProviderEventType.Finished,
-              usage: tracker.getUsage(),
+              type: ProviderEventType.Content,
+              text: `Ran \`${prompt.trim()}\` in Copilot's terminal.`,
             };
+            yield { type: ProviderEventType.Finished };
             return;
           }
-
-          // Fail fast on a fatal session error when no completion follows
-          // shortly — don't sit on a dead turn for 30 minutes.
-          if (
-            tracker.fatalError !== undefined &&
-            tracker.completionCandidateAt === undefined &&
-            Date.now() - lastGrowthAt >= ERROR_SETTLE_MS
-          ) {
+          if (event.reason === 'pty-exit') {
             yield {
               type: ProviderEventType.Error,
-              message: `Copilot session error: ${tracker.fatalError}`,
+              message: `Copilot exited (code ${session.exitCode}) before finishing the turn. The next message restarts it.`,
             };
             return;
           }
-
-          // Last-resort idle fallback (the Claude driver's hard-won lesson:
-          // single-channel completion detection eventually hangs a turn).
-          // If the prompt was accepted, no tool is executing, and the event
-          // log has been silent for a long time, finalize with whatever we
-          // have — e.g. the user pressed Esc inside the mirrored terminal
-          // (cancels generation without our AbortSignal), or Copilot died
-          // mid-step without a final turn_end.
-          if (
-            tracker.promptAccepted &&
-            !tracker.hasOpenTools() &&
-            Date.now() - lastGrowthAt >= NO_EVENT_IDLE_MS
-          ) {
-            dbg('no-event idle fallback finalize');
-            if (tracker.getAccumulatedText().trim().length > 0) {
-              yield {
-                type: ProviderEventType.Finished,
-                usage: tracker.getUsage(),
-              };
-            } else {
-              yield {
-                type: ProviderEventType.Error,
-                message:
-                  'Copilot produced no completion signal (turn cancelled in ' +
-                  'the terminal, or the CLI stopped writing events). Check ' +
-                  'the web terminal for the session state.',
-              };
-            }
-            return;
-          }
-
-          if (session.hasExited()) {
-            // Drain any final events flushed on shutdown, then surrender.
-            await new Promise<void>((r) => setTimeout(r, 100));
-            const final = await this.eventsTail.drain();
-            for (const ev of tracker.ingest(final.entries)) yield ev;
-            if (tracker.completionCandidateAt !== undefined) {
-              yield {
-                type: ProviderEventType.Finished,
-                usage: tracker.getUsage(),
-              };
-              return;
-            }
-            const warn = tracker.getLastWarning();
+          if (this.truncatedPrompt) {
+            const { got, typed } = this.truncatedPrompt;
+            this.truncatedPrompt = null;
             yield {
               type: ProviderEventType.Error,
-              message:
-                `copilot exited before the turn completed (code ${session.exitCode})` +
-                (warn ? `: ${warn}` : '.'),
+              message: `Copilot received only ${got} of the ${typed} characters typed, so the turn was cancelled. Send the message again.`,
             };
             return;
           }
-
-          await new Promise<void>((r) => setTimeout(r, POLL_INTERVAL_MS));
+          yield {
+            type: ProviderEventType.Error,
+            message: claim.accepted
+              ? 'The turn was interrupted in the provider terminal.'
+              : `Copilot did not accept the prompt after ${Math.round(PROMPT_ACCEPT_CEILING_MS / 1000)} s. Check the provider terminal (screen: ${this.screenTail(160)}).`,
+          };
+          return;
         }
-
-        const warn = tracker.getLastWarning();
-        yield {
-          type: ProviderEventType.Error,
-          message:
-            'Timed out waiting for Copilot turn completion.' +
-            (warn ? ` Last session warning: ${warn}` : ''),
-        };
-      } finally {
-        signal.removeEventListener('abort', onAbort);
+        yield event;
       }
     } finally {
-      this.turnInFlight = false;
+      clearInterval(acceptanceTimer);
+      signal.removeEventListener('abort', abortHandler);
+      this.typedPrompt = null;
     }
   }
 
-  // ─── Spawn / readiness ────────────────────────────────────────────────
+  // ── ExternalTurnCapableDriver ──────────────────────────────────────────────
 
-  /** Compact tail of the stripped PTY output for error messages. Fullscreen
-   *  TUIs render with cursor moves rather than newlines, so a "last lines"
-   *  cut produces a useless megablob — use the last characters instead. */
-  private ptyTail(session: PtySession, chars = 400): string {
-    return session.strippedOutput().replace(/\s+/g, ' ').trim().slice(-chars);
+  onExternalTurn(listener: (turn: ExternalTurn) => void): () => void {
+    this.externalEmitter.on('turn', listener);
+    return () => this.externalEmitter.off('turn', listener);
   }
 
-  /**
-   * Best-effort check that the typed prompt is echoed in the PTY output —
-   * the positive signal that the bytes reached the input box at all. Both
-   * sides are whitespace-compacted (the TUI wraps at the box width) and the
-   * needle is short (renders can interleave UI fragments between characters
-   * mid-typing; the trailing characters sit next to the cursor and render
-   * contiguously). Callers must clear the rolling buffer before typing so a
-   * prompt quoting on-screen text can't self-match.
-   */
-  private promptEchoVisible(session: PtySession, prompt: string): boolean {
-    const needle = prompt.replace(/\s+/g, '').slice(-12);
-    if (!needle) return true;
-    return session.strippedOutput().replace(/\s+/g, '').includes(needle);
+  onNotice(listener: (notice: ProviderNotice) => void): () => void {
+    this.externalEmitter.on('notice', listener);
+    return () => this.externalEmitter.off('notice', listener);
   }
+
+  isTurnActive(): boolean {
+    return this.observer.isTurnActive();
+  }
+
+  // ── ProviderRecoveryCapableDriver ──────────────────────────────────────────
+
+  async screen(): Promise<string> {
+    if (!this.screenMirror) return '';
+    return this.screenMirror.plainScreen();
+  }
+
+  async writeRawInput(bytes: string): Promise<void> {
+    if (!bytes) return;
+    if (!this.session?.isAlive()) {
+      throw new Error('Copilot is not running — send a message to start it.');
+    }
+    await this.session.writeRawInput(bytes);
+  }
+
+  resize(cols: number, rows: number): void {
+    this.session?.resize(cols, rows);
+    this.screenMirror?.resize(cols, rows);
+  }
+
+  interruptCurrentTurn(): void {
+    void this.session?.writeSystem(ESC);
+    this.observer.abortCurrentTurn('aborted');
+  }
+
+  restart(): void {
+    this.observer.abortCurrentTurn('pty-exit');
+    this.killSession();
+    if (!this.hadAcceptedTurn) {
+      this.sessionId = undefined;
+      this.useResume = false;
+    }
+    this.externalEmitter.emit('notice', {
+      kind: 'info',
+      text: 'Copilot restarted — the next message starts it again.',
+    } satisfies ProviderNotice);
+  }
+
+  getStatus(): ProviderDriverStatus {
+    return {
+      ptyAlive: !!this.session?.isAlive(),
+      sessionId: this.sessionId,
+      turn: this.observer.activeTurn ?? undefined,
+      pendingPrompts: this.observer.hasPendingPrompts() ? 1 : 0,
+    };
+  }
+
+  // ── Spawn ──────────────────────────────────────────────────────────────────
 
   private eventsPath(): string | undefined {
     if (!this.sessionId) return undefined;
@@ -865,30 +494,23 @@ export class CopilotPtyDriver implements ProviderDriver {
     );
   }
 
-  /** Returns an error message string, or null when a live TUI is ready. */
   private async ensureSpawned(signal: AbortSignal): Promise<string | null> {
-    if (this.session?.isAlive()) {
-      if (this.spawnReady) return null;
-      // Alive but the previous spawn never reached readiness (e.g. the user
-      // aborted during the ready-wait). Its events tail was never
-      // positioned — reusing it would replay stale history. Restart clean.
-      this.session.kill();
+    if (this.session?.isAlive()) return null;
+    this.stopObserver();
+    this.ensureHookInfra();
+    try {
+      writeFileSync(this.hookFilePath!, '');
+      this.hookTail.reset(0);
+    } catch (e) {
+      return `Failed to reset the Copilot hook file: ${String(e)}`;
     }
-    this.spawnReady = false;
-
+    if (!this.exePath) this.exePath = resolveCopilotExecutable() ?? null;
     if (!this.exePath) {
-      this.exePath = resolveCopilotExecutable() ?? null;
+      return 'Could not locate the `copilot` executable on PATH. Install the GitHub Copilot CLI: npm install -g @github/copilot';
     }
-    if (!this.exePath) {
-      return (
-        'Could not locate the `copilot` executable on PATH. Install the ' +
-        'GitHub Copilot CLI: npm install -g @github/copilot'
-      );
-    }
-
     const resume = this.useResume && !!this.sessionId;
     if (!this.sessionId) this.sessionId = randomUUID();
-
+    this.observer.sessionId = this.sessionId;
     const args = buildCopilotPtyArgs({
       sessionId: this.sessionId,
       resume,
@@ -896,184 +518,297 @@ export class CopilotPtyDriver implements ProviderDriver {
       reasoningEffort: this.config.reasoningEffort,
       mcpConfigArg: buildMcpConfigArg(this.config),
     });
-
-    this.session = new PtySession({
-      cwd: this.config.cwd,
-      mirror: this.config.mirrorPty !== false,
-      mirrorLabel: 'GitHub Copilot',
-    });
-
-    dbg('spawning', { exe: this.exePath, args, resume });
-    const spawnErr = await this.session.spawn(this.exePath, args);
-    if (spawnErr) return spawnErr;
-
-    const readyErr = await this.waitForTuiReady(signal, resume);
-    if (readyErr) {
-      // Never got a usable TUI — tear the half-started process down. If the
-      // session never materialized on disk (first spawn), drop the id so the
-      // next attempt starts fresh (`--resume` of a virgin id would fail).
-      this.session.kill();
-      if (!this.useResume) this.sessionId = undefined;
-      return readyErr;
+    const mirror = this.config.mirrorPty !== false;
+    this.lastScreen = null;
+    if (mirror) {
+      this.screenMirror ??= new ProviderScreenMirror(PTY_COLS, PTY_ROWS);
+      this.screenMirror.reset();
     }
-    // The session now exists on disk — future respawns resume it.
+    const session = new PtySession({
+      cwd: this.config.cwd,
+      cols: PTY_COLS,
+      rows: PTY_ROWS,
+      env: { [COPILOT_HOOK_FILE_ENV]: this.hookFilePath! },
+      mirror,
+      mirrorLabel: 'GitHub Copilot',
+      onData: (data) => this.screenMirror?.write(data),
+    });
+    dbg('spawning', { exe: this.exePath, args, resume });
+    const err = await session.spawn(this.exePath, args);
+    if (err) return err;
+    this.session = session;
+    this.started = false;
+    session.onExit((code) => {
+      dbg('pty exit', code);
+      this.observer.abortCurrentTurn('pty-exit');
+      if (this.started) {
+        this.externalEmitter.emit('notice', {
+          kind: 'error',
+          message: `Copilot exited (code ${code}). The next message restarts it.`,
+        } satisfies ProviderNotice);
+      }
+    });
+    const readyError = await this.waitForReady(session, signal);
+    if (readyError) {
+      this.killSession();
+      if (!this.useResume) this.sessionId = undefined;
+      return readyError;
+    }
     this.useResume = true;
-
-    // Only consume events from AFTER this point for the next turn; anything
-    // already in the file (resumed history) was surfaced in past turns.
+    this.started = true;
+    await this.hookTail.seekToEnd();
     await this.eventsTail.seekToEnd();
-
-    this.spawnReady = true;
-    this.startBackgroundWatcher();
+    this.startObserver();
     return null;
   }
 
-  /** Returns an error message string, or null once the TUI accepts input. */
-  private async waitForTuiReady(
+  private async waitForReady(
+    session: PtySession,
     signal: AbortSignal,
-    resume: boolean,
   ): Promise<string | null> {
-    const session = this.session!;
-    const deadline = Date.now() + TUI_READY_TIMEOUT_MS;
-    let trustDismissed = false;
-
-    while (Date.now() < deadline) {
-      if (signal.aborted) return 'Aborted while waiting for the Copilot TUI.';
-      if (session.hasExited()) {
-        const tail = this.ptyTail(session);
-        return (
-          `copilot exited during startup (code ${session.exitCode}). ` +
-          'Check that the CLI is installed and authenticated (`copilot /login`).' +
-          (tail ? `\nLast output:\n${tail}` : '')
-        );
+    const deadline = Date.now() + READY_TIMEOUT_MS;
+    let announced: CopilotScreenState | null = null;
+    let dialogDeadline = 0;
+    let trustAnswered = false;
+    while (
+      Date.now() < deadline ||
+      (announced && Date.now() < dialogDeadline)
+    ) {
+      if (signal.aborted) return 'Aborted while Copilot was starting.';
+      if (!session.isAlive()) {
+        return `Copilot exited during startup (code ${session.exitCode}). Check that the CLI is installed and authenticated (copilot /login). Terminal: ${this.screenTail(300)}`;
       }
-
-      const stripped = session.strippedOutput();
-      const lower = stripped.toLowerCase();
-
-      // Trusted-folder dialog: best-effort Enter to accept the default,
-      // mirroring the Claude driver's approach.
-      if (
-        !trustDismissed &&
-        lower.includes('trust') &&
-        (lower.includes('folder') || lower.includes('files'))
-      ) {
-        dbg('trust-like dialog detected — sending Enter');
-        session.writeUnqueued('\r');
-        trustDismissed = true;
-      }
-
-      // The input footer ("/ commands · ? help · tab next tab") renders when
-      // the input box exists. Resume replays history after that, so wait a
-      // longer grace before typing on resume.
-      if (stripped.includes('? help') || stripped.includes('/ commands')) {
-        // Startup notification burst (gh-not-installed check, "MCP Servers
-        // reloaded: N servers connected") lands AFTER the footer; a prompt
-        // typed during that churn is swallowed. When our MCP bridge is
-        // configured, the reload line is a reliable "burst done" marker —
-        // wait for it (bounded), then the usual grace.
-        if (this.config.toolBridgePort) {
-          const churnDeadline = Date.now() + STARTUP_CHURN_MAX_MS;
-          while (
-            Date.now() < churnDeadline &&
-            !signal.aborted &&
-            !session.hasExited() &&
-            !/MCP Servers reloaded|servers? connected/i.test(
-              session.strippedOutput(),
-            )
-          ) {
-            await new Promise<void>((r) => setTimeout(r, 200));
-          }
-        }
-        await new Promise<void>((r) =>
-          setTimeout(r, resume ? READY_GRACE_RESUME_MS : READY_GRACE_FRESH_MS),
-        );
+      await this.refreshScreen();
+      const state = this.screenState();
+      if (state === 'input') {
+        await delay(600);
+        await this.refreshScreen();
+        if (this.screenState() !== 'input') continue;
+        if (announced) this.emitAttention('end', announced);
         return null;
       }
-
-      await new Promise<void>((r) => setTimeout(r, 200));
-    }
-    return 'Timed out waiting for the Copilot TUI to become ready.';
-  }
-
-  // ─── Background watcher (web-terminal typed turns) ────────────────────
-
-  private startBackgroundWatcher(): void {
-    if (this.backgroundTimer) return;
-    this.backgroundTimer = setInterval(() => {
-      void this.backgroundTick(false);
-    }, BACKGROUND_POLL_MS);
-  }
-
-  private stopBackgroundWatcher(): void {
-    if (this.backgroundTimer) {
-      clearInterval(this.backgroundTimer);
-      this.backgroundTimer = null;
-    }
-  }
-
-  /**
-   * Drain events that arrived OUTSIDE a chat-initiated turn (the user typed
-   * into the live terminal) and surface them to chat. `force` runs even
-   * while paused — used once at turn start to flush stragglers.
-   */
-  private async backgroundTick(force: boolean): Promise<void> {
-    if (!force && this.turnInFlight) return;
-    if (this.bgTickInFlight) return;
-    if (!this.session?.isAlive()) return;
-    this.bgTickInFlight = true;
-    try {
-      const { entries } = await this.eventsTail.drain();
-      for (const raw of entries) {
-        if (!isRecord(raw)) continue;
-        const entryType = raw['type'];
-        if (typeof entryType !== 'string') continue;
-        const data = isRecord(raw['data']) ? raw['data'] : {};
-        switch (entryType) {
-          case 'user.message': {
-            const text = pickString(data, 'content');
-            if (text) {
-              this.backgroundEmitter.emit('user-message', { text });
-            }
-            break;
-          }
-          case 'assistant.message': {
-            const text = pickString(data, 'content');
-            if (text) {
-              this.backgroundEmitter.emit('assistant-text', { text });
-            }
-            break;
-          }
-          case 'tool.execution_start': {
-            const toolName = pickString(data, 'toolName');
-            if (!toolName) break;
-            const preview = summariseToolArgs(data['arguments']);
-            this.backgroundEmitter.emit('assistant-text', {
-              text: preview
-                ? `↪ Calling ${toolName}: ${preview}`
-                : `↪ Calling ${toolName}`,
-            });
-            break;
-          }
-          case 'session.warning':
-          case 'session.error': {
-            const msg =
-              pickString(data, 'message') ?? pickString(data, 'error');
-            if (msg) {
-              this.backgroundEmitter.emit('error', {
-                message: `Copilot session: ${msg}`,
-              });
-            }
-            break;
-          }
-          default:
-            break;
-        }
+      if (state === 'trust' && !trustAnswered) {
+        // The workspace is already trusted by Auditaria's own folder-trust gate.
+        trustAnswered = true;
+        await delay(300);
+        await session.writeSystem('\r');
+        await delay(800);
+        continue;
       }
+      if ((state === 'trust' || state === 'login') && announced !== state) {
+        if (announced) this.emitAttention('end', announced);
+        announced = state;
+        dialogDeadline = Date.now() + DIALOG_WAIT_MS;
+        this.emitAttention('start', state);
+      }
+      await delay(250);
+    }
+    return `Copilot did not show its input prompt within ${Math.round(READY_TIMEOUT_MS / 1000)} s. Terminal: ${this.screenTail(300)}`;
+  }
+
+  private emitAttention(
+    phase: 'start' | 'end',
+    state: CopilotScreenState,
+  ): void {
+    this.externalEmitter.emit('notice', {
+      kind: 'attention',
+      phase,
+      id: `startup:${state}`,
+      what: state === 'trust' ? 'trust' : 'dialog',
+      detail: phase === 'start' ? describeState(state) : undefined,
+    } satisfies ProviderNotice);
+  }
+
+  /** Hook file (per driver) + the user-level hooks configuration (shared, stable relay). */
+  private ensureHookInfra(): void {
+    if (this.hookDir) return;
+    this.hookDir = mkdtempSync(join(tmpdir(), 'auditaria-copilot-'));
+    this.hookFilePath = join(this.hookDir, 'hooks.jsonl');
+    const relay = ensureHookRelayScript('copilot', COPILOT_HOOK_FILE_ENV, {
+      stable: true,
+    });
+    const hooksDir = join(homedir(), '.copilot', 'hooks');
+    const file = join(hooksDir, 'auditaria.json');
+    const content = buildCopilotHooksFile(relay);
+    let current: string | undefined;
+    try {
+      current = readFileSync(file, 'utf8');
     } catch {
-      /* try again next tick */
-    } finally {
-      this.bgTickInFlight = false;
+      current = undefined;
+    }
+    if (current !== content) {
+      try {
+        mkdirSync(hooksDir, { recursive: true });
+        writeFileSync(file, content, 'utf8');
+        dbg('hooks file written', file);
+      } catch (e) {
+        dbg('hooks file NOT written (hooks disabled for this session)', e);
+      }
     }
   }
+
+  /** Type body + CR; multi-line prompts as a bracketed paste. Focus-in first:
+   *  the TUI ignores Enter while it believes the terminal is unfocused. */
+  private async typePrompt(session: PtySession, prompt: string): Promise<void> {
+    await session.writeSystem(FOCUS_IN);
+    const body = prompt.includes('\n')
+      ? PASTE_START + prompt + PASTE_END
+      : prompt;
+    await session.typeSubmit(body);
+  }
+
+  // ── Observer plumbing ──────────────────────────────────────────────────────
+
+  private async drainHooks(): Promise<HookEvent[]> {
+    const { entries } = await this.hookTail.drain();
+    const events: HookEvent[] = [];
+    for (const e of entries) {
+      if (!isPlainObject(e)) continue;
+      const event = pickString(e, 'event');
+      if (!event) continue;
+      const payload = isPlainObject(e['payload']) ? e['payload'] : {};
+      if (event === 'sessionStart') this.bindSession(payload);
+      if (event === 'userPromptSubmitted') this.checkTruncation(payload);
+      dbg('hook', event, pickString(payload, 'sessionId')?.slice(0, 8));
+      events.push({ event, payload });
+    }
+    return events;
+  }
+
+  /** The TUI accepted only a strict prefix of what we typed: cancel at once. */
+  private checkTruncation(payload: Record<string, unknown>): void {
+    const typed = this.typedPrompt;
+    const got = pickString(payload, 'prompt');
+    if (!typed || got === undefined) return;
+    const norm = (v: string) => v.replace(/\s+/g, ' ').trim();
+    const a = norm(typed);
+    const b = norm(got);
+    this.typedPrompt = null;
+    if (b.length < a.length && a.startsWith(b) && a.length - b.length > 3) {
+      this.truncatedPrompt = { got: b.length, typed: a.length };
+      dbg('truncated prompt accepted — cancelling', this.truncatedPrompt);
+      void this.session?.writeSystem(ESC);
+    }
+  }
+
+  /** sessionStart carries the session id: after `/clear` it is a NEW one. */
+  private bindSession(payload: Record<string, unknown>): void {
+    const id =
+      pickString(payload, 'sessionId') ?? pickString(payload, 'session_id');
+    if (!id || id === this.sessionId) return;
+    dbg('session id changed', {
+      from: this.sessionId?.slice(0, 8),
+      to: id.slice(0, 8),
+    });
+    this.sessionId = id;
+    this.useResume = true;
+    this.eventsTail.reset(0);
+  }
+
+  private handleSessionChange(sessionId: string, source: string): void {
+    if (source === 'clear') {
+      // The old session is gone; the next prompt's sessionStart rebinds.
+      this.externalEmitter.emit('notice', {
+        kind: 'session',
+        source: 'clear',
+        sessionId: sessionId || this.sessionId || '',
+      } satisfies ProviderNotice);
+      this.hadAcceptedTurn = false;
+      return;
+    }
+    this.externalEmitter.emit('notice', {
+      kind: 'session',
+      source,
+      sessionId,
+      transcriptPath: this.eventsPath(),
+    } satisfies ProviderNotice);
+  }
+
+  private toExternalTurn(turn: ObservedTurn): ExternalTurn {
+    return {
+      promptId: turn.promptId,
+      source: turn.source,
+      userText: turn.userText,
+      events: turn.events,
+      interrupt: () => this.interruptCurrentTurn(),
+    };
+  }
+
+  private startObserver(): void {
+    if (this.observerTimer) return;
+    this.observerTimer = setInterval(() => {
+      void this.refreshScreen()
+        .then(() => this.observer.tick())
+        .catch((e) => dbg('observer tick error', e));
+    }, OBSERVER_TICK_MS);
+  }
+
+  private stopObserver(): void {
+    if (this.observerTimer) {
+      clearInterval(this.observerTimer);
+      this.observerTimer = null;
+    }
+  }
+
+  private async refreshScreen(): Promise<void> {
+    if (!this.screenMirror) return;
+    try {
+      this.lastScreen = await this.screenMirror.plainScreen();
+    } catch {
+      /* keep the previous snapshot */
+    }
+  }
+
+  private killSession(): void {
+    const session = this.session;
+    if (!session) return;
+    const pid = session.pid;
+    try {
+      session.kill();
+    } catch {
+      /* ignore */
+    }
+    if (process.platform === 'win32' && pid) {
+      try {
+        execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
+      } catch {
+        /* already gone */
+      }
+    }
+    this.session = null;
+  }
+
+  // ── Screen ────────────────────────────────────────────────────────────────
+
+  private screenState(): CopilotScreenState {
+    const session = this.session;
+    if (!session) return 'unknown';
+    const text = this.lastScreen ?? session.strippedOutput().slice(-4000);
+    return classifyCopilotScreen(text);
+  }
+
+  private screenTail(chars: number): string {
+    const grid = (this.lastScreen ?? '').replace(/\s+/g, ' ').trim();
+    const text =
+      grid ||
+      (this.session?.strippedOutput() ?? '').replace(/\s+/g, ' ').trim();
+    return text.slice(-chars);
+  }
+}
+
+function describeState(state: CopilotScreenState): string {
+  switch (state) {
+    case 'trust':
+      return 'folder trust dialog';
+    case 'login':
+      return 'login prompt';
+    case 'picker':
+      return 'selection menu';
+    default:
+      return 'dialog';
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }

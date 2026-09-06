@@ -26,9 +26,9 @@
 
 import { EventEmitter } from 'node:events';
 import { execSync } from 'node:child_process';
-import { existsSync, mkdtempSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import type {
   AttachmentFile,
   ExternalTurn,
@@ -52,7 +52,7 @@ import {
   type HookEvent,
   type ObservedTurn,
 } from '../terminal/turnObserver.js';
-import { findOnPath, resolveNpmShim } from '../../utils/resolveExecutable.js';
+import { resolveCodexExecutable } from './codexExecutable.js';
 
 const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
 function dbg(...args: unknown[]): void {
@@ -896,40 +896,4 @@ function describeState(state: CodexScreenState): string {
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
-}
-
-/**
- * The real Codex binary, without cmd.exe or the node shim layer in the PTY:
- * npm's `codex.cmd` → `bin/codex.js` → vendor `codex-<platform>-<arch>/…/codex(.exe)`.
- * Falls back to `node codex.js`, then to whatever is on PATH.
- */
-export function resolveCodexExecutable():
-  | { file: string; argsPrefix: string[] }
-  | undefined {
-  const fromEnv = process.env['CODEX_EXE'];
-  if (fromEnv && existsSync(fromEnv)) return { file: fromEnv, argsPrefix: [] };
-  const found = findOnPath('codex');
-  if (!found) return undefined;
-  if (process.platform === 'win32' && /\.cmd$/i.test(found)) {
-    const shim = resolveNpmShim(found);
-    if (shim?.via === 'shim-node') {
-      const pkgDir = dirname(dirname(shim.argsPrefix[0])); // …/@openai/codex
-      const platformPkg = join(
-        pkgDir,
-        'node_modules',
-        '@openai',
-        `codex-${process.platform}-${process.arch}`,
-        'vendor',
-      );
-      const triples = ['x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc'];
-      for (const triple of triples) {
-        const exe = join(platformPkg, triple, 'bin', 'codex.exe');
-        if (existsSync(exe)) return { file: exe, argsPrefix: [] };
-      }
-      return { file: shim.file, argsPrefix: shim.argsPrefix };
-    }
-    if (shim) return { file: shim.file, argsPrefix: shim.argsPrefix };
-    return { file: found, argsPrefix: [] };
-  }
-  return { file: found, argsPrefix: [] };
 }
