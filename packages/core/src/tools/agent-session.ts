@@ -14,16 +14,15 @@ import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
+import {} from '../providers/types.js'; // AUDITARIA_AGY_PROVIDER // AUDITARIA_CODEX_PROVIDER
 import {
-  CLAUDE_MODEL_IDS,
-  getCodexModelIds,
-  AGY_MODEL_IDS,
-} from '../providers/types.js'; // AUDITARIA_AGY_PROVIDER: added AGY_MODEL_IDS // AUDITARIA_CODEX_PROVIDER: live Codex catalog
-import {
-  AUDITARIA_MODEL_IDS,
-  VALID_GEMINI_MODELS,
-  DEFAULT_GEMINI_MODEL,
-} from '../config/models.js'; // AUDITARIA_AGENT_SESSION
+  getAllProviderModelIds,
+  getProviderModelIds,
+  providerOfModelId,
+  PROVIDER_MODEL_KEYS,
+  type ProviderModelKey,
+} from '../providers/providerModelIds.js'; // AUDITARIA_AGENT_SESSION: one live model list shared with /model
+import { VALID_GEMINI_MODELS, DEFAULT_GEMINI_MODEL } from '../config/models.js'; // AUDITARIA_AGENT_SESSION
 
 // -------------------------------------------------------------------
 // Types
@@ -46,16 +45,11 @@ type Action = (typeof ACTIONS)[number];
 // AUDITARIA_CODEX_PROVIDER: resolved per call rather than at module load, so
 // the Codex slice tracks the user's own `models_cache.json` — a model Codex
 // adds is offered AND accepted by validateToolParams without a code change.
-const codexModelIds = (): string[] =>
-  getCodexModelIds().filter((id) => id !== 'auto');
-
-const allModelIds = (): string[] => [
-  'auto',
-  ...CLAUDE_MODEL_IDS.filter((id) => id !== 'auto'),
-  ...codexModelIds(),
-  ...AGY_MODEL_IDS.filter((id) => id !== 'auto'), // AUDITARIA_AGY_PROVIDER
-  ...AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto'), // AUDITARIA_AGENT_SESSION
-];
+const ids = (provider: Parameters<typeof getProviderModelIds>[0]): string =>
+  getProviderModelIds(provider).join(', ');
+const allModelIds = (): string[] => getAllProviderModelIds();
+const asProviderModelKey = (v: string): ProviderModelKey | undefined =>
+  PROVIDER_MODEL_KEYS.find((k) => k === v);
 
 interface ExternalAgentSessionParams {
   action: Action;
@@ -86,10 +80,11 @@ const buildDescription =
   () => `Manage sessions with alternative LLM providers as external sub-agents. Each sub-agent runs in its own session with its own conversation context and access to Auditaria's tools (file ops, search, browser, etc.).
 
 Available providers:
-- "claude" — Claude Code CLI (${CLAUDE_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
-- "codex" — OpenAI Codex CLI (${codexModelIds().join(', ')})
-- "agy" — Google Antigravity CLI (${AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
-- "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
+- "claude" — Claude Code CLI (${ids('claude')})
+- "codex" — OpenAI Codex CLI (${ids('codex')})
+- "copilot" — GitHub Copilot CLI (${ids('copilot') || 'models load after Copilot runs once; "auto" always works'})
+- "agy" — Google Antigravity CLI (${ids('agy')})
+- "auditaria" — Auditaria/Gemini CLI (${ids('auditaria')})
 
 IMAGE GENERATION & EDITING: Both "agy" and "codex" can generate AND edit images natively, and BOTH can save the result to a real file you can use afterward — just instruct the sub-agent to save into the workspace and report the absolute path.
 - "agy" — Native "generate_image" tool. Saves a JPEG (~1024px) to disk and reports the path. Inputs: a text Prompt, an output filename (ImageName), and optionally UP TO 3 input images for editing/combining passed BY ABSOLUTE PATH (ImagePaths) — so reference-image edits are easy: give the sub-agent the file paths (e.g. "edit these images <abs paths> — change only Y"). High-fidelity single-attribute edits. No explicit size arg (describe orientation in the prompt). No API key needed — simplest path.
@@ -162,8 +157,8 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
           provider: {
             type: 'string',
             description:
-              'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI), "agy" (Google Antigravity CLI), "auditaria" (Auditaria/Gemini CLI).',
-            enum: ['claude', 'codex', 'agy', 'auditaria'],
+              'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI), "copilot" (GitHub Copilot CLI), "agy" (Google Antigravity CLI), "auditaria" (Auditaria/Gemini CLI).',
+            enum: ['claude', 'codex', 'copilot', 'agy', 'auditaria'],
           },
           session_id: {
             type: 'string',
@@ -180,16 +175,19 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
             description:
               'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
               'Claude models: ' +
-              CLAUDE_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              ids('claude') +
               ' (all run with a 1M-token context window except haiku at 200K; opusplan uses Opus while planning and Sonnet while executing). ' +
               'Codex models: ' +
-              codexModelIds().join(', ') +
+              ids('codex') +
+              '. ' +
+              'Copilot models: ' +
+              (ids('copilot') || 'auto') +
               '. ' +
               'Antigravity (agy) models: ' +
-              AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              ids('agy') +
               '. ' +
               'Gemini models: ' +
-              AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              ids('auditaria') +
               ' (default: ' +
               DEFAULT_GEMINI_MODEL +
               ').',
@@ -318,53 +316,26 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
       return 'mode must be "work" or "consult"';
     }
 
-    // Validate model matches provider
-    if (params.action === 'create' && params.model && params.provider) {
-      const claudeModels = new Set<string>(
-        CLAUDE_MODEL_IDS.filter((id) => id !== 'auto'),
-      );
-      const codexModels = new Set<string>(codexModelIds());
-      const agyModels = new Set<string>(
-        AGY_MODEL_IDS.filter((id) => id !== 'auto'),
-      ); // AUDITARIA_AGY_PROVIDER
-      const auditariaModels = VALID_GEMINI_MODELS; // AUDITARIA_AGENT_SESSION
-
-      if (params.provider === 'claude' && !claudeModels.has(params.model)) {
-        if (codexModels.has(params.model)) {
-          return `Model "${params.model}" is a Codex model, but provider is "claude". Claude models: ${[...claudeModels].join(', ')}`;
-        }
-        if (auditariaModels.has(params.model)) {
-          return `Model "${params.model}" is a Gemini model, but provider is "claude". Claude models: ${[...claudeModels].join(', ')}`;
-        }
-      }
-      if (params.provider === 'codex' && !codexModels.has(params.model)) {
-        if (claudeModels.has(params.model)) {
-          return `Model "${params.model}" is a Claude model, but provider is "codex". Codex models: ${[...codexModels].join(', ')}`;
-        }
-        if (auditariaModels.has(params.model)) {
-          return `Model "${params.model}" is a Gemini model, but provider is "codex". Codex models: ${[...codexModels].join(', ')}`;
-        }
-      }
-      // AUDITARIA_AGY_PROVIDER: Validate agy model
-      if (params.provider === 'agy' && !agyModels.has(params.model)) {
-        if (claudeModels.has(params.model)) {
-          return `Model "${params.model}" is a Claude model, but provider is "agy". Antigravity models: ${[...agyModels].join(', ')}`;
-        }
-        if (codexModels.has(params.model)) {
-          return `Model "${params.model}" is a Codex model, but provider is "agy". Antigravity models: ${[...agyModels].join(', ')}`;
-        }
-        return `Model "${params.model}" is not a valid Antigravity model. Options: ${[...agyModels].join(', ')}`;
-      }
-      // AUDITARIA_AGENT_SESSION: Validate auditaria model
-      if (
-        params.provider === 'auditaria' &&
-        !auditariaModels.has(params.model)
-      ) {
-        if (claudeModels.has(params.model)) {
-          return `Model "${params.model}" is a Claude model, but provider is "auditaria". Gemini models: ${[...auditariaModels].join(', ')}`;
-        }
-        if (codexModels.has(params.model)) {
-          return `Model "${params.model}" is a Codex model, but provider is "auditaria". Gemini models: ${[...auditariaModels].join(', ')}`;
+    // Validate model matches provider — ONE rule over the shared live list
+    // (AUDITARIA_AGENT_SESSION: the same ids /model offers).
+    if (
+      params.action === 'create' &&
+      params.model &&
+      params.model !== 'auto' &&
+      params.provider
+    ) {
+      const provider = asProviderModelKey(params.provider);
+      if (provider) {
+        const offered =
+          provider === 'auditaria'
+            ? [...VALID_GEMINI_MODELS]
+            : getProviderModelIds(provider);
+        // Copilot's list is empty until its cache exists: accept any id then.
+        if (offered.length > 0 && !offered.includes(params.model)) {
+          const owner = providerOfModelId(params.model);
+          return owner && owner !== provider
+            ? `Model "${params.model}" is a ${owner} model, but provider is "${provider}". ${provider} models: ${offered.join(', ')}`
+            : `Model "${params.model}" is not available for provider "${provider}". Options: ${offered.join(', ')} (or "auto").`;
         }
       }
     }

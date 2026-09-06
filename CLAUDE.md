@@ -810,6 +810,57 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
 - **Code Marking**: All changes use `// AUDITARIA_CODEX_PROVIDER` or
   `_START/_END` block markers for upstream sync safety
 
+- **Interactive PTY driver (default for the main session, September 2026)**:
+  `codex/codexPtyDriver.ts` drives the REAL Codex TUI in a persistent PTY
+  (web-terminal mirror "OpenAI Codex Terminal", PiP, terminal-typed turns in
+  the chat) through the same one-turn pipeline as Claude:
+  `codex/codexTurnObserver.ts` extends the shared
+  `terminal/turnObserver.ts` (`ProviderTurnObserver` — claims, external turns,
+  finalize channels, injected messages, provisional text, tool/attention
+  emission; `ClaudeTurnObserver` is a subclass too). Plan + evidence:
+  `.auditaria/codex-tui-sync-plan.md`; Astra's independent solution on branch
+  `astra-codex-sync`. `AUDITARIA_CODEX_EXEC=1` keeps the headless
+  `codex exec --json` driver for the main session; headless contexts
+  (sub-agents, Teams) always use it.
+  - **Verified on Codex CLI 0.153.4 (Windows)**: the session rollout
+    `CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl` is created at the FIRST
+    prompt and written live (`session_meta`, `event_msg` task_started /
+    item_completed / token_count / task_complete / turn_aborted,
+    `response_item` message / reasoning / function_call(+_output) /
+    custom_tool_call, `compacted`); hooks (`hooks` feature is stable) fire
+    inside the TUI on Windows and are injected PER SESSION with
+    `-c hooks.<Event>=[…]` + `--dangerously-bypass-hook-trust`; MCP servers
+    with `-c mcp_servers.<name>={…}` — the user's `~/.codex/config.toml` is
+    never edited by the PTY driver. Directory trust can NOT be granted per
+    process: `-c projects.'<cwd>'.trust_level="trusted"` matched none of the
+    forms tried (verbatim, lowercase, `\?\` — Codex persists the LOWERCASE
+    canonical path itself after the dialog), so the driver answers the trust
+    dialog once at startup (default "1. Yes, continue" = Enter; the workspace
+    is already gated by Auditaria's own folder trust); `SessionStart`
+    carries `transcript_path`; `Interrupt` fires on Esc (plus the
+    `<turn_aborted>` user line and `turn_aborted`); a message typed mid-turn is
+    injected under the SAME `turn_id`; the TUI runs in the alternate screen
+    with focus reporting + bracketed paste (assert focus-in before typing,
+    paste multi-line prompts bracketed); the input prompt reads
+    `› Ask Codex to do anything`; `gpt-5.4-mini` shows a migration dialog that
+    silently switches the session to GPT-5.6 Luna (use `gpt-5.3-codex-spark`
+    for cheap tests); a built-in `codex_apps` MCP server boots at startup;
+    the Windows "elevated" sandbox stalls shell tools ~90 s, so the PTY driver
+    bypasses approvals/sandbox by default (parity with the exec driver's
+    `danger-full-access`; `AUDITARIA_CODEX_SANDBOX=1` keeps them, approvals
+    then surface as attention notices from the `PermissionRequest` hook).
+  - `/new` typed in the terminal fires NO hook and writes NO file (the new
+    session's rollout is created lazily at its next prompt); the driver
+    detects it from the TUI's farewell line ("To continue this session, run
+    codex resume, then select … (<old id>)"), announces a cleared session and
+    forgets the old id. The account's rate-limit nudge ("Approaching rate
+    limits — Switch to gpt-5.6-luna?") is a dialog whose Enter switches the
+    model: classified as `migration`, never typed into (the user's config
+    hides it via `[notice] hide_rate_limit_model_nudge = true`).
+  - Codex's own `codex queue` and app-server (`--remote`, second client on a
+    thread) were evaluated and deferred: rollout + hooks already carry
+    everything and the daemon lifecycle is Unix-only.
+
 ### 14. Alternative LLM Providers (GitHub Copilot Integration)
 
 - **Implementation**: Fourth provider, with TWO drivers since July 2026:
@@ -972,6 +1023,29 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
   - `index.ts` — Export `CLAUDE_MODEL_IDS`, `CODEX_MODEL_IDS`
   - `cli/src/ui/modelCatalog.ts` — Import DRY model ID constants
 - **Code Marking**: All changes use `// AUDITARIA_AGENT_SESSION` markers
+
+### 15b. Shell-free provider spawning + one live model list (September 2026)
+
+- **Problem**: on corporate PCs where `cmd.exe`/PowerShell are blocked, Codex
+  and Copilot never showed as installed and their model lists never
+  refreshed — availability used `spawn(cmd, ['--version'], {shell:true})`,
+  the Codex exec driver and the Copilot ACP driver (which refreshes the
+  model cache) spawned through `powershell.exe`, and npm `.cmd` shims ARE
+  cmd.exe batch files.
+- **Fix**: `utils/resolveExecutable.ts` — `findOnPath` (in-process PATH +
+  PATHEXT scan; never the bare extension-less npm script on Windows),
+  `resolveNpmShim` (parses the shim to `node <bin>.js` or the native exe),
+  `spawnWithoutShell` (shell:false; returns null when unresolvable so callers
+  fall back to their old shell spawn). Applied to `providerAvailability.ts`,
+  `codexCLIDriver.ts` (raw TOML path for `model_instructions_file` when no
+  shell strips quotes) and both Copilot ACP spawn sites. The Codex PTY driver
+  resolves the vendor `codex.exe` behind the shim.
+- **One model list**: `providers/providerModelIds.ts` (`getProviderModelIds`,
+  `getAllProviderModelIds`, `providerOfModelId`) reads the same live sources
+  the `/model` menu uses (Codex `models_cache.json`, Copilot's cached ACP
+  list, the Claude/agy/Gemini tables); `tools/agent-session.ts` builds its
+  provider/model enums, description and validation from it and now offers
+  `copilot` sub-agents.
 
 ### 16. Telegram Bot Integration
 

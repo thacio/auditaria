@@ -7,6 +7,7 @@
 // AUDITARIA_PROVIDER_AVAILABILITY: Utility to check if external LLM providers are installed
 
 import { spawn } from 'node:child_process';
+import { spawnWithoutShell } from './resolveExecutable.js'; // AUDITARIA_PROVIDER_AVAILABILITY: no cmd.exe/PowerShell
 
 export interface ProviderAvailability {
   claude: boolean;
@@ -27,11 +28,18 @@ async function isCommandAvailable(
   timeout: number = 5000,
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    const child = spawn(command, ['--version'], {
-      shell: true,
-      stdio: 'ignore', // Suppress output
-      windowsHide: true, // Hide console window on Windows
-    });
+    // AUDITARIA_PROVIDER_AVAILABILITY: resolve the real target (node script
+    // or native exe behind an npm shim) and spawn it WITHOUT a shell — on
+    // corporate machines cmd.exe/PowerShell are blocked and a shell spawn
+    // made every provider look "not installed". A shell is the fallback
+    // only when the command cannot be resolved.
+    const child =
+      spawnWithoutShell(command, ['--version'], { stdio: 'ignore' }) ??
+      spawn(command, ['--version'], {
+        shell: true,
+        stdio: 'ignore', // Suppress output
+        windowsHide: true, // Hide console window on Windows
+      });
 
     const timer = setTimeout(() => {
       child.kill();

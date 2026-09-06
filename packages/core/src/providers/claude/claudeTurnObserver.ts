@@ -3,15 +3,13 @@
  * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  *
- * AUDITARIA_CLAUDE_PROVIDER: One turn pipeline, any trigger.
+ * AUDITARIA_CLAUDE_PROVIDER: One turn pipeline, any trigger — Claude Code.
  *
- * Claude's TUI runs turns that Auditaria started (a prompt typed by
- * `sendMessage`) and turns it did not (the user typed into the mirrored web
- * terminal; the CLI auto-continued after a background task). Everything
- * downstream of "a turn is happening in the PTY" is identical, so this
- * observer is the ONLY reader of Claude's two live channels — the hook
- * relay JSONL and the session transcript JSONL — and turns both into one
- * ordered `ProviderEvent` stream per turn:
+ * The provider-agnostic machinery (claims, external turns, finalize channels,
+ * injected messages, provisional text, tool/attention emission) lives in
+ * `terminal/turnObserver.ts`. This subclass knows Claude Code's two live
+ * channels — the hook relay JSONL and the session transcript JSONL — and
+ * turns both into the shared `ProviderEvent` stream:
  *
  *   - the transcript is the primary source: it is written per content block
  *     as blocks complete (text / thinking / tool_use, in order) and leads the
@@ -20,45 +18,52 @@
  *     (UserPromptSubmit), tool results (PostToolUse / PostToolUseFailure),
  *     turn end (Stop), API errors (StopFailure), compaction, dialogs
  *     (PermissionRequest / Notification), session changes (SessionStart),
- *     sub-agents, model switches.
+ *     sub-agents, model switches, provisional live text (MessageDisplay).
  *
  * Turn completion is detected on three redundant channels — Stop hook,
  * settled terminal `stop_reason` in the transcript, idle PTY showing the
- * input prompt — because any single one can be dropped. A turn is attributed
- * to `sendMessage` when a claim is pending and the accepted prompt matches
- * it; otherwise it is an EXTERNAL turn, handed to the host with the same
- * event stream. Facts that are not turn events (a `/clear` typed in the
- * terminal, a dialog waiting for a human, a sub-agent finishing) are
- * reported as notices.
- *
- * Pure with respect to I/O: the host supplies the drains and the PTY probe,
- * so the whole state machine is unit-testable on captured fixtures.
+ * input prompt — because any single one can be dropped.
  */
 
 import type {
-  ExternalTurnSource,
   InteractivePromptQuestion,
   InteractivePromptStartEvent,
-  ProviderEvent,
-  ProviderFinishedEvent,
-  ProviderNotice,
 } from '../types.js';
 import { ProviderEventType } from '../types.js';
-import { AsyncEventQueue } from '../terminal/asyncEventQueue.js';
+import {
+  ProviderTurnObserver,
+  isPlainObject,
+  joinTextBlocks,
+  numberOrUndefined,
+  pickString,
+  slashName,
+  summariseInput,
+  type HookEvent,
+  type TurnState,
+} from '../terminal/turnObserver.js';
 import { isLocalCommandNoise } from './claudeSessionLoader.js';
 
-// ─── Tunables ─────────────────────────────────────────────────────────────────
+// Re-exported so the driver and the tests keep one import site.
+export {
+  TRANSCRIPT_SETTLE_MS,
+  NO_SIGNAL_IDLE_MS,
+  SLASH_IDLE_MS,
+  TURN_CEILING_MS,
+  COMPACT_SUMMARY_GRACE_MS,
+  classifyExternalSource,
+  slashName,
+  promptMatches,
+  summariseInput,
+} from '../terminal/turnObserver.js';
+export type {
+  HookEvent,
+  TurnSource,
+  FinalizeReason,
+  ObservedTurn,
+  TurnClaim,
+  TurnObserverHost,
+} from '../terminal/turnObserver.js';
 
-/** Quiet time after a terminal stop_reason before the transcript channel finalizes. */
-export const TRANSCRIPT_SETTLE_MS = 600;
-/** No hook, no transcript growth for this long + idle prompt → finalize (last resort). */
-export const NO_SIGNAL_IDLE_MS = 20_000;
-/** Slash-command turns emit little: shorter idle ceiling. */
-export const SLASH_IDLE_MS = 6_000;
-/** Absolute ceiling for one turn (long-running tools). */
-export const TURN_CEILING_MS = 30 * 60_000;
-/** After PostCompact, how long to wait for the summary line before finalizing. */
-export const COMPACT_SUMMARY_GRACE_MS = 4_000;
 const TERMINAL_STOP_REASONS = new Set([
   'end_turn',
   'stop_sequence',
@@ -67,421 +72,35 @@ const TERMINAL_STOP_REASONS = new Set([
 /** Claude writes this user line when Esc / Ctrl+C interrupts a turn. */
 const INTERRUPTED_RE = /^\[Request interrupted by user/i;
 
-// ─── Public shapes ───────────────────────────────────────────────────────────
-
-export interface HookEvent {
-  event: string;
-  payload: Record<string, unknown>;
-}
-
-export type TurnSource = 'chat' | ExternalTurnSource;
-
-export type FinalizeReason =
-  | 'hook'
-  | 'transcript'
-  | 'idle'
-  | 'compacted'
-  | 'local'
-  | 'failed'
-  | 'aborted'
-  | 'timeout'
-  | 'superseded'
-  | 'pty-exit'
-  | 'dispose';
-
-export interface ObservedTurn {
-  promptId: string;
-  source: ExternalTurnSource;
-  userText: string;
-  events: AsyncIterable<ProviderEvent>;
-}
-
-/** Handle returned to `sendMessage` for the turn it is about to type. */
-export interface TurnClaim {
-  events: AsyncIterable<ProviderEvent>;
-  /** True once the provider accepted the typed prompt (hook or transcript). */
-  readonly accepted: boolean;
-  /** True once the turn ended (its stream is closed). */
-  readonly done: boolean;
-}
-
-export interface TurnObserverHost {
-  /** New hook events since the last call (the host owns the file cursor). */
-  drainHooks(): Promise<HookEvent[]>;
-  /** New transcript lines since the last call, parsed. */
-  drainTranscript(): Promise<{ entries: unknown[]; grew: boolean }>;
-  /** Does the PTY tail show Claude's idle input prompt (❯)? */
-  ptyShowsInputPrompt(): boolean;
-  onExternalTurn(turn: ObservedTurn): void;
-  onNotice(notice: ProviderNotice): void;
-  /** SessionStart with a non-startup source (`clear`, `resume`, …). */
-  onSessionChange(sessionId: string, source: string): void;
-  /** The claimed prompt was accepted by the TUI (stops the CR retry). */
-  onPromptAccepted(): void;
-  now?(): number;
-}
-
-// ─── Internal state ──────────────────────────────────────────────────────────
-
-interface TurnState {
-  promptId: string;
-  source: TurnSource;
-  userText: string;
-  slash?: string;
-  queue: AsyncEventQueue<ProviderEvent>;
-  /** The sendMessage claim this turn satisfied (chat turns only). */
-  claim?: ClaimState;
-  startedAt: number;
-  lastProgressAt: number;
-  openTools: Map<string, string>;
-  seenToolUse: Set<string>;
-  seenToolResult: Set<string>;
-  askIds: Set<string>;
-  attention: Set<string>;
-  /** Queued messages Claude injected into this turn (normalised text). */
-  injected: Set<string>;
-  /** MessageDisplay streams (provisional live text) keyed by display id. */
-  displays: Map<string, DisplayStream>;
-  /** Provisional text already pushed to the stream, awaiting its transcript block. */
-  provisional: { messageId: string; text: string } | null;
-  /** Transcript text blocks emitted this turn (replay detection for late displays). */
-  emittedTexts: string[];
-  lastStopReason?: string;
-  completionSeenAt?: number;
-  compactedAt?: number;
-  summarySeen: boolean;
-  modelEmitted: boolean;
-  usage?: ProviderFinishedEvent['usage'];
-  stopHookSeen: boolean;
-  failed?: string;
-}
-
-/**
- * One `MessageDisplay` stream: Claude Code fires this hook per displayed text
- * batch with `message_id`, `index`, `delta`, `final`. Batches can arrive out
- * of order (separate hook processes), display ids do not join to transcript
- * ids, and for SHORT messages the hook fires AFTER the transcript block. Only
- * the contiguous prefix is ever emitted; a stream that repeats a block the
- * transcript already delivered is a replay and is ignored.
- */
-interface DisplayStream {
-  parts: Map<number, string>;
-  emittedLen: number;
-  replay: boolean;
-}
-
-interface ClaimState {
-  prompt: string;
-  slash?: string;
-  queue: AsyncEventQueue<ProviderEvent>;
-  accepted: boolean;
-  done: boolean;
-}
-
 // ─── Observer ────────────────────────────────────────────────────────────────
 
-export class ClaudeTurnObserver {
-  private turn: TurnState | null = null;
-  private claim: ClaimState | null = null;
-  private lastTranscriptGrowthAt = 0;
+export class ClaudeTurnObserver extends ProviderTurnObserver {
   private pendingCommandName: string | undefined;
-  private syntheticSeq = 0;
-  private ticking = false;
-  private disposed = false;
-  /** Tool ids of turns already closed: late transcript lines for them (e.g.
-   *  the "User rejected tool use" result Claude writes AFTER an interrupt)
-   *  must not open a phantom turn. */
-  private readonly closedToolIds = new Set<string>();
-  /** Text blocks of the last finalized turn: a MessageDisplay batch that
-   *  arrives after finalize (short messages fire it late) must be recognised
-   *  as a replay, never become a new turn or leak into the next one. */
-  private recentTexts: string[] = [];
-  /** AskUserQuestion pickers surfaced and not yet answered (for respondToPrompt). */
-  private readonly pendingPrompts = new Map<
-    string,
-    InteractivePromptQuestion[]
-  >();
-  private readonly promptEmittedAt = new Map<string, number>();
 
-  constructor(private readonly host: TurnObserverHost) {}
-
-  private now(): number {
-    return this.host.now?.() ?? Date.now();
+  constructor(host: ConstructorParameters<typeof ProviderTurnObserver>[0]) {
+    super(host, 'Claude');
   }
 
-  // ── Driver-facing API ──────────────────────────────────────────────────────
-
-  /** Register the prompt `sendMessage` is about to type; the next accepted
-   *  prompt that matches it becomes a chat turn on the returned stream. */
-  claimNextTurn(prompt: string): TurnClaim {
-    if (this.claim) this.releaseClaim('superseded');
-    const claim: ClaimState = {
-      prompt,
-      slash: slashName(prompt),
-      queue: new AsyncEventQueue<ProviderEvent>(),
-      accepted: false,
-      done: false,
-    };
-    this.claim = claim;
-    return {
-      events: claim.queue,
-      get accepted() {
-        return claim.accepted;
-      },
-      get done() {
-        return claim.done;
-      },
-    };
-  }
-
-  /** Drop a claim that never became a turn (abort before acceptance). */
-  releaseClaim(reason: FinalizeReason = 'aborted'): void {
-    const claim = this.claim;
-    if (!claim) return;
-    this.claim = null;
-    claim.queue.push({ type: ProviderEventType.Aborted, reason });
-    claim.queue.end();
-    claim.done = true;
-  }
-
-  /** True while a turn runs or a typed prompt awaits acceptance. */
-  isTurnActive(): boolean {
-    return this.turn !== null || this.claim !== null;
-  }
-
-  get activeTurn(): { promptId: string; source: TurnSource } | null {
-    return this.turn
-      ? { promptId: this.turn.promptId, source: this.turn.source }
-      : null;
-  }
-
-  hasPendingPrompts(): boolean {
-    return this.pendingPrompts.size > 0;
-  }
-
-  getPendingPrompt(promptId: string): InteractivePromptQuestion[] | undefined {
-    return this.pendingPrompts.get(promptId);
-  }
-
-  takePromptEmittedAt(promptId: string): number | undefined {
-    const at = this.promptEmittedAt.get(promptId);
-    this.promptEmittedAt.delete(promptId);
-    return at;
-  }
-
-  /** The user interrupted (Esc / Ctrl+C) or the PTY died. */
-  abortCurrentTurn(reason: FinalizeReason = 'aborted'): void {
-    if (this.turn) this.finalize(reason);
-    else if (this.claim) this.releaseClaim(reason);
-  }
-
-  dispose(): void {
-    if (this.disposed) return;
-    this.disposed = true;
-    this.abortCurrentTurn('dispose');
-  }
-
-  /** One poll: drain both channels, apply, then run the completion checks. */
-  async tick(): Promise<void> {
-    if (this.disposed || this.ticking) return;
-    this.ticking = true;
-    try {
-      // Transcript first: it leads the hooks in reality (content lands
-      // seconds before PreToolUse / Stop), so within one poll window the
-      // content must be applied before a Stop can close the turn.
-      const { entries, grew } = await this.host.drainTranscript();
-      if (grew) {
-        this.lastTranscriptGrowthAt = this.now();
-        if (this.turn) this.turn.lastProgressAt = this.lastTranscriptGrowthAt;
-      }
-      for (const entry of entries) this.applyTranscript(entry);
-      const hooks = await this.host.drainHooks();
-      for (const ev of hooks) this.applyHook(ev);
-      this.checkCompletion();
-    } finally {
-      this.ticking = false;
-    }
-  }
-
-  // ── Turn lifecycle ─────────────────────────────────────────────────────────
-
-  private startTurn(
-    promptId: string,
-    userText: string,
-    slash: string | undefined,
-    allowClaim: boolean,
-  ): TurnState {
-    if (this.turn) this.finalize('superseded');
-    const claim = this.claim;
-    let source: TurnSource;
-    let queue: AsyncEventQueue<ProviderEvent>;
-    let consumedClaim: ClaimState | undefined;
-    if (claim && allowClaim) {
-      source = 'chat';
-      queue = claim.queue;
-      claim.accepted = true;
-      consumedClaim = claim;
-      this.claim = null;
-      this.host.onPromptAccepted();
-      slash = slash ?? claim.slash;
-    } else {
-      source = classifyExternalSource(userText);
-      queue = new AsyncEventQueue<ProviderEvent>();
-    }
-    const now = this.now();
-    const turn: TurnState = {
-      promptId,
-      source,
-      userText,
-      slash,
-      queue,
-      claim: consumedClaim,
-      startedAt: now,
-      lastProgressAt: now,
-      openTools: new Map(),
-      seenToolUse: new Set(),
-      seenToolResult: new Set(),
-      askIds: new Set(),
-      attention: new Set(),
-      injected: new Set(),
-      displays: new Map(),
-      provisional: null,
-      emittedTexts: [],
-      summarySeen: false,
-      modelEmitted: false,
-      stopHookSeen: false,
-    };
-    this.turn = turn;
-    if (source !== 'chat') {
-      this.host.onExternalTurn({ promptId, source, userText, events: queue });
-    }
-    return turn;
-  }
-
-  /** A prompt was accepted (hook) or landed in the transcript (user line). */
-  private startTurnFromPrompt(
-    promptId: string,
-    text: string,
-    slash: string | undefined,
-  ): TurnState {
-    const claim = this.claim;
-    const matches = claim ? promptMatches(claim.prompt, text) : false;
-    return this.startTurn(promptId, text, slash, matches);
-  }
-
-  /** Something turn-shaped arrived with no open turn (both start signals
-   *  missed, or a tool fired before either). Attribute to a pending claim. */
-  private ensureTurn(): TurnState {
-    if (this.turn) return this.turn;
-    return this.startTurn(
-      `synthetic-${++this.syntheticSeq}`,
-      this.claim?.prompt ?? '',
-      undefined,
-      true,
+  protected override turnLooksFinished(t: TurnState): boolean {
+    return (
+      t.stopHookSeen ||
+      (t.lastStopReason !== undefined &&
+        TERMINAL_STOP_REASONS.has(t.lastStopReason))
     );
   }
 
-  private finalize(reason: FinalizeReason): void {
-    const turn = this.turn;
-    if (!turn) return;
-    this.turn = null;
-    const push = (ev: ProviderEvent) => turn.queue.push(ev);
-    for (const [id, name] of turn.openTools) {
-      if (turn.seenToolResult.has(id)) continue;
-      turn.seenToolResult.add(id);
-      push({
-        type: ProviderEventType.ToolResult,
-        toolId: id,
-        output: `[No result received for ${name} — the turn ended (${reason}).]`,
-        isError: true,
-      });
-    }
-    for (const id of turn.askIds) {
-      this.pendingPrompts.delete(id);
-      this.promptEmittedAt.delete(id);
-      push({
-        type: ProviderEventType.InteractivePromptResolved,
-        promptId: id,
-        response: { kind: 'cancelled', reason: 'user-cancel' },
-      });
-    }
-    for (const id of turn.attention) {
-      this.host.onNotice({
-        kind: 'attention',
-        phase: 'end',
-        id,
-        what: 'dialog',
-      });
-    }
-    if (reason === 'aborted' || reason === 'dispose' || reason === 'pty-exit') {
-      push({ type: ProviderEventType.Aborted, reason });
-    } else if (turn.failed) {
-      push({ type: ProviderEventType.Error, message: turn.failed });
-    } else {
-      push({ type: ProviderEventType.Finished, usage: turn.usage });
-    }
-    turn.queue.end();
-    if (turn.claim) turn.claim.done = true;
-    this.recentTexts = turn.provisional
-      ? [...turn.emittedTexts, turn.provisional.text]
-      : turn.emittedTexts;
-    if (this.closedToolIds.size > 500) this.closedToolIds.clear();
-    for (const id of turn.seenToolUse) this.closedToolIds.add(id);
-  }
-
-  /** A tool event for a turn that already ended — drop it (see closedToolIds). */
-  private isStaleToolEvent(toolId: string): boolean {
-    return !this.turn && this.closedToolIds.has(toolId);
-  }
-
-  private checkCompletion(): void {
-    const turn = this.turn;
-    if (!turn) return;
-    const now = this.now();
-    if (turn.compactedAt !== undefined && turn.slash === 'compact') {
-      if (
-        turn.summarySeen ||
-        now - turn.compactedAt >= COMPACT_SUMMARY_GRACE_MS
-      ) {
-        this.finalize('compacted');
-      }
-      return;
-    }
-    if (
-      turn.completionSeenAt !== undefined &&
-      turn.openTools.size === 0 &&
-      now - this.lastTranscriptGrowthAt >= TRANSCRIPT_SETTLE_MS
-    ) {
-      this.finalize('transcript');
-      return;
-    }
-    const idle = now - turn.lastProgressAt;
-    if (
-      turn.slash &&
-      idle >= SLASH_IDLE_MS &&
-      this.host.ptyShowsInputPrompt()
-    ) {
-      this.finalize('idle');
-      return;
-    }
-    if (
-      idle >= NO_SIGNAL_IDLE_MS &&
-      turn.openTools.size === 0 &&
-      turn.askIds.size === 0 &&
-      this.host.ptyShowsInputPrompt()
-    ) {
-      this.finalize('idle');
-      return;
-    }
-    if (now - turn.startedAt >= TURN_CEILING_MS) {
-      turn.failed = 'Timed out waiting for Claude to finish the turn.';
-      this.finalize('timeout');
-    }
+  protected override interactivePromptFor(
+    toolId: string,
+    toolName: string,
+    input: Record<string, unknown>,
+  ): InteractivePromptStartEvent | null {
+    if (toolName !== 'AskUserQuestion') return null;
+    return buildAskUserQuestionPromptEvent(toolId, input);
   }
 
   // ── Hook channel ───────────────────────────────────────────────────────────
 
-  private applyHook(ev: HookEvent): void {
+  protected override applyHook(ev: HookEvent): void {
     const p = ev.payload ?? {};
     const agentId = pickString(p, 'agent_id');
     const turn = this.turn;
@@ -506,8 +125,7 @@ export class ClaudeTurnObserver {
       }
       case 'UserPromptSubmit': {
         const prompt = pickString(p, 'prompt') ?? '';
-        const promptId =
-          pickString(p, 'prompt_id') ?? `synthetic-${++this.syntheticSeq}`;
+        const promptId = pickString(p, 'prompt_id') ?? this.nextSyntheticId();
         // A message typed while the turn runs is queued by Claude and then
         // injected into the SAME turn (verified live: UserPromptSubmit
         // re-fires with the running prompt_id). Surface it in place. A NEW
@@ -515,12 +133,10 @@ export class ClaudeTurnObserver {
         // starting its turn — Claude runs one turn at a time, so whatever
         // turn we still hold (a synthetic one, or one whose Stop is late)
         // is over.
-        const claimMatches =
-          !!this.claim && promptMatches(this.claim.prompt, prompt);
         if (
           turn &&
           (turn.promptId === promptId ||
-            (!turnLooksFinished(turn) && !claimMatches))
+            (!this.turnLooksFinished(turn) && !this.claimMatches(prompt)))
         ) {
           this.noteInjectedMessage(turn, prompt);
           break;
@@ -638,7 +254,7 @@ export class ClaudeTurnObserver {
         const t =
           this.turn ??
           this.startTurn(
-            `compact-${++this.syntheticSeq}`,
+            this.nextSyntheticId('compact'),
             '/compact',
             'compact',
             true,
@@ -660,9 +276,13 @@ export class ClaudeTurnObserver {
         }
         break;
       }
-      case 'MessageDisplay':
-        this.applyDisplay(p);
+      case 'MessageDisplay': {
+        const id = pickString(p, 'message_id');
+        const index = p['index'];
+        if (!id || typeof index !== 'number' || index < 0) break;
+        this.applyDisplay(id, index, pickString(p, 'delta') ?? '');
         break;
+      }
       case 'Stop': {
         if (!turn) break;
         const promptId = pickString(p, 'prompt_id');
@@ -708,7 +328,7 @@ export class ClaudeTurnObserver {
 
   // ── Transcript channel ────────────────────────────────────────────────────
 
-  private applyTranscript(entry: unknown): void {
+  protected override applyTranscript(entry: unknown): void {
     if (!isPlainObject(entry)) return;
     if (entry['isSidechain'] === true) return;
     switch (entry['type']) {
@@ -737,71 +357,6 @@ export class ClaudeTurnObserver {
       return;
     const prompt = pickString(attachment, 'prompt');
     if (prompt && this.turn) this.noteInjectedMessage(this.turn, prompt);
-  }
-
-  // ── MessageDisplay: provisional live text ────────────────────────────────
-
-  private applyDisplay(p: Record<string, unknown>): void {
-    const id = pickString(p, 'message_id');
-    const index = p['index'];
-    const delta = pickString(p, 'delta') ?? '';
-    if (!id || typeof index !== 'number' || index < 0) return;
-    // A display batch never starts a turn: with no open turn it is the late
-    // echo of a block the finalized turn already delivered.
-    const t = this.turn;
-    if (!t) return;
-    t.lastProgressAt = this.now();
-    let stream = t.displays.get(id);
-    if (!stream) {
-      stream = { parts: new Map(), emittedLen: 0, replay: false };
-      t.displays.set(id, stream);
-    }
-    if (!stream.parts.has(index)) stream.parts.set(index, delta);
-    if (stream.replay) return;
-    let acc = '';
-    for (let i = 0; stream.parts.has(i); i++) acc += stream.parts.get(i);
-    if (stream.emittedLen === 0) {
-      // Short messages: the hook fires AFTER the transcript block — a stream
-      // that repeats the last delivered block is a replay, not new text.
-      const last = t.emittedTexts[t.emittedTexts.length - 1];
-      const replays = (x: string | undefined) =>
-        x !== undefined && acc.length > 0 && x.startsWith(acc);
-      if (replays(last) || this.recentTexts.some(replays)) {
-        stream.replay = true;
-        return;
-      }
-      if (t.provisional && t.provisional.messageId !== id) {
-        // The previous provisional block never got its canonical line.
-        t.emittedTexts.push(t.provisional.text);
-        t.provisional = null;
-      }
-    }
-    if (acc.length > stream.emittedLen) {
-      const fresh = acc.slice(stream.emittedLen);
-      stream.emittedLen = acc.length;
-      t.provisional = { messageId: id, text: acc };
-      t.queue.push({ type: ProviderEventType.Content, text: fresh });
-    }
-  }
-
-  /** A canonical transcript text block: emit only what the provisional
-   *  display stream has not shown yet, then close that stream. */
-  private emitCanonicalText(t: TurnState, text: string): void {
-    const prov = t.provisional;
-    t.provisional = null;
-    t.emittedTexts.push(text);
-    if (prov) {
-      const stream = t.displays.get(prov.messageId);
-      if (stream) stream.replay = true; // nothing more from this stream
-      if (text.startsWith(prov.text)) {
-        const rest = text.slice(prov.text.length);
-        if (rest) t.queue.push({ type: ProviderEventType.Content, text: rest });
-        return;
-      }
-      if (prov.text.startsWith(text)) return;
-      // Mismatch: the canonical text wins; a visible repeat beats wrong text.
-    }
-    t.queue.push({ type: ProviderEventType.Content, text });
   }
 
   private applyUserLine(entry: Record<string, unknown>): void {
@@ -866,26 +421,16 @@ export class ClaudeTurnObserver {
     }
     if (
       turn &&
-      (turn.promptId === promptId || !turnLooksFinished(turn) || !promptId)
+      (turn.promptId === promptId || !this.turnLooksFinished(turn) || !promptId)
     ) {
       this.noteInjectedMessage(turn, text);
       return;
     }
     this.startTurnFromPrompt(
-      promptId ?? `synthetic-${++this.syntheticSeq}`,
+      promptId ?? this.nextSyntheticId(),
       text,
       slashName(text),
     );
-  }
-
-  /** A user message that belongs to the running turn: its own prompt (already
-   *  shown) or a queued message Claude injected mid-turn (show once). */
-  private noteInjectedMessage(turn: TurnState, text: string): void {
-    const norm = text.replace(/\s+/g, ' ').trim();
-    if (!norm || norm === turn.userText.replace(/\s+/g, ' ').trim()) return;
-    if (turn.injected.has(norm)) return;
-    turn.injected.add(norm);
-    this.host.onNotice({ kind: 'user_message', text });
   }
 
   private applyAssistantLine(entry: Record<string, unknown>): void {
@@ -968,7 +513,7 @@ export class ClaudeTurnObserver {
     if (typeof stopReason === 'string') {
       t.lastStopReason = stopReason;
       if (TERMINAL_STOP_REASONS.has(stopReason)) {
-        if (t.completionSeenAt === undefined) t.completionSeenAt = this.now();
+        this.markCompletionSeen(t);
       } else {
         t.completionSeenAt = undefined;
       }
@@ -1014,7 +559,7 @@ export class ClaudeTurnObserver {
     // its local output IS the turn.
     if (!this.turn && this.claim?.slash) {
       this.startTurn(
-        `local-${++this.syntheticSeq}`,
+        this.nextSyntheticId('local'),
         this.claim.prompt,
         this.claim.slash,
         true,
@@ -1022,112 +567,9 @@ export class ClaudeTurnObserver {
     }
     if (this.turn?.slash) this.finalize('local');
   }
-
-  // ── Event emission with dedup ─────────────────────────────────────────────
-
-  private emitToolUse(
-    t: TurnState,
-    id: string,
-    name: string,
-    input: Record<string, unknown>,
-  ): void {
-    if (t.seenToolUse.has(id)) return;
-    t.seenToolUse.add(id);
-    t.openTools.set(id, name);
-    t.lastProgressAt = this.now();
-    t.queue.push({
-      type: ProviderEventType.ToolUse,
-      toolName: name,
-      toolId: id,
-      input,
-    });
-    if (name === 'AskUserQuestion' && !t.askIds.has(id)) {
-      const prompt = buildAskUserQuestionPromptEvent(id, input);
-      if (prompt) {
-        t.askIds.add(id);
-        this.pendingPrompts.set(id, prompt.questions);
-        this.promptEmittedAt.set(id, this.now());
-        t.queue.push(prompt);
-      }
-    }
-  }
-
-  private emitToolResult(
-    t: TurnState,
-    id: string,
-    output: string,
-    isError: boolean,
-  ): void {
-    if (t.seenToolResult.has(id)) return;
-    t.seenToolResult.add(id);
-    t.openTools.delete(id);
-    t.lastProgressAt = this.now();
-    if (!t.seenToolUse.has(id)) {
-      // Result for a tool we never saw start (both PreToolUse and the
-      // transcript block missed): surface it so the pair stays matched.
-      t.seenToolUse.add(id);
-      t.queue.push({
-        type: ProviderEventType.ToolUse,
-        toolName: 'unknown',
-        toolId: id,
-        input: {},
-      });
-    }
-    t.queue.push({
-      type: ProviderEventType.ToolResult,
-      toolId: id,
-      output,
-      isError,
-    });
-    if (t.askIds.has(id)) {
-      t.askIds.delete(id);
-      this.pendingPrompts.delete(id);
-      this.promptEmittedAt.delete(id);
-      t.queue.push({
-        type: ProviderEventType.InteractivePromptResolved,
-        promptId: id,
-        response: { kind: 'answered', answers: [] },
-      });
-    }
-    // Any result means the TUI is no longer waiting on a dialog.
-    for (const attentionId of [...t.attention]) this.attentionEnd(attentionId);
-  }
-
-  private attentionStart(
-    t: TurnState,
-    id: string,
-    what: 'permission' | 'question' | 'elicitation' | 'dialog' | 'trust',
-    toolName?: string,
-    detail?: string,
-  ): void {
-    if (t.attention.has(id)) return;
-    t.attention.add(id);
-    this.host.onNotice({
-      kind: 'attention',
-      phase: 'start',
-      id,
-      what,
-      toolName,
-      detail,
-    });
-  }
-
-  private attentionEnd(id: string): void {
-    const t = this.turn;
-    if (!t || !t.attention.has(id)) return;
-    t.attention.delete(id);
-    this.host.onNotice({ kind: 'attention', phase: 'end', id, what: 'dialog' });
-  }
 }
 
-// ─── Pure helpers (exported for tests and for the driver) ────────────────────
-
-/** `<task-notification>`, `<system-reminder>`… are the CLI talking to itself. */
-export function classifyExternalSource(text: string): ExternalTurnSource {
-  return /^\s*<(task-notification|system-reminder|local-command)/i.test(text)
-    ? 'system'
-    : 'terminal';
-}
+// ─── Claude-specific helpers (exported for tests and for the driver) ─────────
 
 /**
  * Human line for a prompt Claude Code submitted to itself. Today that is the
@@ -1168,37 +610,13 @@ export function describeSystemPrompt(text: string): string {
       line += ` — result: ${result.length > 300 ? result.slice(0, 297) + '…' : result}`;
     return line;
   }
+  if (/^\s*<turn_aborted>/i.test(text))
+    return 'The previous turn was interrupted.';
   const plain = text
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return plain.length > 200 ? plain.slice(0, 197) + '…' : plain;
-}
-
-export function slashName(text: string): string | undefined {
-  const trimmed = text.trimStart();
-  if (!trimmed.startsWith('/')) return undefined;
-  return trimmed.slice(1).split(/[\s/]/)[0]?.toLowerCase() || undefined;
-}
-
-/** Does the prompt Claude accepted correspond to what `sendMessage` typed?
- *  Whitespace-insensitive; tolerates a context prefix on either side. */
-export function promptMatches(claimed: string, accepted: string): boolean {
-  const a = claimed.replace(/\s+/g, ' ').trim();
-  const b = accepted.replace(/\s+/g, ' ').trim();
-  if (!a || !b) return true; // nothing to compare against — trust the claim
-  if (a === b) return true;
-  const shorter = a.length <= b.length ? a : b;
-  const longer = a.length <= b.length ? b : a;
-  return shorter.length >= 12 && longer.includes(shorter);
-}
-
-function turnLooksFinished(t: TurnState): boolean {
-  return (
-    t.stopHookSeen ||
-    (t.lastStopReason !== undefined &&
-      TERMINAL_STOP_REASONS.has(t.lastStopReason))
-  );
 }
 
 /** Claude's `tool_response` hook field: string, `{stdout,stderr}` (Bash),
@@ -1233,47 +651,9 @@ export function stringifyToolResultContent(content: unknown): string {
   return joinTextBlocks(content);
 }
 
-function joinTextBlocks(content: unknown): string {
-  if (!Array.isArray(content)) return '';
-  const parts: string[] = [];
-  for (const block of content) {
-    if (!isPlainObject(block) || block['type'] !== 'text') continue;
-    const text = pickString(block, 'text');
-    if (text !== undefined) parts.push(text);
-  }
-  return parts.join('\n');
-}
-
 function matchTag(content: string, tag: string): string | undefined {
   const m = content.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
   return m ? m[1] : undefined;
-}
-
-/** One-line preview of a tool input for an attention notice. */
-export function summariseInput(input: unknown): string {
-  if (!isPlainObject(input)) return '';
-  for (const key of [
-    'command',
-    'file_path',
-    'pattern',
-    'query',
-    'url',
-    'path',
-    'name',
-    'question',
-  ]) {
-    const v = input[key];
-    if (typeof v === 'string' && v.trim()) {
-      const s = v.trim();
-      return s.length > 140 ? s.slice(0, 137) + '…' : s;
-    }
-  }
-  try {
-    const dump = JSON.stringify(input);
-    return dump.length > 140 ? dump.slice(0, 137) + '…' : dump;
-  } catch {
-    return '';
-  }
 }
 
 /** Translate Claude's AskUserQuestion tool_input into an InteractivePromptStart. */
@@ -1321,20 +701,4 @@ export function buildAskUserQuestionPromptEvent(
     toolName: 'AskUserQuestion',
     timeoutMs: 60 * 60_000,
   };
-}
-
-function pickString(
-  obj: Record<string, unknown>,
-  key: string,
-): string | undefined {
-  const v = obj[key];
-  return typeof v === 'string' ? v : undefined;
-}
-
-function numberOrUndefined(v: unknown): number | undefined {
-  return typeof v === 'number' ? v : undefined;
-}
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return v !== null && typeof v === 'object' && !Array.isArray(v);
 }

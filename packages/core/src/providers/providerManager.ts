@@ -489,6 +489,22 @@ export class ProviderManager {
 
   /** An external turn from the driver: run it through the one pipeline and
    *  hand the translated stream to the UI (or drain it when headless). */
+  /** Display name of the active provider for chat notices. */
+  private providerLabel(): string {
+    switch (this.config?.type) {
+      case 'claude-cli':
+        return 'Claude Code';
+      case 'codex-cli':
+        return 'Codex';
+      case 'copilot-cli':
+        return 'Copilot';
+      case 'agy-cli':
+        return 'Antigravity';
+      default:
+        return 'The provider';
+    }
+  }
+
   private dispatchExternalTurn(turn: ExternalTurn): void {
     const chat = this.getMirrorChat();
     const controller = new AbortController();
@@ -518,6 +534,7 @@ export class ProviderManager {
       })();
     const managed: ManagedExternalTurn = {
       promptId,
+      provider: this.providerLabel(),
       source: turn.source,
       userText: turn.userText,
       stream,
@@ -585,7 +602,7 @@ export class ProviderManager {
           .catch((e) => dbg('mirror resume load failed', e));
       }
     }
-    providerTurnBus.emitNotice(notice);
+    providerTurnBus.emitNotice(notice, this.providerLabel());
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
 
@@ -900,7 +917,11 @@ export class ProviderManager {
   // Codex: via -i temp files. Claude: via --input-format stream-json. Copilot: via ACP inline base64.
   private get driverSupportsImages(): boolean {
     return (
-      this.config?.type === 'codex-cli' ||
+      // AUDITARIA_PROVIDER_TERMINAL: the interactive Codex PTY driver types
+      // prompts into the TUI and can't attach binaries; only the headless
+      // exec driver (AUDITARIA_CODEX_EXEC=1) passes images via -i.
+      (this.config?.type === 'codex-cli' &&
+        process.env['AUDITARIA_CODEX_EXEC'] === '1') ||
       this.config?.type === 'claude-cli' ||
       // AUDITARIA_PROVIDER_TERMINAL: only the ACP driver can feed inline
       // images; the default interactive PTY driver types prompts into the
@@ -1623,8 +1644,17 @@ export class ProviderManager {
       }
       // AUDITARIA_CODEX_PROVIDER_START
       case 'codex-cli': {
-        const { CodexCLIDriver } = await import('./codex/codexCLIDriver.js');
-        this.driver = new CodexCLIDriver(toCodexDriverConfig(driverConfig));
+        // AUDITARIA_PROVIDER_TERMINAL: the main session drives the real
+        // Codex TUI in a PTY (live web-terminal mirror, TUI slash commands,
+        // terminal-typed turns in the chat). AUDITARIA_CODEX_EXEC=1 keeps the
+        // headless `codex exec --json` driver (also used for sub-agents).
+        if (process.env['AUDITARIA_CODEX_EXEC'] === '1') {
+          const { CodexCLIDriver } = await import('./codex/codexCLIDriver.js');
+          this.driver = new CodexCLIDriver(toCodexDriverConfig(driverConfig));
+        } else {
+          const { CodexPtyDriver } = await import('./codex/codexPtyDriver.js');
+          this.driver = new CodexPtyDriver(toCodexDriverConfig(driverConfig));
+        }
         break;
       }
       // AUDITARIA_CODEX_PROVIDER_END

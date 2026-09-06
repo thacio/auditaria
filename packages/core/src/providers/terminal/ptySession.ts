@@ -49,6 +49,8 @@ export interface PtySessionOptions {
   mirrorLabel?: string;
   /** Rolling output buffer cap (default 128 KiB). */
   recentOutputMax?: number;
+  /** Raw PTY bytes as they arrive (e.g. to feed a headless screen mirror). */
+  onData?: (data: string) => void;
 }
 
 const DEFAULT_COLS = 200;
@@ -118,6 +120,7 @@ export class PtySession implements PtyMirrorSource {
         this.recent = this.recent.slice(this.recent.length - recentMax);
       }
       if (this.options.mirror) providerPtyMirror.emitData(this, data);
+      this.options.onData?.(data);
     });
 
     if (this.options.mirror) {

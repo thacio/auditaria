@@ -18,6 +18,8 @@ import type { ExternalTurnSource, ProviderNotice } from './types.js';
  *  into the chat history by the manager — render it like a chat turn. */
 export interface ManagedExternalTurn {
   promptId: string;
+  /** Display name of the provider that ran the turn ("Claude Code", "OpenAI Codex"). */
+  provider: string;
   source: ExternalTurnSource;
   userText: string;
   stream: AsyncIterable<ServerGeminiStreamEvent>;
@@ -33,7 +35,9 @@ class ProviderTurnBus {
     return () => this.emitter.off('turn', listener);
   }
 
-  onNotice(listener: (notice: ProviderNotice) => void): () => void {
+  onNotice(
+    listener: (notice: ProviderNotice, provider: string) => void,
+  ): () => void {
     this.emitter.on('notice', listener);
     return () => this.emitter.off('notice', listener);
   }
@@ -43,8 +47,8 @@ class ProviderTurnBus {
     return this.emitter.emit('turn', turn);
   }
 
-  emitNotice(notice: ProviderNotice): void {
-    this.emitter.emit('notice', notice);
+  emitNotice(notice: ProviderNotice, provider: string): void {
+    this.emitter.emit('notice', notice, provider);
   }
 }
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { spawnWithoutShell } from '../../utils/resolveExecutable.js'; // AUDITARIA_PROVIDER_AVAILABILITY
 import { spawn, type ChildProcess } from 'node:child_process';
 import {
   createInterface,
@@ -265,10 +266,16 @@ function fetchCopilotModelsViaAcp(): Promise<CopilotModelInfo[] | null> {
       resolve(result);
     };
 
-    const proc = spawn('copilot', ['--acp', '--stdio', '--allow-all'], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: getShellOption(),
-    });
+    // AUDITARIA_PROVIDER_AVAILABILITY: no PowerShell (blocked on some
+    // corporate PCs — the model list never refreshed there); shell fallback only.
+    const proc =
+      spawnWithoutShell('copilot', ['--acp', '--stdio', '--allow-all'], {
+        stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'],
+      }) ??
+      spawn('copilot', ['--acp', '--stdio', '--allow-all'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: getShellOption(),
+      });
     if (proc.pid) trackChildProcess(proc.pid);
 
     const timer = setTimeout(() => finish(null), MODELS_REFRESH_TIMEOUT_MS);
@@ -602,11 +609,17 @@ export class CopilotCLIDriver implements ProviderDriver {
     }
 
     // Spawn copilot subprocess
-    const proc = spawn('copilot', args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: this.config.cwd,
-      shell: getShellOption(),
-    });
+    // AUDITARIA_PROVIDER_AVAILABILITY: spawn the resolved target directly.
+    const proc =
+      spawnWithoutShell('copilot', args, {
+        stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'],
+        cwd: this.config.cwd,
+      }) ??
+      spawn('copilot', args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: this.config.cwd,
+        shell: getShellOption(),
+      });
     this.proc = proc;
     if (proc.pid) trackChildProcess(proc.pid);
     dbg('spawned', { pid: proc.pid });

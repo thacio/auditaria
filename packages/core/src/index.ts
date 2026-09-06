@@ -373,6 +373,21 @@ export {
 // AUDITARIA_CLAUDE_PROVIDER: readable line for Claude's self-submitted
 // `<task-notification>` prompts (async sub-agent / background task done)
 export { describeSystemPrompt } from './providers/claude/claudeTurnObserver.js';
+// AUDITARIA_AGENT_SESSION: one live model list shared by /model and external agents
+export {
+  getProviderModelIds,
+  getAllProviderModelIds,
+  providerOfModelId,
+  PROVIDER_MODEL_KEYS,
+  type ProviderModelKey,
+} from './providers/providerModelIds.js';
+// AUDITARIA_PROVIDER_AVAILABILITY: shell-free executable resolution
+export {
+  findOnPath,
+  resolveNpmShim,
+  resolveSpawnSpec,
+  type SpawnSpec,
+} from './utils/resolveExecutable.js';
 // AUDITARIA_PROVIDER_TERMINAL: headless screen oracle for the web viewer's
 // "Live screen" mode (duplication-immune snapshots of the provider TUI)
 export { ProviderScreenMirror } from './providers/terminal/screenMirror.js';

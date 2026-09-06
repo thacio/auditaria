@@ -57,6 +57,7 @@ export interface UseProviderExternalTurnsArgs {
 export function describeNotice(
   notice: ProviderNotice,
   webConnected: boolean,
+  provider = 'Claude',
 ): { type: 'info' | 'error'; text: string } | null {
   switch (notice.kind) {
     case 'attention': {
@@ -75,8 +76,8 @@ export function describeNotice(
       return {
         type: 'info',
         text: webConnected
-          ? `Claude is waiting for ${what} in the provider terminal (opened for you)${detail}.`
-          : `Claude is waiting for ${what} in its terminal${detail}. Run /provider terminal to answer here (Ctrl+Q returns to chat), or /web for the browser terminal.`,
+          ? `${provider} is waiting for ${what} in the provider terminal (opened for you)${detail}.`
+          : `${provider} is waiting for ${what} in its terminal${detail}. Run /provider terminal to answer here (Ctrl+Q returns to chat), or /web for the browser terminal.`,
       };
     }
     case 'session':
@@ -84,8 +85,8 @@ export function describeNotice(
         type: 'info',
         text:
           notice.source === 'clear'
-            ? 'Claude session cleared in the terminal — its context is empty now (the chat log above is history only).'
-            : `Claude ${notice.source === 'resume' ? 'resumed' : 'switched to'} session ${notice.sessionId.slice(0, 8)} in the terminal.`,
+            ? `${provider} session cleared in the terminal — its context is empty now (the chat log above is history only).`
+            : `${provider} ${notice.source === 'resume' ? 'resumed' : 'switched to'} session ${notice.sessionId.slice(0, 8)} in the terminal.`,
       };
     case 'local_command':
       return {
@@ -130,7 +131,7 @@ export function useProviderExternalTurns(
     // Defensive: a test double of the core package may not carry the bus.
     if (typeof providerTurnBus?.onTurn !== 'function') return;
 
-    const offNotice = providerTurnBus.onNotice((notice) => {
+    const offNotice = providerTurnBus.onNotice((notice, provider) => {
       const { addItem } = argsRef.current;
       if (notice.kind === 'user_message') {
         if (notice.text) {
@@ -146,7 +147,7 @@ export function useProviderExternalTurns(
         return;
       }
       const webConnected = webTerminalBridge.hasConnectedClients();
-      const line = describeNotice(notice, webConnected);
+      const line = describeNotice(notice, webConnected, provider);
       if (!line) return;
       if (notice.kind === 'attention' && webConnected) {
         webTerminalBridge.requestOpenTerminal();
@@ -172,7 +173,7 @@ export function useProviderExternalTurns(
           turn.source === 'system'
             ? {
                 type: 'info',
-                text: `${describeSystemPrompt(turn.userText)} · Claude continues on its own.`,
+                text: `${describeSystemPrompt(turn.userText)} · ${turn.provider} continues on its own.`,
               }
             : {
                 type: 'user',

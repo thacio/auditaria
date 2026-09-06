@@ -1,18 +1,42 @@
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 // AUDITARIA_CODEX_PROVIDER: CLI-based driver spawning codex subprocess
 
-import { spawn, type ChildProcess } from 'child_process';
-import { createInterface } from 'readline';
-import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-import { Readable } from 'stream';
-import type { ProviderDriver, ProviderEvent, AttachmentFile } from '../types.js';
+import {
+  resolveSpawnSpec,
+  spawnWithoutShell,
+} from '../../utils/resolveExecutable.js'; // AUDITARIA_PROVIDER_AVAILABILITY
+import { spawn, type ChildProcess } from 'node:child_process';
+import { createInterface } from 'node:readline';
+import {
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  existsSync,
+  readdirSync,
+  unlinkSync,
+} from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+import type { Readable } from 'node:stream';
+import type {
+  ProviderDriver,
+  ProviderEvent,
+  AttachmentFile,
+} from '../types.js';
 import {
   ProviderEventType,
   clampCodexReasoningEffortForModel,
 } from '../types.js';
 import { killProcessGroup } from '../../utils/process-utils.js';
-import { trackChildProcess, untrackChildProcess } from '../../utils/child-process-tracker.js';
+import {
+  trackChildProcess,
+  untrackChildProcess,
+} from '../../utils/child-process-tracker.js';
 import type {
   CodexStreamMessage,
   CodexItemEvent,
@@ -24,7 +48,7 @@ import type {
 
 const DEBUG = false; // AUDITARIA_CODEX_PROVIDER: Debug logging disabled
 function dbg(...args: unknown[]) {
-  if (DEBUG) console.log('[CODEX_DRIVER]', ...args);
+  if (DEBUG) console.log('[CODEX_DRIVER]', ...args); // eslint-disable-line no-console
 }
 
 // AUDITARIA_CODEX_PROVIDER: Known non-fatal Codex CLI warnings to suppress from error display
@@ -51,6 +75,10 @@ function shellQuote(p: string): string {
 
 function getShellOption(): boolean | string {
   return process.platform === 'win32' ? 'powershell.exe' : true;
+}
+
+function canSpawnWithoutShell(name: string): boolean {
+  return resolveSpawnSpec(name) !== undefined;
 }
 
 export class CodexCLIDriver implements ProviderDriver {
@@ -83,7 +111,13 @@ export class CodexCLIDriver implements ProviderDriver {
     // AUDITARIA_CODEX_PROVIDER: Write system context to instructions file, pass via -c flag
     if (systemContext) {
       const filePath = this.writeInstructionsFile(systemContext);
-      args.push('-c', `model_instructions_file=${shellQuote(filePath)}`);
+      // AUDITARIA_PROVIDER_AVAILABILITY: without a shell the argument reaches
+      // Codex verbatim (an unquoted path is not valid TOML, so Codex keeps it
+      // as a literal string); the shell fallback still needs the quotes.
+      args.push(
+        '-c',
+        `model_instructions_file=${canSpawnWithoutShell('codex') ? filePath : shellQuote(filePath)}`,
+      );
     }
 
     // AUDITARIA_ATTACHMENTS: Pass image attachments via -i flags
@@ -93,17 +127,26 @@ export class CodexCLIDriver implements ProviderDriver {
       }
     }
 
-    dbg('sendMessage', { argsCount: args.length, promptLen: prompt.length, hasSystemContext: !!systemContext, imageCount: attachmentFiles?.length || 0 });
+    dbg('sendMessage', {
+      argsCount: args.length,
+      promptLen: prompt.length,
+      hasSystemContext: !!systemContext,
+      imageCount: attachmentFiles?.length || 0,
+    });
 
-    const proc = spawn('codex', args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
+    const spawnOptions = {
+      stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'],
       cwd: this.config.cwd,
-      shell: getShellOption(),
       // AUDITARIA_AGENT_SESSION: Custom CODEX_HOME env for concurrent session isolation
       ...(this.config.codexConfigHome && {
         env: { ...process.env, CODEX_HOME: this.config.codexConfigHome },
       }),
-    });
+    };
+    // AUDITARIA_PROVIDER_AVAILABILITY: spawn the resolved target directly
+    // (no PowerShell — blocked on some corporate PCs); shell only as fallback.
+    const proc =
+      spawnWithoutShell('codex', args, spawnOptions) ??
+      spawn('codex', args, { ...spawnOptions, shell: getShellOption() });
     this.activeProcess = proc;
     const spawnedPid = proc.pid;
     if (spawnedPid) trackChildProcess(spawnedPid);
@@ -121,7 +164,7 @@ export class CodexCLIDriver implements ProviderDriver {
     const abortHandler = () => {
       dbg('abort handler triggered');
       if (proc.pid) {
-        killProcessGroup({ pid: proc.pid, escalate: true });
+        void killProcessGroup({ pid: proc.pid, escalate: true });
       }
     };
     signal.addEventListener('abort', abortHandler, { once: true });
@@ -151,7 +194,9 @@ export class CodexCLIDriver implements ProviderDriver {
   }
 
   // AUDITARIA_SESSION_MANAGEMENT: Set native session ID for cross-context resume
-  setSessionId(id: string): void { this.threadId = id; }
+  setSessionId(id: string): void {
+    this.threadId = id;
+  }
   readonly canResume = true;
 
   resetSession(): void {
@@ -161,7 +206,7 @@ export class CodexCLIDriver implements ProviderDriver {
 
   dispose(): void {
     if (this.activeProcess?.pid) {
-      killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
+      void killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
     }
     this.activeProcess = null;
     this.expectingCompactionSummary = false;
@@ -169,7 +214,11 @@ export class CodexCLIDriver implements ProviderDriver {
     this.removeMcpConfig(); // AUDITARIA_CODEX_PROVIDER: Clean up injected MCP config
     // AUDITARIA_AGENT_SESSION: Clean up isolated prompt file for sub-agents
     if (this.currentPromptFilePath) {
-      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
+      try {
+        unlinkSync(this.currentPromptFilePath);
+      } catch {
+        /* ignore */
+      }
       this.currentPromptFilePath = null;
     }
   }
@@ -212,10 +261,7 @@ export class CodexCLIDriver implements ProviderDriver {
         args.push('-m', this.config.model);
       }
       if (effectiveReasoningEffort) {
-        args.push(
-          '-c',
-          `model_reasoning_effort=${effectiveReasoningEffort}`,
-        );
+        args.push('-c', `model_reasoning_effort=${effectiveReasoningEffort}`);
       }
       // AUDITARIA_AGENT_SESSION: Configurable sandbox mode (default: danger-full-access)
       const sandboxNew = this.config.sandboxMode || 'danger-full-access';
@@ -236,7 +282,10 @@ export class CodexCLIDriver implements ProviderDriver {
       mkdirSync(dir, { recursive: true });
       const filePath = join(dir, '.codex-instructions');
       writeFileSync(filePath, content, 'utf-8');
-      dbg('wrote instructions file', { path: filePath, length: content.length });
+      dbg('wrote instructions file', {
+        path: filePath,
+        length: content.length,
+      });
       return filePath;
     }
 
@@ -247,9 +296,20 @@ export class CodexCLIDriver implements ProviderDriver {
     const filePath = join(dir, filename);
 
     // If thread ID just became available, clean up old file with short ID
-    if (this.threadId && this.currentPromptFilePath && this.currentPromptFilePath !== filePath) {
-      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
-      dbg('renamed prompt file', { from: this.currentPromptFilePath, to: filePath });
+    if (
+      this.threadId &&
+      this.currentPromptFilePath &&
+      this.currentPromptFilePath !== filePath
+    ) {
+      try {
+        unlinkSync(this.currentPromptFilePath);
+      } catch {
+        /* ignore */
+      }
+      dbg('renamed prompt file', {
+        from: this.currentPromptFilePath,
+        to: filePath,
+      });
     }
 
     writeFileSync(filePath, content, 'utf-8');
@@ -265,8 +325,10 @@ export class CodexCLIDriver implements ProviderDriver {
   private injectMcpConfig(): void {
     if (this.mcpConfigInjected) return; // Already injected
 
-    const hasBridge = this.config.toolBridgePort && this.config.toolBridgeScript;
-    const hasUserServers = this.config.mcpServers && Object.keys(this.config.mcpServers).length > 0;
+    const hasBridge =
+      this.config.toolBridgePort && this.config.toolBridgeScript;
+    const hasUserServers =
+      this.config.mcpServers && Object.keys(this.config.mcpServers).length > 0;
     if (!hasBridge && !hasUserServers) return; // Nothing to inject
 
     const configPath = this.getCodexConfigPath();
@@ -302,7 +364,11 @@ export class CodexCLIDriver implements ProviderDriver {
       const nodePath = process.execPath.replace(/\\/g, '/');
       const bridgePath = this.config.toolBridgeScript!.replace(/\\/g, '/');
       // AUDITARIA_AGENT_SESSION: Build args with optional --exclude flags
-      const bridgeArgs = [`"${bridgePath}"`, `"--port"`, `"${this.config.toolBridgePort}"`];
+      const bridgeArgs = [
+        `"${bridgePath}"`,
+        `"--port"`,
+        `"${this.config.toolBridgePort}"`,
+      ];
       for (const name of this.config.toolBridgeExclude ?? []) {
         bridgeArgs.push(`"--exclude"`, `"${name}"`);
       }
@@ -317,7 +383,9 @@ export class CodexCLIDriver implements ProviderDriver {
         mcpLines.push(`[mcp_servers.${name}]`);
         mcpLines.push(`command = "${server.command.replace(/\\/g, '/')}"`);
         if (server.args?.length) {
-          const argsToml = server.args.map(a => `"${a.replace(/\\/g, '/')}"`).join(', ');
+          const argsToml = server.args
+            .map((a) => `"${a.replace(/\\/g, '/')}"`)
+            .join(', ');
           mcpLines.push(`args = [${argsToml}]`);
         }
       }
@@ -330,7 +398,10 @@ export class CodexCLIDriver implements ProviderDriver {
     mkdirSync(configDir, { recursive: true });
 
     // Prepend top-level keys, then user's config, then MCP sections at the end
-    writeFileSync(configPath, topBlock + '\n' + cleaned + '\n' + mcpLines.join('\n') + '\n');
+    writeFileSync(
+      configPath,
+      topBlock + '\n' + cleaned + '\n' + mcpLines.join('\n') + '\n',
+    );
     this.mcpConfigInjected = true;
     dbg('injected MCP config into', configPath);
   }
@@ -344,7 +415,10 @@ export class CodexCLIDriver implements ProviderDriver {
       if (existsSync(configPath)) {
         const content = readFileSync(configPath, 'utf-8');
         const cleaned = content.replace(
-          new RegExp(`\\n?${MCP_MARKER_START}[\\s\\S]*?${MCP_MARKER_END}\\n?`, 'g'),
+          new RegExp(
+            `\\n?${MCP_MARKER_START}[\\s\\S]*?${MCP_MARKER_END}\\n?`,
+            'g',
+          ),
           '',
         );
         writeFileSync(configPath, cleaned);
@@ -378,7 +452,8 @@ export class CodexCLIDriver implements ProviderDriver {
     }
     dbg('readStream starting, stdout available');
 
-    const rl = createInterface({ input: proc.stdout as Readable });
+    const stdout: Readable = proc.stdout;
+    const rl = createInterface({ input: stdout });
     const lines: string[] = [];
     let done = false;
     let resolveWait: (() => void) | null = null;
@@ -423,7 +498,12 @@ export class CodexCLIDriver implements ProviderDriver {
 
         let message: CodexStreamMessage;
         try {
-          message = JSON.parse(line) as CodexStreamMessage;
+          const parsed: unknown = JSON.parse(line);
+          if (!isStreamMessage(parsed)) {
+            dbg('skipping non-message line:', line.slice(0, 80));
+            continue;
+          }
+          message = parsed;
         } catch {
           dbg('skipping non-JSON line:', line.slice(0, 80));
           continue;
@@ -447,7 +527,10 @@ export class CodexCLIDriver implements ProviderDriver {
         // AUDITARIA_CODEX_PROVIDER: Filter suppressed warnings from stderr before reporting
         const filteredStderr = stderrData
           .split('\n')
-          .filter(line => !SUPPRESSED_WARNING_PATTERNS.some(p => line.includes(p)))
+          .filter(
+            (line) =>
+              !SUPPRESSED_WARNING_PATTERNS.some((p) => line.includes(p)),
+          )
           .join('\n')
           .trim();
         yield {
@@ -463,20 +546,17 @@ export class CodexCLIDriver implements ProviderDriver {
     }
   }
 
-  private *processEvent(
-    message: CodexStreamMessage,
-  ): Generator<ProviderEvent> {
+  private *processEvent(message: CodexStreamMessage): Generator<ProviderEvent> {
     // Thread started — capture thread_id for session resume
-    if (message.type === 'thread.started') {
-      const threadMsg = message as CodexThreadEvent;
-      this.threadId = threadMsg.thread_id;
+    if (isThreadEvent(message)) {
+      this.threadId = message.thread_id;
       dbg('thread started, id:', this.threadId);
       return;
     }
 
     // Turn lifecycle events
-    if (message.type === 'turn.completed') {
-      const turnMsg = message as CodexTurnEvent;
+    if (isTurnEvent(message) && message.type === 'turn.completed') {
+      const turnMsg = message;
       dbg('turn completed', { usage: turnMsg.usage });
 
       // AUDITARIA_CODEX_PROVIDER: Read session JSONL for accurate per-turn token count.
@@ -502,8 +582,8 @@ export class CodexCLIDriver implements ProviderDriver {
       return;
     }
 
-    if (message.type === 'turn.failed') {
-      const turnMsg = message as CodexTurnEvent;
+    if (isTurnEvent(message) && message.type === 'turn.failed') {
+      const turnMsg = message;
       dbg('turn failed', { error: turnMsg.error });
       yield {
         type: ProviderEventType.Error,
@@ -517,18 +597,15 @@ export class CodexCLIDriver implements ProviderDriver {
     }
 
     // Item lifecycle events
-    if (message.type === 'item.started' || message.type === 'item.updated' || message.type === 'item.completed') {
-      const itemMsg = message as CodexItemEvent;
-      yield* this.processItemEvent(itemMsg);
+    if (isItemEvent(message)) {
+      yield* this.processItemEvent(message);
       return;
     }
 
     dbg('unknown event type:', message.type);
   }
 
-  private *processItemEvent(
-    event: CodexItemEvent,
-  ): Generator<ProviderEvent> {
+  private *processItemEvent(event: CodexItemEvent): Generator<ProviderEvent> {
     const item = event.item;
     if (!item) return;
 
@@ -554,7 +631,9 @@ export class CodexCLIDriver implements ProviderDriver {
       case 'error':
         if (event.type === 'item.completed' || event.type === 'item.started') {
           // AUDITARIA_CODEX_PROVIDER: Suppress known non-fatal warnings
-          const isSuppressed = SUPPRESSED_WARNING_PATTERNS.some(p => item.message?.includes(p));
+          const isSuppressed = SUPPRESSED_WARNING_PATTERNS.some((p) =>
+            item.message?.includes(p),
+          );
           if (!isSuppressed) {
             yield {
               type: ProviderEventType.Error,
@@ -566,6 +645,8 @@ export class CodexCLIDriver implements ProviderDriver {
         }
         break;
       // web_search, todo_list — no ProviderEvent mapping needed
+      default:
+        break; // todo_list, contextCompaction, error… handled elsewhere or ignored
     }
   }
 
@@ -575,7 +656,11 @@ export class CodexCLIDriver implements ProviderDriver {
   ): Generator<ProviderEvent> {
     // AUDITARIA_CODEX_PROVIDER: After compaction, check if this is a summary
     const text = toStr(item.text);
-    if (this.expectingCompactionSummary && event.type === 'item.completed' && text) {
+    if (
+      this.expectingCompactionSummary &&
+      event.type === 'item.completed' &&
+      text
+    ) {
       this.expectingCompactionSummary = false;
       dbg('captured compaction summary', { length: text.length });
       yield {
@@ -628,7 +713,8 @@ export class CodexCLIDriver implements ProviderDriver {
       };
     } else if (event.type === 'item.completed') {
       const output = toStr(item.aggregated_output);
-      const exitInfo = item.exit_code !== undefined ? ` (exit code: ${item.exit_code})` : '';
+      const exitInfo =
+        item.exit_code !== undefined ? ` (exit code: ${item.exit_code})` : '';
       yield {
         type: ProviderEventType.ToolResult,
         toolId: `codex-${item.id}`,
@@ -643,7 +729,7 @@ export class CodexCLIDriver implements ProviderDriver {
     item: CodexItem & { type: 'file_change' },
   ): Generator<ProviderEvent> {
     if (event.type === 'item.started') {
-      const paths = item.changes?.map(c => c.path).join(', ') || 'unknown';
+      const paths = item.changes?.map((c) => c.path).join(', ') || 'unknown';
       yield {
         type: ProviderEventType.ToolUse,
         toolName: 'file_change',
@@ -674,7 +760,10 @@ export class CodexCLIDriver implements ProviderDriver {
       yield {
         type: ProviderEventType.ToolResult,
         toolId: `codex-${item.id}`,
-        output: toStr(item.result) || toStr(item.error) || `MCP tool ${item.tool}: ${item.status}`,
+        output:
+          toStr(item.result) ||
+          toStr(item.error) ||
+          `MCP tool ${item.tool}: ${item.status}`,
         isError: !!item.error,
       };
     }
@@ -713,20 +802,27 @@ export class CodexCLIDriver implements ProviderDriver {
       // Find the last token_count event (most recent turn's data)
       let lastTokenCount: string | undefined;
       for (const line of content.split('\n')) {
-        if (line.includes('"token_count"') && line.includes('last_token_usage')) {
+        if (
+          line.includes('"token_count"') &&
+          line.includes('last_token_usage')
+        ) {
           lastTokenCount = line;
         }
       }
       if (!lastTokenCount) return undefined;
 
-      const parsed = JSON.parse(lastTokenCount);
-      const last = parsed?.payload?.info?.last_token_usage;
+      const parsed: unknown = JSON.parse(lastTokenCount);
+      const payload = asRecord(asRecord(parsed)?.['payload']);
+      const info = asRecord(payload?.['info']);
+      const last = asRecord(info?.['last_token_usage']);
       if (!last) return undefined;
 
-      const input = last.input_tokens || 0;
-      const output = last.output_tokens || 0;
+      const input = numberField(last, 'input_tokens');
+      const output = numberField(last, 'output_tokens');
       const contextUsed = input + output;
-      dbg(`[SESSION_TOKENS] input=${input} + output=${output} = ${contextUsed} (output becomes next turn's input)`);
+      dbg(
+        `[SESSION_TOKENS] input=${input} + output=${output} = ${contextUsed} (output becomes next turn's input)`,
+      );
       return contextUsed;
     } catch (e) {
       dbg('failed to read session token usage', e);
@@ -735,7 +831,10 @@ export class CodexCLIDriver implements ProviderDriver {
   }
 
   // Find session JSONL file matching the thread ID in date-organized directory
-  private findSessionFile(sessionsDir: string, threadId: string): string | undefined {
+  private findSessionFile(
+    sessionsDir: string,
+    threadId: string,
+  ): string | undefined {
     if (!existsSync(sessionsDir)) return undefined;
 
     // Walk YYYY/MM/DD directories (most recent first for speed)
@@ -750,7 +849,9 @@ export class CodexCLIDriver implements ProviderDriver {
           for (const day of days) {
             const dayPath = join(monthPath, day);
             const files = readdirSync(dayPath);
-            const match = files.find(f => f.includes(threadId) && f.endsWith('.jsonl'));
+            const match = files.find(
+              (f) => f.includes(threadId) && f.endsWith('.jsonl'),
+            );
             if (match) return join(dayPath, match);
           }
         }
@@ -773,4 +874,46 @@ export class CodexCLIDriver implements ProviderDriver {
     this.lastEmittedLength.set(itemId, text.length);
     return delta;
   }
+}
+
+// ─── Runtime guards (AUDITARIA_CODEX_PROVIDER: no unsafe assertions) ───────
+
+function asRecord(v: unknown): Record<string, unknown> | undefined {
+  return v !== null && typeof v === 'object' && !Array.isArray(v)
+    ? (v as Record<string, unknown>) // eslint-disable-line @typescript-eslint/no-unsafe-type-assertion -- checked above
+    : undefined;
+}
+
+function isStreamMessage(v: unknown): v is CodexStreamMessage {
+  const r = asRecord(v);
+  if (r === undefined) return false;
+  const type = r['type'];
+  return typeof type === 'string';
+}
+
+function isThreadEvent(m: CodexStreamMessage): m is CodexThreadEvent {
+  if (m.type !== 'thread.started') return false;
+  const id = asRecord(m)?.['thread_id'];
+  return typeof id === 'string';
+}
+
+function numberField(r: Record<string, unknown>, key: string): number {
+  const v = r[key];
+  return typeof v === 'number' ? v : 0;
+}
+
+function isTurnEvent(m: CodexStreamMessage): m is CodexTurnEvent {
+  return (
+    m.type === 'turn.completed' ||
+    m.type === 'turn.failed' ||
+    m.type === 'turn.started'
+  );
+}
+
+function isItemEvent(m: CodexStreamMessage): m is CodexItemEvent {
+  return (
+    m.type === 'item.started' ||
+    m.type === 'item.updated' ||
+    m.type === 'item.completed'
+  );
 }
