@@ -62,7 +62,7 @@ import {
   AGY_PREFIX, // AUDITARIA_AGY_PROVIDER
   CLAUDE_SUBMENU_OPTIONS,
   getCodexModelOptions, // AUDITARIA_CODEX_PROVIDER
-  AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
+  getAgyModelOptions, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   getReasoningEffortLabel,
   type ProviderSubmenuOption,
@@ -647,7 +647,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   // AUDITARIA_AGY_PROVIDER_START: Antigravity submenu options
   const agyOptions = useMemo(
     () =>
-      AGY_SUBMENU_OPTIONS.map((option) => ({
+      getAgyModelOptions().map((option) => ({
         value: option.value,
         title: option.title,
         description: option.description,

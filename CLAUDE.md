@@ -1321,6 +1321,52 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
 - **Auth hardening**: an expired agy token makes agy print an OAuth URL to the
   terminal; the driver classifies that as an auth ERROR (re-auth message) rather
   than emitting the URL as the model's answer.
+- **Interactive PTY driver (default for the main session, September 2026)**:
+  `agy/agyPtyDriver.ts` drives the REAL agy TUI in a persistent PTY (web
+  terminal mirror "Google Antigravity Terminal", PiP, terminal-typed turns in
+  the chat) through the same one-turn pipeline as Claude/Codex/Copilot:
+  `agy/agyTurnObserver.ts` extends `terminal/turnObserver.ts`. The one-shot
+  `--print` driver stays for headless contexts (sub-agents, Teams) and for the
+  main session under `AUDITARIA_AGY_PRINT=1`; its helpers (`mergeAgyMcpConfig`,
+  `removeAgyMcpConfig`, `classifyAgyFailure`, `resolveAgyExecutable`) are now
+  exported and shared. Plan + evidence: `.auditaria/agy-tui-sync-plan.md`.
+  - **Verified on agy 1.1.27 (Windows)**: the TUI is ready ~5 s after spawn
+    (`? for shortcuts` footer; a cold start can sit on "Signing in..." for
+    minutes — never type before the footer); the conversation + transcript
+    are created at the FIRST prompt, same JSONL shape as print mode, but NOT
+    append-only (a `RUNNING` tool step is rewritten in place to `DONE`) — the
+    driver re-reads the whole file each tick and the observer dedupes by
+    `step_index`; tool results are `GENERIC` MODEL steps on 1.1.27; a message
+    typed mid-turn is a new `USER_INPUT` step in the same transcript (shown as
+    an injected message) and Enter during a shell tool backgrounds it
+    (`SYSTEM_MESSAGE` later); Esc interrupts generation (screen `⎿ Interrupted
+    · What should Antigravity CLI do instead?`, the interrupted
+    `PLANNER_RESPONSE` is DONE with empty content) but NOT a running tool —
+    Ctrl+C does, and the TUI survives both; `/help` and `/model` are overlays
+    (`↑/↓ Navigate · enter Select`, `esc to cancel`); agy has no `/clear`
+    (`/fork`, `/resume`, `/hooks`, `/context`, …).
+  - **agy hooks** (`hooks.json` keyed by hook name; events SessionStart,
+    PreInvocation, PostInvocation, Stop; also PreToolUse/PostToolUse which
+    did not fire for `run_command` without a matcher): loaded from the
+    workspace `.agents/hooks.json`, the global `~/.gemini/config/hooks.json`,
+    or a global plugin dir `~/.gemini/config/plugins/<name>/{plugin.json,
+    hooks.json}` — the driver OWNS `plugins/auditaria-observer/` (written at
+    spawn, removed on dispose; the relay no-ops without
+    `AUDITARIA_AGY_HOOK_FILE`, so the user's own sessions are unaffected).
+    Commands run through cmd.exe and ANY double quote breaks them — the
+    command is `node <space-free path> <event>` (8.3 short names via cmd
+    when a path has spaces; hooks skipped otherwise; fail-open). Payloads:
+    SessionStart `{conversationId, transcriptPath, artifactDirectoryPath,
+    modelName}` at the first prompt (binds the conversation without the
+    brain dir-diff, which remains the fallback); Stop
+    `{terminationReason:"NO_TOOL_CALL", fullyIdle, error}` once at the end.
+  - **Live model list**: `agy/agyModelCatalog.ts` parses `agy models`
+    (tab-separated id and display name; 3.5 Flash is gone on 1.1.27, 3.8
+    Flash appeared) into `~/.auditaria/agy-models.json`, refreshed in the
+    background; `/model` (`getAgyModelOptions()`), the web menu and
+    `external_agent_session` read it, with `AGY_MODEL_IDS` /
+    `AGY_SUBMENU_OPTIONS` as the offline fallback. Cheapest model for live
+    tests: `gemini-3.6-flash-low`.
 - **Files Created**: `providers/agy/types.ts`, `providers/agy/agyCLIDriver.ts`,
   `providers/agy/agyCLIDriver.test.ts` (14 tests).
 - **Files Modified** (all marked `// AUDITARIA_AGY_PROVIDER`): `providers/types.ts`
@@ -2437,6 +2483,16 @@ After that, in the execution phase, write the codes with your implementation.
 - Live checks (all through the real app over the WebSocket protocol, cheapest
   models `gpt-5.3-codex-spark` / `gpt-5-mini`): Codex 13/13, Copilot 13/13
   (`scratchpad e2e/{codex,copilot}-tui-sync.e2e.cjs`).
+
+### September 2026 — Antigravity (agy) on the one turn pipeline; live agy model list
+
+- `agy/agyPtyDriver.ts` + `agy/agyTurnObserver.ts` drive the real agy TUI in a
+  PTY (owned hooks plugin dir + whole-file transcript re-reads + screen
+  mirror); the print driver stays for headless contexts. `agy/agyModelCatalog.ts`
+  feeds `/model` and `external_agent_session` from `agy models`. Solo round
+  (no Astra run). Details: Section 20 ("Interactive PTY driver"),
+  `.auditaria/agy-tui-sync-plan.md`; e2e `scratchpad e2e/agy-tui-sync.e2e.cjs`
+  (`--model agy-code:gemini-3.6-flash-low`).
 
 ### September 2026 — Codex & Copilot model lists driven by the CLIs' own catalogs
 

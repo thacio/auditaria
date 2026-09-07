@@ -174,7 +174,7 @@ import {
   AGY_PREFIX, // AUDITARIA_AGY_PROVIDER
   CLAUDE_SUBMENU_OPTIONS,
   getCodexModelOptions, // AUDITARIA_CODEX_PROVIDER
-  AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
+  getAgyModelOptions, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   getReasoningEffortOptions, // AUDITARIA_PROVIDER_EFFORT
   getGeminiWebOptions,
@@ -2460,7 +2460,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         installMessage: availability.agy
           ? undefined
           : 'To use Google Antigravity, install the Antigravity CLI so `agy` is on your PATH, then run `agy` once to authenticate.',
-        options: AGY_SUBMENU_OPTIONS.map((option) => ({
+        options: getAgyModelOptions().map((option) => ({
           selection: option.value,
           label: `Antigravity (${option.title})`,
           description: option.description,

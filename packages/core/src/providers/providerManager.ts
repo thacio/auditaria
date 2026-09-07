@@ -1603,8 +1603,16 @@ export class ProviderManager {
       // AUDITARIA_COPILOT_PROVIDER_END
       // AUDITARIA_AGY_PROVIDER_START
       case 'agy-cli': {
-        const { AgyCLIDriver } = await import('./agy/agyCLIDriver.js');
-        this.driver = new AgyCLIDriver(driverConfig);
+        // AUDITARIA_PROVIDER_TERMINAL: the real Antigravity TUI in a PTY
+        // (web-terminal mirror, terminal-typed turns); AUDITARIA_AGY_PRINT=1
+        // keeps the one-shot --print driver for the main session.
+        if (process.env['AUDITARIA_AGY_PRINT'] === '1') {
+          const { AgyCLIDriver } = await import('./agy/agyCLIDriver.js');
+          this.driver = new AgyCLIDriver(driverConfig);
+        } else {
+          const { AgyPtyDriver } = await import('./agy/agyPtyDriver.js');
+          this.driver = new AgyPtyDriver(driverConfig);
+        }
         break;
       }
       // AUDITARIA_AGY_PROVIDER_END

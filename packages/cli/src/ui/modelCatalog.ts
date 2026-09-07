@@ -15,7 +15,8 @@ import {
   getDisplayString,
   getSupportedReasoningEfforts, // AUDITARIA_PROVIDER_EFFORT
   getReasoningEffortDisplay, // AUDITARIA_PROVIDER_EFFORT
-  getCodexCatalogModels, // AUDITARIA_CODEX_PROVIDER
+  getCodexCatalogModels,
+  getCachedAgyModels, // AUDITARIA_AGY_PROVIDER, // AUDITARIA_CODEX_PROVIDER
   type ProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
 } from '@google/gemini-cli-core';
 
@@ -161,6 +162,43 @@ export function getCodexModelOptions(): ProviderSubmenuOption[] {
       model: model.slug,
     })),
   ];
+}
+
+// AUDITARIA_AGY_PROVIDER: live Antigravity submenu — `agy models` (cached by
+// core's agyModelCatalog, refreshed in the background) with the static table
+// below as the offline fallback.
+export function getAgyModelOptions(): ProviderSubmenuOption[] {
+  const live = getCachedAgyModels();
+  if (!live || live.length === 0) return [...AGY_SUBMENU_OPTIONS];
+  return [
+    {
+      value: `${AGY_PREFIX}auto`,
+      title: 'Auto',
+      description: "Uses Antigravity's selected model (from agy settings)",
+      key: 'agy-auto',
+      model: undefined,
+    },
+    ...live.map((m) => ({
+      value: `${AGY_PREFIX}${m.id}`,
+      title: m.displayName,
+      description: describeAgyModel(m.id),
+      key: `agy-${m.id.replace(/[^a-z0-9-]/gi, '_')}`,
+      model: m.id,
+    })),
+  ];
+}
+
+function describeAgyModel(id: string): string {
+  if (/^gemini-.*-pro/.test(id))
+    return 'Gemini Pro — deepest reasoning (Gemini quota pool)';
+  if (/^gemini-.*-flash/.test(id))
+    return 'Gemini Flash — fast (Gemini quota pool)';
+  if (/^claude-.*opus/.test(id))
+    return 'Claude Opus via Antigravity (Claude quota pool)';
+  if (/^claude/.test(id))
+    return 'Claude Sonnet via Antigravity (Claude quota pool)';
+  if (/^gpt-oss/.test(id)) return 'GPT-OSS via Antigravity (no vision)';
+  return 'Antigravity model';
 }
 
 // AUDITARIA_AGY_PROVIDER: Google Antigravity (`agy`) model submenu. Each

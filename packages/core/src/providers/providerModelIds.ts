@@ -17,6 +17,10 @@ import {
   refreshCopilotModelsCache,
 } from './copilot/copilotCLIDriver.js';
 import { refreshCodexModelsCache } from './codex/codexModelRefresh.js';
+import {
+  getCachedAgyModels,
+  refreshAgyModelsCache,
+} from './agy/agyModelCatalog.js';
 
 export type ProviderModelKey =
   | 'claude'
@@ -51,8 +55,11 @@ export function getProviderModelIds(provider: ProviderModelKey): string[] {
     case 'copilot':
       void refreshCopilotModelsCache().catch(() => undefined);
       return notAuto(getCachedCopilotModels().map((m) => m.value));
-    case 'agy':
-      return notAuto(AGY_MODEL_IDS);
+    case 'agy': {
+      void refreshAgyModelsCache().catch(() => undefined);
+      const live = getCachedAgyModels();
+      return notAuto(live ? live.map((m) => m.id) : AGY_MODEL_IDS);
+    }
     case 'auditaria':
       return notAuto(AUDITARIA_MODEL_IDS);
     default:

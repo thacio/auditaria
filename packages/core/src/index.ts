@@ -573,3 +573,10 @@ export * from './voice/whisperTranscriptionProvider.js';
 export * from './voice/transcriptionFactory.js';
 export * from './voice/whisperModelManager.js';
 export { isBinaryAvailable } from './utils/binaryCheck.js';
+// AUDITARIA_AGY_PROVIDER: live model list
+export {
+  getCachedAgyModels,
+  refreshAgyModelsCache,
+  parseAgyModelsOutput,
+} from './providers/agy/agyModelCatalog.js';
+export type { AgyModelEntry } from './providers/agy/agyModelCatalog.js';

@@ -213,6 +213,129 @@ export function mapAgyEntry(
   return { events: [], processed: true };
 }
 
+export function resolveAgyExecutable(): string {
+  const fromEnv = process.env['AGY_EXE'];
+  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+  if (process.platform === 'win32') {
+    const known = join(homedir(), 'AppData', 'Local', 'agy', 'bin', 'agy.EXE');
+    if (existsSync(known)) return known;
+  }
+  // Fall back to a bare `agy` and let the PTY/PATH resolve it. If it isn't
+  // installed the spawn throws and sendMessage surfaces a clear error.
+  return 'agy';
+}
+
+export function classifyAgyFailure(scraped: string): string | undefined {
+  const haystack = scraped + '\n' + readLatestAgyCliLogTail();
+  if (
+    /not logged in|authentication failed|authentication required|authentication timed out|invalid.?grant|not logged into Antigravity|visit the URL to log in|waiting for authentication|\b401\b/i.test(
+      haystack,
+    )
+  ) {
+    return 'agy is not authenticated (or its token expired). Run `agy` interactively to sign in to Antigravity, then retry.';
+  }
+  if (
+    /quota.*exceeded|resource_exhausted|rate.?limit|\b429\b/i.test(haystack)
+  ) {
+    return 'agy hit an Antigravity quota/rate limit. Wait for the quota window to reset, or switch model family / provider.';
+  }
+  return undefined;
+}
+
+export function readLatestAgyCliLogTail(): string {
+  try {
+    const logs = readdirSync(LOG_DIR)
+      .filter((f) => f.startsWith('cli-') && f.endsWith('.log'))
+      .map((f) => ({ f, m: statSync(join(LOG_DIR, f)).mtimeMs }))
+      .sort((a, b) => b.m - a.m);
+    if (!logs.length) return '';
+    return readFileSync(join(LOG_DIR, logs[0].f), 'utf-8').slice(-4000);
+  } catch {
+    return '';
+  }
+}
+
+export function mergeAgyMcpConfig(config: AgyDriverConfig): boolean {
+  const hasBridge = config.toolBridgePort && config.toolBridgeScript;
+  const userServers = config.mcpServers ?? {};
+  if (!hasBridge && Object.keys(userServers).length === 0) return false;
+
+  let root: { mcpServers?: Record<string, unknown> } = {};
+  try {
+    if (existsSync(MCP_CONFIG_PATH)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      root = JSON.parse(readFileSync(MCP_CONFIG_PATH, 'utf-8')) as typeof root;
+    }
+  } catch {
+    root = {};
+  }
+  if (!root.mcpServers) root.mcpServers = {};
+
+  // Auditaria tool bridge (stdio MCP → node bundle).
+  if (hasBridge) {
+    const bridgeArgs = [
+      config.toolBridgeScript!,
+      '--port',
+      String(config.toolBridgePort),
+    ];
+    for (const name of config.toolBridgeExclude ?? []) {
+      bridgeArgs.push('--exclude', name);
+    }
+    root.mcpServers[MCP_BRIDGE_KEY] = {
+      command: process.execPath,
+      args: bridgeArgs,
+      disabled: false,
+    };
+  }
+
+  // User MCP servers (stdio or http) — only add ones we can map; never
+  // overwrite an existing key the user already defined.
+  for (const [name, server] of Object.entries(userServers)) {
+    if (name === MCP_BRIDGE_KEY) continue;
+    if (root.mcpServers[name]) continue;
+    if (server.command) {
+      root.mcpServers[name] = {
+        command: server.command,
+        args: server.args ?? [],
+        ...(server.env && { env: server.env }),
+        disabled: false,
+      };
+    } else if (server.url || server.httpUrl) {
+      root.mcpServers[name] = {
+        serverUrl: server.url || server.httpUrl,
+        disabled: false,
+      };
+    }
+  }
+
+  try {
+    mkdirSync(join(homedir(), '.gemini', 'config'), { recursive: true });
+    writeFileSync(MCP_CONFIG_PATH, JSON.stringify(root, null, 2));
+    return true;
+    dbg('merged MCP bridge into', MCP_CONFIG_PATH);
+  } catch (e) {
+    dbg('failed to write agy mcp_config.json', e);
+  }
+  return false;
+}
+
+export function removeAgyMcpConfig(): void {
+  try {
+    if (!existsSync(MCP_CONFIG_PATH)) return;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const root = JSON.parse(readFileSync(MCP_CONFIG_PATH, 'utf-8')) as {
+      mcpServers?: Record<string, unknown>;
+    };
+    if (root.mcpServers && root.mcpServers[MCP_BRIDGE_KEY]) {
+      delete root.mcpServers[MCP_BRIDGE_KEY];
+      writeFileSync(MCP_CONFIG_PATH, JSON.stringify(root, null, 2));
+      dbg('removed MCP bridge from', MCP_CONFIG_PATH);
+    }
+  } catch {
+    /* leave it — better than corrupting the user's config */
+  }
+}
+
 export class AgyCLIDriver implements ProviderDriver {
   /** agy conversation cascade_id == our native session id. */
   private convId: string | undefined;
@@ -249,7 +372,10 @@ export class AgyCLIDriver implements ProviderDriver {
 
   dispose(): void {
     this.killActive();
-    this.removeMcpConfig();
+    if (this.mcpConfigInjected) {
+      this.mcpConfigInjected = false;
+      removeAgyMcpConfig();
+    }
     if (this.systemContextFilePath) {
       try {
         unlinkSync(this.systemContextFilePath);
@@ -280,9 +406,10 @@ export class AgyCLIDriver implements ProviderDriver {
       return;
     }
 
-    const exe = this.resolveAgyExe();
+    const exe = resolveAgyExecutable();
 
-    this.injectMcpConfig();
+    this.mcpConfigInjected =
+      mergeAgyMcpConfig(this.config) || this.mcpConfigInjected;
 
     const isFirstTurn = !this.convId;
     const effectivePrompt = this.buildEffectivePrompt(
@@ -406,7 +533,7 @@ export class AgyCLIDriver implements ProviderDriver {
       // terminal, which must surface as an auth ERROR — never as the answer.
       const cleaned = cleanAgyOutput(rawBuf);
       if (!emittedAny) {
-        const reason = this.classifyFailure(cleaned);
+        const reason = classifyAgyFailure(cleaned);
         if (reason) {
           emittedAny = true;
           yield { type: ProviderEventType.Error, message: reason };
@@ -626,144 +753,9 @@ export class AgyCLIDriver implements ProviderDriver {
 
   // ─── MCP config merge / restore (global ~/.gemini/config/mcp_config.json) ─
 
-  private injectMcpConfig(): void {
-    if (this.mcpConfigInjected) return;
-    const hasBridge =
-      this.config.toolBridgePort && this.config.toolBridgeScript;
-    const userServers = this.config.mcpServers ?? {};
-    if (!hasBridge && Object.keys(userServers).length === 0) return;
-
-    let root: { mcpServers?: Record<string, unknown> } = {};
-    try {
-      if (existsSync(MCP_CONFIG_PATH)) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-        root = JSON.parse(
-          readFileSync(MCP_CONFIG_PATH, 'utf-8'),
-        ) as typeof root;
-      }
-    } catch {
-      root = {};
-    }
-    if (!root.mcpServers) root.mcpServers = {};
-
-    // Auditaria tool bridge (stdio MCP → node bundle).
-    if (hasBridge) {
-      const bridgeArgs = [
-        this.config.toolBridgeScript!,
-        '--port',
-        String(this.config.toolBridgePort),
-      ];
-      for (const name of this.config.toolBridgeExclude ?? []) {
-        bridgeArgs.push('--exclude', name);
-      }
-      root.mcpServers[MCP_BRIDGE_KEY] = {
-        command: process.execPath,
-        args: bridgeArgs,
-        disabled: false,
-      };
-    }
-
-    // User MCP servers (stdio or http) — only add ones we can map; never
-    // overwrite an existing key the user already defined.
-    for (const [name, server] of Object.entries(userServers)) {
-      if (name === MCP_BRIDGE_KEY) continue;
-      if (root.mcpServers[name]) continue;
-      if (server.command) {
-        root.mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
-          ...(server.env && { env: server.env }),
-          disabled: false,
-        };
-      } else if (server.url || server.httpUrl) {
-        root.mcpServers[name] = {
-          serverUrl: server.url || server.httpUrl,
-          disabled: false,
-        };
-      }
-    }
-
-    try {
-      mkdirSync(join(homedir(), '.gemini', 'config'), { recursive: true });
-      writeFileSync(MCP_CONFIG_PATH, JSON.stringify(root, null, 2));
-      this.mcpConfigInjected = true;
-      dbg('merged MCP bridge into', MCP_CONFIG_PATH);
-    } catch (e) {
-      dbg('failed to write agy mcp_config.json', e);
-    }
-  }
-
-  private removeMcpConfig(): void {
-    if (!this.mcpConfigInjected) return;
-    this.mcpConfigInjected = false;
-    try {
-      if (!existsSync(MCP_CONFIG_PATH)) return;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      const root = JSON.parse(readFileSync(MCP_CONFIG_PATH, 'utf-8')) as {
-        mcpServers?: Record<string, unknown>;
-      };
-      if (root.mcpServers && root.mcpServers[MCP_BRIDGE_KEY]) {
-        delete root.mcpServers[MCP_BRIDGE_KEY];
-        writeFileSync(MCP_CONFIG_PATH, JSON.stringify(root, null, 2));
-        dbg('removed MCP bridge from', MCP_CONFIG_PATH);
-      }
-    } catch {
-      /* leave it — better than corrupting the user's config */
-    }
-  }
-
   // ─── failure classification (agy buries quota/auth in its cli log) ───────
 
-  private classifyFailure(scraped: string): string | undefined {
-    const haystack = scraped + '\n' + this.readLatestCliLogTail();
-    if (
-      /not logged in|authentication failed|authentication required|authentication timed out|invalid.?grant|not logged into Antigravity|visit the URL to log in|waiting for authentication|\b401\b/i.test(
-        haystack,
-      )
-    ) {
-      return 'agy is not authenticated (or its token expired). Run `agy` interactively to sign in to Antigravity, then retry.';
-    }
-    if (
-      /quota.*exceeded|resource_exhausted|rate.?limit|\b429\b/i.test(haystack)
-    ) {
-      return 'agy hit an Antigravity quota/rate limit. Wait for the quota window to reset, or switch model family / provider.';
-    }
-    return undefined;
-  }
-
-  private readLatestCliLogTail(): string {
-    try {
-      const logs = readdirSync(LOG_DIR)
-        .filter((f) => f.startsWith('cli-') && f.endsWith('.log'))
-        .map((f) => ({ f, m: statSync(join(LOG_DIR, f)).mtimeMs }))
-        .sort((a, b) => b.m - a.m);
-      if (!logs.length) return '';
-      return readFileSync(join(LOG_DIR, logs[0].f), 'utf-8').slice(-4000);
-    } catch {
-      return '';
-    }
-  }
-
   // ─── process resolution / teardown ─────────────────────────────────────
-
-  private resolveAgyExe(): string {
-    const fromEnv = process.env['AGY_EXE'];
-    if (fromEnv && existsSync(fromEnv)) return fromEnv;
-    if (process.platform === 'win32') {
-      const known = join(
-        homedir(),
-        'AppData',
-        'Local',
-        'agy',
-        'bin',
-        'agy.EXE',
-      );
-      if (existsSync(known)) return known;
-    }
-    // Fall back to a bare `agy` and let the PTY/PATH resolve it. If it isn't
-    // installed the spawn throws and sendMessage surfaces a clear error.
-    return 'agy';
-  }
 
   private killActive(): void {
     const pid = this.activePid;

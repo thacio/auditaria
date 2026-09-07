@@ -405,7 +405,7 @@ export abstract class ProviderTurnObserver {
     slash: string | undefined,
   ): TurnState {
     const claim = this.claim;
-    const matches = claim ? promptMatches(claim.prompt, text) : false;
+    const matches = claim ? this.claimMatches(text) : false;
     return this.startTurn(promptId, text, slash, matches);
   }
 

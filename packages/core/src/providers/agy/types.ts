@@ -56,4 +56,7 @@ export interface AgyDriverConfig {
   toolBridgeExclude?: string[];
   /** Unique id for an isolated system-prompt file (sub-agents only). */
   promptFileId?: string;
+  // AUDITARIA_PROVIDER_TERMINAL: PTY-driver addition. mirrorPty=false keeps
+  // headless drivers (sub-agents, Teams threads) off the web terminal.
+  mirrorPty?: boolean;
 }
