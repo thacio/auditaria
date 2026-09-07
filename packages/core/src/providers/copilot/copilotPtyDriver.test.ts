@@ -12,6 +12,7 @@ import {
   buildCopilotPtyArgs,
   buildCopilotHooksFile,
   classifyCopilotScreen,
+  parseLockPid,
   COPILOT_HOOK_EVENTS,
 } from './copilotPtyDriver.js';
 
@@ -20,7 +21,14 @@ describe('buildCopilotPtyArgs', () => {
     const args = buildCopilotPtyArgs({ sessionId: 'abc', resume: false });
     expect(args.slice(0, 2)).toEqual(['--session-id', 'abc']);
     expect(args).toContain('--allow-all');
-    expect(args).toContain('--no-auto-update');
+    expect(args).not.toContain('--no-auto-update'); // it would pin the OLD vendored build
+    expect(
+      buildCopilotPtyArgs({
+        sessionId: 'abc',
+        resume: false,
+        pluginDir: 'C:/p',
+      }),
+    ).toContain('--plugin-dir');
   });
   it('respawn resumes via --resume', () => {
     const args = buildCopilotPtyArgs({ sessionId: 'abc', resume: true });
@@ -45,15 +53,15 @@ describe('buildCopilotPtyArgs', () => {
 });
 
 describe('buildCopilotHooksFile', () => {
-  it('relays every observed event through the PowerShell call operator and never installs preToolUse', () => {
-    const json = JSON.parse(buildCopilotHooksFile('C:\\tmp\\relay.cjs')) as {
+  it('relays every observed event as exec/args command hooks and never installs preToolUse', () => {
+    const json = JSON.parse(buildCopilotHooksFile('C:/tmp/relay.cjs')) as {
       version: number;
       hooks: Record<
         string,
         Array<{
           type: string;
-          bash: string;
-          powershell: string;
+          exec: string;
+          args: string[];
           timeoutSec: number;
         }>
       >;
@@ -65,9 +73,8 @@ describe('buildCopilotHooksFile', () => {
     expect(json.hooks['preToolUse']).toBeUndefined();
     const stop = json.hooks['agentStop'][0];
     expect(stop.type).toBe('command');
-    expect(stop.powershell.startsWith('& "')).toBe(true);
-    expect(stop.powershell).toContain('relay.cjs" agentStop');
-    expect(stop.bash).toContain('agentStop');
+    expect(stop.exec).toBe(process.execPath);
+    expect(stop.args).toEqual(['C:/tmp/relay.cjs', 'agentStop']);
   });
 });
 
@@ -90,5 +97,14 @@ describe('classifyCopilotScreen', () => {
     expect(
       classifyCopilotScreen('You are not logged in. Run /login to sign in'),
     ).toBe('login');
+  });
+});
+
+describe('parseLockPid', () => {
+  it('reads the TUI pid from the session directory lock name', () => {
+    expect(
+      parseLockPid(['checkpoints', 'inuse.159528.lock', 'workspace.yaml']),
+    ).toBe(159528);
+    expect(parseLockPid(['checkpoints', '.workspace-fork.lock'])).toBeNull();
   });
 });

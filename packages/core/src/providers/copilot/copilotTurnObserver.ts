@@ -219,7 +219,8 @@ export class CopilotTurnObserver extends ProviderTurnObserver {
           t.modelEmitted = true;
           t.queue.push({ type: ProviderEventType.ModelInfo, model });
         }
-        const reasoning = pickString(d, 'reasoning');
+        const reasoning =
+          pickString(d, 'reasoningText') ?? pickString(d, 'reasoning');
         if (reasoning)
           t.queue.push({ type: ProviderEventType.Thinking, text: reasoning });
         const content = pickString(d, 'content');
@@ -296,7 +297,18 @@ export class CopilotTurnObserver extends ProviderTurnObserver {
             trigger: t.slash === 'compact' ? 'manual' : 'auto',
           });
           t.compactedAt = this.now();
-          t.summarySeen = true; // Copilot writes no summary line
+        }
+        // 1.0.83 stores the summary in `summaryContent` (older: `summary`).
+        const summary =
+          pickString(d, 'summaryContent') ?? pickString(d, 'summary');
+        if (!t.summarySeen) {
+          t.summarySeen = true;
+          if (summary) {
+            t.queue.push({
+              type: ProviderEventType.CompactionSummary,
+              summary,
+            });
+          }
         }
         break;
       }
@@ -314,6 +326,28 @@ export class CopilotTurnObserver extends ProviderTurnObserver {
         this.finalize('failed');
         break;
       }
+      case 'abort': {
+        // Esc while a permission dialog waits: `abort{reason:"user_initiated"}`.
+        if (this.turn) this.finalize('aborted');
+        break;
+      }
+      case 'permission.requested':
+      case 'permission.request': {
+        const name =
+          pickString(d, 'toolName') ?? pickString(d, 'kind') ?? 'a tool';
+        this.pendingPermission = {
+          name,
+          detail: summariseInput(d['toolInput'] ?? d),
+          at: this.now(),
+        };
+        break;
+      }
+      case 'permission.completed': {
+        this.pendingPermission = undefined;
+        for (const id of [...(this.turn?.attention ?? [])])
+          this.attentionEnd(id);
+        break;
+      }
       case 'session.warning': {
         const message = pickString(d, 'message') ?? pickString(d, 'error');
         if (message)
@@ -326,14 +360,34 @@ export class CopilotTurnObserver extends ProviderTurnObserver {
   }
 }
 
-/** Copilot's `ask_user` arguments `{question, choices[], allow_freeform}` → picker. */
+/**
+ * Copilot's `ask_user` arguments → picker. Two shapes exist:
+ * `{question, choices[], allow_freeform}` (older) and, on 1.0.83,
+ * `{message, requestedSchema: {properties: {<field>: {enum: [...]}}}}`.
+ */
 export function buildAskUserPromptEvent(
   toolId: string,
   input: Record<string, unknown>,
 ): InteractivePromptStartEvent {
   const question =
-    pickString(input, 'question') ?? 'Copilot is asking a question';
-  const rawChoices = input['choices'];
+    pickString(input, 'question') ??
+    pickString(input, 'message') ??
+    'Copilot is asking a question';
+  let rawChoices: unknown = input['choices'];
+  if (!Array.isArray(rawChoices)) {
+    const schema = isPlainObject(input['requestedSchema'])
+      ? input['requestedSchema']
+      : {};
+    const props = isPlainObject(schema['properties'])
+      ? schema['properties']
+      : {};
+    for (const field of Object.values(props)) {
+      if (isPlainObject(field) && Array.isArray(field['enum'])) {
+        rawChoices = field['enum'];
+        break;
+      }
+    }
+  }
   const options: InteractivePromptOption[] = Array.isArray(rawChoices)
     ? rawChoices
         .filter((c): c is string => typeof c === 'string')

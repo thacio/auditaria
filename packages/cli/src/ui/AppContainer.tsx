@@ -2701,8 +2701,12 @@ Logging in with Google... Restarting Gemini CLI to continue.
   // (a chat turn, or a turn typed into the provider terminal) used to reach
   // submitQuery directly, which silently drops them. Queue plain-text
   // messages exactly like the composer does; they run when the turn ends.
-  const webQueueRef = useRef({ streamingState, addMessage });
-  webQueueRef.current = { streamingState, addMessage };
+  const webQueueRef = useRef({
+    streamingState,
+    addMessage,
+    handleSlashCommand,
+  });
+  webQueueRef.current = { streamingState, addMessage, handleSlashCommand };
 
   // Create a completely stable function that will never change
   const stableWebSubmitQuery = useCallback((query: PartListUnion) => {
@@ -2738,6 +2742,14 @@ Logging in with Google... Restarting Gemini CLI to continue.
           const text = texts.join('\n');
           if (text.trim() && !text.trimStart().startsWith('/')) {
             queueState.addMessage(text);
+            return;
+          }
+          // AUDITARIA_PROVIDER_TERMINAL: a slash command typed in the web while
+          // a turn is busy (e.g. `/provider cancel|terminal|status` to recover
+          // a stuck provider) must reach the slash handler — submitQuery's
+          // busy guard would drop it silently.
+          if (text.trimStart().startsWith('/')) {
+            void queueState.handleSlashCommand(text.trim());
             return;
           }
         }

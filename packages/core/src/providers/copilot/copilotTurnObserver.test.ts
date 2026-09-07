@@ -385,6 +385,32 @@ describe('CopilotTurnObserver — external turns, steering, sessions', () => {
   });
 });
 
+describe('CopilotTurnObserver — compaction', () => {
+  it('/compact typed in chat: compaction_complete emits Compacted + the summaryContent and ends the turn', async () => {
+    const h = new Harness();
+    const claim = h.observer.claimNextTurn('/compact');
+    h.hook('userPromptSubmitted', { ...hookBase, prompt: '/compact' });
+    h.ev('session.compaction_start', {});
+    await h.tick();
+    h.ev('session.compaction_complete', {
+      success: true,
+      preCompactionTokens: 770,
+      summaryContent: 'We discussed X.',
+    });
+    await h.tick();
+    const events = await drained(claim.events);
+    expect(types(events)).toEqual([
+      ProviderEventType.Compacted,
+      ProviderEventType.CompactionSummary,
+      ProviderEventType.Finished,
+    ]);
+    expect((events[0] as { preTokens: number; trigger: string }).trigger).toBe(
+      'manual',
+    );
+    expect((events[1] as { summary: string }).summary).toBe('We discussed X.');
+  });
+});
+
 describe('buildAskUserPromptEvent', () => {
   it('maps question and string choices', () => {
     const ev = buildAskUserPromptEvent('id', {
@@ -393,5 +419,17 @@ describe('buildAskUserPromptEvent', () => {
     });
     expect(ev.title).toBe('Q?');
     expect(ev.questions[0].options.map((o) => o.id)).toEqual(['A', 'B']);
+  });
+  it('maps the 1.0.83 shape (message + requestedSchema enum)', () => {
+    const ev = buildAskUserPromptEvent('id', {
+      message: 'Which color?',
+      requestedSchema: {
+        properties: {
+          choice: { type: 'string', enum: ['Red', 'Blue'], default: 'Red' },
+        },
+      },
+    });
+    expect(ev.title).toBe('Which color?');
+    expect(ev.questions[0].options.map((o) => o.id)).toEqual(['Red', 'Blue']);
   });
 });

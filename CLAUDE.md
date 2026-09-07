@@ -950,12 +950,19 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
   turns; the driver implements `ExternalTurnCapableDriver` +
   `ProviderRecoveryCapableDriver` (`/provider status|cancel|restart|terminal`
   work), and the manager's legacy `onBackground*` adapter is gone (Copilot
-  was its last user). Hooks are installed ONCE in the user-level
-  `~/.copilot/hooks/auditaria.json` (loaded at CLI start; no per-invocation
-  flag) and relayed by a STABLE temp script that no-ops unless
-  `AUDITARIA_COPILOT_HOOK_FILE` is set — only our spawned sessions set it,
-  the user's own sessions are unaffected; `preToolUse` is never installed
-  (fail-closed). Verified on 1.0.83: `userPromptSubmitted` ~0.3 s after
+  was its last user). Hooks are loaded PER PROCESS through
+  `--plugin-dir <tmp>/plugin` (a local plugin: `plugin.json` + `hooks.json`
+  with `exec`/`args` command entries — no shell quoting) relayed to a
+  per-driver JSONL file (`AUDITARIA_COPILOT_HOOK_FILE`); nothing is written
+  under `~/.copilot`, the user's own sessions are untouched; `preToolUse` is
+  never installed (fail-closed). NEVER pass `--no-auto-update`: it makes the
+  launcher run the OLD vendored build (1.0.79) instead of the newest cached
+  release the plain `copilot` command runs. Verified on 1.0.83:
+  `assistant.message.reasoningText` (not `reasoning`), `ask_user` arguments
+  `{message, requestedSchema.properties.<field>.enum}` (older builds:
+  `{question, choices}`), Esc on a pending restricted permission writes
+  `permission.completed{kind:cancelled}` + `abort{reason:user_initiated}`
+  (but Esc on a running tool writes nothing), `userPromptSubmitted` ~0.3 s after
   Enter (before events.jsonl exists at the first prompt), `sessionStart`
   carries the session id (a NEW id after `/clear`, whose `sessionEnd` has
   `reason:"user_exit"`), `agentStop` ONCE at the true end, `permissionRequest`
@@ -964,10 +971,14 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
   in the same run (Enter while a shell tool runs also backgrounds that
   command → later `<system_notification>` prompt), Esc leaves NO witness in
   either channel (chat aborts finalize locally; terminal Esc relies on the
-  screen + idle fallback), `--no-auto-update` is passed (the npm launcher
-  re-executes the newest self-updated build under `~/.copilot/pkg/`).
+  screen + idle fallback); the npm launcher re-executes the newest
+  self-updated build under `~/.copilot/pkg/` (only without `--no-auto-update`).
   Plan/evidence: `.auditaria/copilot-tui-sync-plan.md`; probes in the
-  session scratchpad `copilot-probes/`.
+  session scratchpad `copilot-probes/`. Also from this round: a slash
+  command typed in the WEB chat while a turn is busy (`/provider cancel`,
+  `/provider terminal`, `/provider status`) now reaches the slash handler
+  (`AppContainer.stableWebSubmitQuery`) instead of being dropped by
+  `submitQuery`'s busy guard — text is queued, slash commands run.
 - **Copilot CLI HAS a hooks system (VALIDATED LIVE, currently unused by our
   driver — planned redundant channel)**:
   https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks

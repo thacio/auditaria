@@ -12,10 +12,12 @@
  *   - `--session-id <uuid>` pre-assigns the session, so
  *     `~/.copilot/session-state/<id>/events.jsonl` is known before the first
  *     prompt (the file appears AT the first prompt); respawns `--resume <id>`;
- *   - hooks are loaded from the user-level `~/.copilot/hooks/*.json` at CLI
- *     start (no per-invocation flag): we keep ONE file there whose relay
- *     no-ops unless `AUDITARIA_COPILOT_HOOK_FILE` is set, so the user's own
- *     sessions are unaffected. Never a `preToolUse` hook (fail-closed);
+ *   - hooks are loaded at CLI start; `--plugin-dir <dir>` loads a local
+ *     plugin (plugin.json + hooks.json with exec/args entries) for THIS
+ *     process only, so our observational hooks never touch the user's own
+ *     configuration or sessions. Never a `preToolUse` hook (fail-closed);
+ *   - `--no-auto-update` makes the launcher run the OLD vendored build
+ *     (1.0.79 here) instead of the newest cached release — never pass it;
  *   - `userPromptSubmitted` confirms a typed prompt within ~0.3 s;
  *     `agentStop` marks the true end of an agent run; `sessionEnd` = `/clear`
  *     (the next prompt's `sessionStart` carries the new id);
@@ -28,10 +30,12 @@ import { EventEmitter } from 'node:events';
 import { execSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
-  unlinkSync,
+  readdirSync,
+  rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -79,7 +83,8 @@ const READY_TIMEOUT_MS = 90_000;
 const DIALOG_WAIT_MS = 10 * 60_000;
 const PROMPT_ACCEPT_TIMEOUT_MS = 3_000;
 const MAX_PROMPT_RESUBMITS = 3;
-const PROMPT_ACCEPT_CEILING_MS = 25_000;
+/** A cold first prompt (session creation, hooks/MCP loading) can take ~40 s. */
+const PROMPT_ACCEPT_CEILING_MS = 90_000;
 const SLASH_ACCEPT_TIMEOUT_MS = 8_000;
 const FOCUS_IN = '\x1b[I';
 const ESC = '\x1b';
@@ -131,6 +136,15 @@ export function classifyCopilotScreen(screen: string): CopilotScreenState {
   return 'unknown';
 }
 
+/** `inuse.<pid>.lock` — the TUI marks every session directory it owns. */
+export function parseLockPid(names: readonly string[]): number | null {
+  for (const name of names) {
+    const m = /^inuse\.(\d+)\.lock$/.exec(name);
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
 /** CLI args for the interactive TUI. Exported for tests. */
 export function buildCopilotPtyArgs(opts: {
   sessionId: string;
@@ -138,6 +152,8 @@ export function buildCopilotPtyArgs(opts: {
   model?: string;
   reasoningEffort?: string;
   mcpConfigArg?: string;
+  /** Local plugin directory carrying our hooks.json (per process). */
+  pluginDir?: string;
 }): string[] {
   const args: string[] = [];
   if (opts.resume) {
@@ -145,7 +161,10 @@ export function buildCopilotPtyArgs(opts: {
   } else {
     args.push('--session-id', opts.sessionId);
   }
-  args.push('--allow-all', '--no-auto-update');
+  args.push('--allow-all');
+  if (opts.pluginDir) {
+    args.push('--plugin-dir', opts.pluginDir);
+  }
   if (opts.model && opts.model !== 'auto') {
     args.push('--model', opts.model);
   }
@@ -158,31 +177,20 @@ export function buildCopilotPtyArgs(opts: {
   return args;
 }
 
-/** The user-level hooks file content for `relayPath`. Exported for tests. */
+/** The plugin's hooks.json for `relayPath` (exec/args: no shell quoting). Exported for tests. */
 export function buildCopilotHooksFile(relayPath: string): string {
-  const quote = (v: string) => `"${v.replace(/"/g, '\\"')}"`;
   const hooks: Record<string, unknown[]> = {};
   for (const event of COPILOT_HOOK_EVENTS) {
     hooks[event] = [
       {
         type: 'command',
-        bash: `${quote(process.execPath)} ${quote(relayPath)} ${event}`,
-        // PowerShell needs the call operator for a quoted program path.
-        powershell: `& ${quote(process.execPath)} ${quote(relayPath)} ${event}`,
-        timeoutSec: 20,
+        exec: process.execPath,
+        args: [relayPath, event],
+        timeoutSec: 10,
       },
     ];
   }
-  return JSON.stringify(
-    {
-      version: 1,
-      // Relay no-ops unless AUDITARIA_COPILOT_HOOK_FILE is set — only the
-      // sessions Auditaria spawns set it; the user's own sessions are untouched.
-      hooks,
-    },
-    null,
-    2,
-  );
+  return JSON.stringify({ version: 1, hooks }, null, 2);
 }
 
 export class CopilotPtyDriver
@@ -199,6 +207,7 @@ export class CopilotPtyDriver
   private exePath: string | null = null;
   private hookDir: string | null = null;
   private hookFilePath: string | null = null;
+  private pluginDir: string | null = null;
   private started = false;
   private hadAcceptedTurn = false;
   private typedPrompt: string | null = null;
@@ -212,6 +221,12 @@ export class CopilotPtyDriver
   private readonly externalEmitter = new EventEmitter();
   private screenMirror: ProviderScreenMirror | null = null;
   private lastScreen: string | null = null;
+  /** The TUI process pid (from `inuse.<pid>.lock` in our session dir). */
+  private tuiPid: number | null = null;
+  /** Session directories already classified (not ours) — scanned once. */
+  private readonly knownSessionDirs = new Set<string>();
+  private lastSessionScanAt = 0;
+  private clearAnnouncedAt = 0;
 
   constructor(private readonly config: CopilotDriverConfig) {
     dbg('constructor', { model: config.model, cwd: config.cwd });
@@ -273,13 +288,15 @@ export class CopilotPtyDriver
     this.screenMirror?.dispose();
     this.screenMirror = null;
     this.killSession();
-    if (this.hookFilePath) {
+    if (this.hookDir) {
       try {
-        unlinkSync(this.hookFilePath);
+        rmSync(this.hookDir, { recursive: true, force: true });
       } catch {
         /* ignore */
       }
+      this.hookDir = null;
       this.hookFilePath = null;
+      this.pluginDir = null;
     }
   }
 
@@ -347,6 +364,13 @@ export class CopilotPtyDriver
 
     const acceptanceTimer = setInterval(() => {
       if (claim.accepted || claim.done || !session.isAlive()) return;
+      // While the TUI is visibly busy (loading hooks/MCP, "Working"), the
+      // prompt is queued inside it: neither resend Enter nor give up.
+      const st = this.screenState();
+      if (st === 'starting' || st === 'working') {
+        typedAt = Date.now();
+        return;
+      }
       const waited = Date.now() - typedAt;
       if (isSlash) {
         if (waited >= SLASH_ACCEPT_TIMEOUT_MS)
@@ -517,9 +541,12 @@ export class CopilotPtyDriver
       model: this.config.model,
       reasoningEffort: this.config.reasoningEffort,
       mcpConfigArg: buildMcpConfigArg(this.config),
+      pluginDir: this.pluginDir ?? undefined,
     });
     const mirror = this.config.mirrorPty !== false;
     this.lastScreen = null;
+    this.tuiPid = null;
+    this.snapshotSessionDirs();
     if (mirror) {
       this.screenMirror ??= new ProviderScreenMirror(PTY_COLS, PTY_ROWS);
       this.screenMirror.reset();
@@ -619,32 +646,29 @@ export class CopilotPtyDriver
     } satisfies ProviderNotice);
   }
 
-  /** Hook file (per driver) + the user-level hooks configuration (shared, stable relay). */
+  /** Hook file (per driver) + a local plugin dir carrying our hooks.json. */
   private ensureHookInfra(): void {
     if (this.hookDir) return;
     this.hookDir = mkdtempSync(join(tmpdir(), 'auditaria-copilot-'));
     this.hookFilePath = join(this.hookDir, 'hooks.jsonl');
-    const relay = ensureHookRelayScript('copilot', COPILOT_HOOK_FILE_ENV, {
-      stable: true,
-    });
-    const hooksDir = join(homedir(), '.copilot', 'hooks');
-    const file = join(hooksDir, 'auditaria.json');
-    const content = buildCopilotHooksFile(relay);
-    let current: string | undefined;
-    try {
-      current = readFileSync(file, 'utf8');
-    } catch {
-      current = undefined;
-    }
-    if (current !== content) {
-      try {
-        mkdirSync(hooksDir, { recursive: true });
-        writeFileSync(file, content, 'utf8');
-        dbg('hooks file written', file);
-      } catch (e) {
-        dbg('hooks file NOT written (hooks disabled for this session)', e);
-      }
-    }
+    const relay = ensureHookRelayScript('copilot', COPILOT_HOOK_FILE_ENV);
+    const pluginDir = join(this.hookDir, 'plugin');
+    mkdirSync(pluginDir, { recursive: true });
+    writeFileSync(
+      join(pluginDir, 'plugin.json'),
+      JSON.stringify({
+        name: 'auditaria-observer',
+        version: '1.0.0',
+        description: 'Auditaria observational hooks for this session',
+      }),
+      'utf8',
+    );
+    writeFileSync(
+      join(pluginDir, 'hooks.json'),
+      buildCopilotHooksFile(relay),
+      'utf8',
+    );
+    this.pluginDir = pluginDir;
   }
 
   /** Type body + CR; multi-line prompts as a bracketed paste. Focus-in first:
@@ -707,7 +731,9 @@ export class CopilotPtyDriver
 
   private handleSessionChange(sessionId: string, source: string): void {
     if (source === 'clear') {
-      // The old session is gone; the next prompt's sessionStart rebinds.
+      // 1.0.79: the sessionEnd hook; the directory scan (1.0.83) or the next
+      // prompt's sessionStart rebinds the new id.
+      this.clearAnnouncedAt = Date.now();
       this.externalEmitter.emit('notice', {
         kind: 'session',
         source: 'clear',
@@ -738,9 +764,94 @@ export class CopilotPtyDriver
     if (this.observerTimer) return;
     this.observerTimer = setInterval(() => {
       void this.refreshScreen()
-        .then(() => this.observer.tick())
+        .then(() => {
+          this.scanSessionSwitch();
+          return this.observer.tick();
+        })
         .catch((e) => dbg('observer tick error', e));
     }, OBSERVER_TICK_MS);
+  }
+
+  private sessionRoot(): string {
+    return join(homedir(), '.copilot', 'session-state');
+  }
+
+  /** Remember the session directories that exist before we start: only
+   *  directories created afterwards can be ours. */
+  private snapshotSessionDirs(): void {
+    this.knownSessionDirs.clear();
+    try {
+      for (const name of readdirSync(this.sessionRoot()))
+        this.knownSessionDirs.add(name);
+    } catch {
+      /* no sessions yet */
+    }
+  }
+
+  /**
+   * `/clear` typed in the terminal (1.0.83): no hook, no events line — the
+   * TUI just creates a NEW session directory (events.jsonl only at the next
+   * prompt) and marks it, like ours, with `inuse.<its pid>.lock`. Learn that
+   * pid from our own directory, then follow the TUI to any new directory it
+   * marks. Throttled; each foreign directory is classified once.
+   */
+  private scanSessionSwitch(): void {
+    if (!this.sessionId || !this.session?.isAlive()) return;
+    const now = Date.now();
+    if (now - this.lastSessionScanAt < 1_500) return;
+    this.lastSessionScanAt = now;
+    const root = this.sessionRoot();
+    if (this.tuiPid === null) {
+      try {
+        this.tuiPid = parseLockPid(readdirSync(join(root, this.sessionId)));
+      } catch {
+        return;
+      }
+      if (this.tuiPid === null) return;
+    }
+    let names: string[];
+    try {
+      names = readdirSync(root);
+    } catch {
+      return;
+    }
+    for (const name of names) {
+      if (name === this.sessionId || this.knownSessionDirs.has(name)) continue;
+      const dir = join(root, name);
+      if (existsSync(join(dir, `inuse.${this.tuiPid}.lock`))) {
+        this.followNewSession(name);
+        return;
+      }
+      // A directory still being created may not carry its lock yet: retry
+      // it while it is younger than 10 s, classify it as foreign afterwards.
+      try {
+        if (now - statSync(dir).mtimeMs > 10_000)
+          this.knownSessionDirs.add(name);
+      } catch {
+        this.knownSessionDirs.add(name);
+      }
+    }
+  }
+
+  private followNewSession(newId: string): void {
+    dbg('TUI switched to a new session', {
+      from: this.sessionId?.slice(0, 8),
+      to: newId.slice(0, 8),
+    });
+    if (this.sessionId) this.knownSessionDirs.add(this.sessionId);
+    if (this.observer.isTurnActive()) this.observer.abortCurrentTurn('aborted');
+    this.sessionId = newId;
+    this.observer.sessionId = newId;
+    this.useResume = true;
+    this.eventsTail.reset(0);
+    this.hadAcceptedTurn = false;
+    if (Date.now() - this.clearAnnouncedAt > 5_000) {
+      this.externalEmitter.emit('notice', {
+        kind: 'session',
+        source: 'clear',
+        sessionId: newId,
+      } satisfies ProviderNotice);
+    }
   }
 
   private stopObserver(): void {
