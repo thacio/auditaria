@@ -26,9 +26,8 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { execSync, spawnSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -61,7 +60,7 @@ import {
 import { PtySession } from '../terminal/ptySession.js';
 import { JsonlFileTail } from '../terminal/jsonlTail.js';
 import { ProviderScreenMirror } from '../terminal/screenMirror.js';
-import { ensureHookRelayScript } from '../terminal/hookRelay.js';
+import { ensureHookRelayScript, quoteFreePath } from '../terminal/hookRelay.js';
 import {
   isPlainObject,
   pickString,
@@ -182,31 +181,7 @@ export function buildAgyHooksFile(
   return JSON.stringify({ 'auditaria-observer': hooks }, null, 2);
 }
 
-/**
- * A command line agy's cmd.exe executor accepts: no double quotes anywhere.
- * Paths with spaces are replaced by their 8.3 short name (Windows) when cmd
- * can tell us; otherwise null (hooks are skipped, the transcript suffices).
- */
-export function quoteFreePath(p: string): string | null {
-  if (!/\s/.test(p)) return p;
-  if (process.platform !== 'win32') return null;
-  try {
-    const r = spawnSync(
-      'cmd.exe',
-      ['/d', '/c', `for %I in ("${p}") do @echo %~sI`],
-      {
-        encoding: 'utf8',
-        windowsHide: true,
-        timeout: 5_000,
-      },
-    );
-    const out = (r.stdout ?? '').trim().split(/\r?\n/).pop() ?? '';
-    if (out && !/\s/.test(out) && existsSync(out)) return out;
-  } catch {
-    /* no cmd: hooks cannot run anyway */
-  }
-  return null;
-}
+export { quoteFreePath } from '../terminal/hookRelay.js';
 
 export class AgyPtyDriver
   implements

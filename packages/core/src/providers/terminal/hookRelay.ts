@@ -12,7 +12,8 @@
  * Stop line used to hang a turn.
  */
 
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -80,4 +81,35 @@ export function ensureHookRelayScript(
   }
   if (current !== source) writeFileSync(file, source, 'utf8');
   return file;
+}
+
+/**
+ * A path usable in a hook command line WITHOUT quotes: CLIs that run hooks
+ * through cmd.exe (agy) or build the command from an unquoted TOML string
+ * (Codex) break on a quoted `C:\Program Files\nodejs\node.exe`. A path with spaces
+ * becomes its 8.3 short name (Windows, when cmd can tell us); otherwise null
+ * — callers fall back to a bare `node` or skip the hook.
+ */
+export function quoteFreePath(p: string): string | null {
+  if (!/\s/.test(p)) return p;
+  if (process.platform !== 'win32') return null;
+  try {
+    const r = spawnSync(
+      'cmd.exe',
+      ['/d', '/c', `for %I in ("${p}") do @echo %~sI`],
+      // Verbatim: node's own quoting turns the inner quotes into \" and the
+      // `for` command then echoes garbage (verified).
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        windowsVerbatimArguments: true,
+        timeout: 5_000,
+      },
+    );
+    const out = (r.stdout ?? '').trim().split(/\r?\n/).pop() ?? '';
+    if (out && !/\s/.test(out) && existsSync(out)) return out;
+  } catch {
+    /* no cmd: the hook cannot run anyway */
+  }
+  return null;
 }

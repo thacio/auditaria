@@ -42,8 +42,11 @@ import {
 export type { HookEvent, TurnObserverHost } from '../terminal/turnObserver.js';
 
 /** User-role rollout lines the TUI writes for itself (never a prompt). */
+// Codex records its own preambles as user-role messages: the AGENTS.md
+// instructions block (`# AGENTS.md instructions for <cwd>` + <INSTRUCTIONS>)
+// and the <environment_context> — never conversation.
 const META_USER_TEXT_RE =
-  /^\s*<(environment_context|user_instructions|permissions instructions|skills_instructions|apps_instructions|collaboration_mode|agents_md|memory|turn_context|available_tools)/i;
+  /^\s*(#\s*AGENTS\.md instructions|<(INSTRUCTIONS|environment_context|user_instructions|permissions instructions|skills_instructions|apps_instructions|collaboration_mode|agents_md|memory|turn_context|available_tools)\b)/i;
 /** Written after Esc: "<turn_aborted>\nThe user interrupted the previous …". */
 const TURN_ABORTED_RE = /^\s*<turn_aborted>/i;
 

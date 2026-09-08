@@ -849,6 +849,19 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
     bypasses approvals/sandbox by default (parity with the exec driver's
     `danger-full-access`; `AUDITARIA_CODEX_SANDBOX=1` keeps them, approvals
     then surface as attention notices from the `PermissionRequest` hook).
+  - **Hooks + rollout hardening (September 7, 2026, user-reported "hook
+    failed exit code 1" + "did not accept the prompt after 25 s")**: the hook
+    command was built from the unquoted `process.execPath` — `C:\Program Files\nodejs\node.exe` ran `C:\Program` and every hook exited 1; and
+    the rollout was bound ONLY from the SessionStart hook's
+    `transcript_path`, so with failing hooks the driver never saw the
+    session at all. Now: hook commands use quote-free paths (8.3 short
+    names via `quoteFreePath` in `terminal/hookRelay.ts`, resolved with
+    `windowsVerbatimArguments` — node's own quoting corrupts the `for`
+    command; bare `node` as the fallback), the rollout is also discovered
+    from `CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl` written after
+    spawn, and acceptance waits while the screen shows Codex busy
+    (ceiling 60 s). The e2e harness passed before only because the rollout
+    channel carried acceptance on this machine.
   - `/new` typed in the terminal fires NO hook and writes NO file (the new
     session's rollout is created lazily at its next prompt); the driver
     detects it from the TUI's farewell line ("To continue this session, run

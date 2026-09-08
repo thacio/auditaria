@@ -26,8 +26,14 @@
 
 import { EventEmitter } from 'node:events';
 import { execSync } from 'node:child_process';
-import { mkdtempSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import {
+  mkdtempSync,
+  readdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type {
   AttachmentFile,
@@ -45,7 +51,7 @@ import { CodexTurnObserver } from './codexTurnObserver.js';
 import { PtySession } from '../terminal/ptySession.js';
 import { JsonlFileTail } from '../terminal/jsonlTail.js';
 import { ProviderScreenMirror } from '../terminal/screenMirror.js';
-import { ensureHookRelayScript } from '../terminal/hookRelay.js';
+import { ensureHookRelayScript, quoteFreePath } from '../terminal/hookRelay.js';
 import {
   isPlainObject,
   pickString,
@@ -71,7 +77,7 @@ const DIALOG_WAIT_MS = 10 * 60_000;
 const PROMPT_ACCEPT_TIMEOUT_MS = 3_000;
 const MAX_PROMPT_RESUBMITS = 3;
 /** After the retries, keep waiting this long before giving up visibly. */
-const PROMPT_ACCEPT_CEILING_MS = 25_000;
+const PROMPT_ACCEPT_CEILING_MS = 60_000;
 const SLASH_ACCEPT_TIMEOUT_MS = 8_000;
 const HOOK_EVENTS = [
   'SessionStart',
@@ -190,6 +196,8 @@ export class CodexPtyDriver
     () => this.hookFilePath ?? undefined,
   );
   private readonly rolloutTail = new JsonlFileTail(() => this.rolloutPath);
+  private spawnedAt = 0;
+  private lastRolloutScanAt = 0;
   private readonly observer: CodexTurnObserver;
   private observerTimer: NodeJS.Timeout | null = null;
   private readonly externalEmitter = new EventEmitter();
@@ -203,6 +211,7 @@ export class CodexPtyDriver
     this.observer = new CodexTurnObserver({
       drainHooks: () => this.drainHooks(),
       drainTranscript: async () => {
+        if (!this.rolloutPath) this.discoverRollout();
         const { entries, grew } = await this.rolloutTail.drain();
         if (DEBUG && entries.length) {
           dbg(
@@ -347,6 +356,13 @@ export class CodexPtyDriver
 
     const acceptanceTimer = setInterval(() => {
       if (claim.accepted || claim.done || !session.isAlive()) return;
+      // While Codex is visibly busy the prompt sits in its queue: neither
+      // resend Enter nor give up.
+      const st = this.screenState();
+      if (st === 'starting' || st === 'working') {
+        typedAt = Date.now();
+        return;
+      }
       const waited = Date.now() - typedAt;
       if (isSlash) {
         if (waited >= SLASH_ACCEPT_TIMEOUT_MS)
@@ -522,6 +538,7 @@ export class CodexPtyDriver
       onData: (data) => this.screenMirror?.write(data),
     });
     dbg('spawning', { file: this.codexExe.file, args });
+    this.spawnedAt = Date.now();
     const err = await session.spawn(this.codexExe.file, args);
     if (err) return err;
     this.session = session;
@@ -635,15 +652,18 @@ export class CodexPtyDriver
     );
     // Session-scoped hooks (relay → JSONL file the observer tails).
     args.push('--dangerously-bypass-hook-trust');
-    const relayCommand = `${tomlString(process.execPath)}`;
+    // The command is split on whitespace by Codex's hook executor: an
+    // unquoted `C:\Program Files\nodejs\node.exe` ran `C:\Program` and every
+    // hook failed with exit code 1 — use quote-free (8.3) paths, else `node`.
+    const node = quoteFreePath(process.execPath) ?? 'node';
+    const relay = quoteFreePath(this.hookRelayPath!) ?? this.hookRelayPath!;
     for (const event of HOOK_EVENTS) {
-      const command = `${process.execPath} ${this.hookRelayPath} ${event}`;
+      const command = `${node} ${relay} ${event}`;
       args.push(
         '-c',
         `hooks.${event}=[{hooks=[{type="command",command=${tomlString(command)},commandWindows=${tomlString(command)},timeout=20}]}]`,
       );
     }
-    void relayCommand;
     // Tool bridge + Auditaria-configured MCP servers, session-scoped.
     if (this.config.toolBridgePort && this.config.toolBridgeScript) {
       const bridgeArgs = [
@@ -747,6 +767,58 @@ export class CodexPtyDriver
       this.truncatedPrompt = { got: b.length, typed: a.length };
       dbg('truncated prompt accepted — cancelling', this.truncatedPrompt);
       void this.session?.writeSystem(ESC);
+    }
+  }
+
+  /**
+   * Without the SessionStart hook (a failing hook command, a hooks-less
+   * Codex build) the rollout is still findable: the newest
+   * `sessions/YYYY/MM/DD/rollout-*.jsonl` written after our spawn.
+   */
+  private discoverRollout(): void {
+    if (!this.session?.isAlive() || !this.spawnedAt) return;
+    const now = Date.now();
+    if (now - this.lastRolloutScanAt < 1_000) return;
+    this.lastRolloutScanAt = now;
+    const root = join(
+      this.config.codexConfigHome ??
+        process.env['CODEX_HOME'] ??
+        join(homedir(), '.codex'),
+      'sessions',
+    );
+    let newest: { file: string; m: number } | undefined;
+    const since = this.spawnedAt - 5_000;
+    // sessions/YYYY/MM/DD/rollout-*.jsonl — only the newest year/month and
+    // the two newest days (a session can straddle midnight).
+    const newestNames = (dir: string, take: number): string[] => {
+      try {
+        return readdirSync(dir).sort().reverse().slice(0, take);
+      } catch {
+        return [];
+      }
+    };
+    for (const year of newestNames(root, 1)) {
+      for (const month of newestNames(join(root, year), 1)) {
+        for (const day of newestNames(join(root, year, month), 2)) {
+          const dir = join(root, year, month, day);
+          for (const f of newestNames(dir, 50)) {
+            if (!f.startsWith('rollout-') || !f.endsWith('.jsonl')) continue;
+            try {
+              const m = statSync(join(dir, f)).mtimeMs;
+              if (m >= since && (!newest || m > newest.m)) {
+                newest = { file: join(dir, f), m };
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      }
+    }
+    if (newest) {
+      this.rolloutPath = newest.file;
+      this.rolloutTail.reset(0);
+      dbg('rollout discovered without hooks', newest.file);
     }
   }
 

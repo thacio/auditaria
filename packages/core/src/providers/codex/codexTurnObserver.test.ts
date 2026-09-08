@@ -103,6 +103,19 @@ const envContext = () => ({
     ],
   },
 });
+const agentsMdPreamble = () => ({
+  type: 'response_item',
+  payload: {
+    type: 'message',
+    role: 'user',
+    content: [
+      {
+        type: 'input_text',
+        text: '# AGENTS.md instructions for C:\\projects\\x\n\n<INSTRUCTIONS>##### AUDITARIA SYSTEM PROMPT CONTEXT ...</INSTRUCTIONS><environment_context>\n  <cwd>C:\\projects\\x</cwd>\n</environment_context>',
+      },
+    ],
+  },
+});
 const developer = () => ({
   type: 'response_item',
   payload: {
@@ -209,6 +222,19 @@ async function drained(
   return out;
 }
 const types = (events: ProviderEvent[]) => events.map((e) => e.type);
+
+describe('CodexTurnObserver — Codex preambles', () => {
+  it('the AGENTS.md instructions block recorded as a user message opens no turn and shows nothing', async () => {
+    const h = new Harness();
+    h.line(meta());
+    h.line(agentsMdPreamble());
+    h.line(envContext());
+    await h.tick();
+    expect(h.externalTurns).toHaveLength(0);
+    expect(h.notices).toHaveLength(0);
+    expect(h.observer.isTurnActive()).toBe(false);
+  });
+});
 
 describe('CodexTurnObserver — chat turns (claimed)', () => {
   it('a text turn: prompt accepted by the hook, text from the rollout, Stop closes it', async () => {
