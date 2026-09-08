@@ -1267,6 +1267,7 @@ export async function loadCliConfig(
     experimentalAutoMemory: settings.experimental?.autoMemory,
     experimentalGemma: settings.experimental?.gemma,
     contextManagement,
+    workflows: settings.workflows, // AUDITARIA_WORKFLOW
     modelSteering: settings.experimental?.modelSteering,
     topicUpdateNarration:
       settings.general?.topicUpdateNarration ??

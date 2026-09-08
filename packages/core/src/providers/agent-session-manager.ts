@@ -15,6 +15,7 @@ import { ProviderEventType } from './types.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
 import { resolveBridgeScriptPath } from './mcp-bridge/toolBridgeService.js'; // AUDITARIA_EXPOSE_MCP
+import { createProviderDriver } from './driverFactory.js'; // AUDITARIA_WORKFLOW
 import {
   discoverSessions as discoverSessionsImpl,
   type DiscoverOptions,
@@ -95,6 +96,7 @@ export interface CreateSessionOpts {
 
 // Tools always excluded from sub-agent MCP bridge
 const ALWAYS_EXCLUDED_TOOLS = [
+  'workflow', // AUDITARIA_WORKFLOW: a leaf must not launch workflows through the bridge
   'collaborative_writing',
   'stagehand_browser',
   'context_management',
@@ -257,87 +259,40 @@ export class AgentSessionManager {
     });
 
     // Create driver
+    // AUDITARIA_WORKFLOW: external drivers come from the shared factory
+    // (interactive style — the same drivers this manager always used);
+    // workflow leaves ask the same factory for the headless style.
     let driver: ProviderDriver;
-
-    switch (provider) {
-      case 'claude-cli': {
-        const { ClaudeCLIDriver } = await import('./claude/claudeCLIDriver.js');
-        driver = new ClaudeCLIDriver({
-          model,
-          cwd: this.cwd,
-          permissionMode: 'bypassPermissions',
-          toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
-          toolBridgeScript: this.bridgeScriptPath,
-          toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
-          promptFileId: sessionId,
-          // AUDITARIA_PROVIDER_TERMINAL: sub-agents are headless — keep their
-          // PTYs off the web-terminal mirror (would hijack the main session's).
-          mirrorPty: false,
-        });
-        break;
-      }
-      case 'codex-cli': {
-        // Uses default ~/.codex/ config (API keys, .env). No config isolation —
-        // the driver's injectMcpConfig/removeMcpConfig lifecycle handles MCP markers,
-        // and sessions are busy-guarded against concurrent sends.
-        const { CodexCLIDriver } = await import('./codex/codexCLIDriver.js');
-        driver = new CodexCLIDriver({
-          model,
-          cwd: this.cwd,
-          toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
-          toolBridgeScript: this.bridgeScriptPath,
-          toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
-          sandboxMode: mode === 'consult' ? 'read-only' : 'danger-full-access',
-          promptFileId: sessionId,
-        });
-        break;
-      }
-      // AUDITARIA_COPILOT_PROVIDER_START: Copilot sub-agent driver
-      case 'copilot-cli': {
-        const { CopilotCLIDriver } = await import(
-          './copilot/copilotCLIDriver.js'
-        );
-        driver = new CopilotCLIDriver({
-          model,
-          cwd: this.cwd,
-          toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
-          toolBridgeScript: this.bridgeScriptPath,
-          toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
-          promptFileId: sessionId,
-        });
-        break;
-      }
-      // AUDITARIA_COPILOT_PROVIDER_END
-      // AUDITARIA_AGY_PROVIDER_START: Antigravity sub-agent driver
-      case 'agy-cli': {
-        const { AgyCLIDriver } = await import('./agy/agyCLIDriver.js');
-        driver = new AgyCLIDriver({
-          model,
-          cwd: this.cwd,
-          toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
-          toolBridgeScript: this.bridgeScriptPath,
-          toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
-          promptFileId: sessionId,
-        });
-        break;
-      }
-      // AUDITARIA_AGY_PROVIDER_END
-      // AUDITARIA_AGENT_SESSION_START: Auditaria (Gemini) sub-agent driver
-      case 'auditaria-cli': {
-        const { AuditariaCLIDriver } = await import(
-          './auditaria/auditariaCLIDriver.js'
-        );
-        driver = new AuditariaCLIDriver({
-          model: model || 'gemini-2.5-pro',
-          cwd: this.cwd,
-          approvalMode: mode === 'consult' ? 'default' : 'yolo',
-          promptFileId: sessionId,
-        });
-        break;
-      }
-      // AUDITARIA_AGENT_SESSION_END
-      default:
-        throw new Error(`Unknown provider type: ${provider}`);
+    if (provider === 'auditaria-cli') {
+      const { AuditariaCLIDriver } = await import(
+        './auditaria/auditariaCLIDriver.js'
+      );
+      driver = new AuditariaCLIDriver({
+        model: model || 'gemini-2.5-pro',
+        cwd: this.cwd,
+        approvalMode: mode === 'consult' ? 'default' : 'yolo',
+        promptFileId: sessionId,
+      });
+    } else {
+      const family =
+        provider === 'claude-cli'
+          ? 'claude'
+          : provider === 'codex-cli'
+            ? 'codex'
+            : provider === 'copilot-cli'
+              ? 'copilot'
+              : 'agy';
+      driver = await createProviderDriver({
+        family,
+        interactionStyle: 'interactive',
+        cwd: this.cwd,
+        model,
+        toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
+        toolBridgeScript: this.bridgeScriptPath,
+        toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
+        promptFileId: sessionId,
+        readOnly: mode === 'consult',
+      });
     }
 
     // AUDITARIA_AGENT_SESSION: Resume a stored native CLI session if requested.
@@ -567,6 +522,17 @@ export class AgentSessionManager {
   // -------------------------------------------------------------------
   // ToolExecutorServer management
   // -------------------------------------------------------------------
+
+  // AUDITARIA_WORKFLOW: the workflow runner spawns leaves through the same
+  // bridge every external sub-agent uses.
+  async getToolBridge(): Promise<
+    { port: number; scriptPath: string } | undefined
+  > {
+    await this.ensureToolExecutorServer();
+    const port = this.toolExecutorServer?.getPort();
+    if (!port || !this.bridgeScriptPath) return undefined;
+    return { port, scriptPath: this.bridgeScriptPath };
+  }
 
   private async ensureToolExecutorServer(): Promise<void> {
     if (this.toolExecutorServer) return;

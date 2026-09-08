@@ -107,6 +107,7 @@ export interface CopilotMcpBridgeConfig {
   toolBridgePort?: number;
   toolBridgeScript?: string;
   toolBridgeExclude?: string[];
+  toolBridgeCallId?: string; // AUDITARIA_WORKFLOW: per-call StructuredOutput correlation id
 }
 
 export function buildMcpConfigArg(
@@ -125,6 +126,11 @@ export function buildMcpConfigArg(
       bridgeArgs.push('--exclude', name);
     }
   }
+  // AUDITARIA_WORKFLOW: per-call StructuredOutput schema correlation — such a
+  // config is unique to one spawn, so it gets its own file below.
+  if (config.toolBridgeCallId) {
+    bridgeArgs.push('--call-id', config.toolBridgeCallId);
+  }
 
   const mcpConfig = {
     mcpServers: {
@@ -137,7 +143,12 @@ export function buildMcpConfigArg(
 
   // Write to file only if content changed, return @filepath reference.
   const dir = join(homedir(), '.auditaria');
-  const filePath = join(dir, `copilot-mcp-${port}.json`);
+  const filePath = join(
+    dir,
+    config.toolBridgeCallId
+      ? `copilot-mcp-${port}-${config.toolBridgeCallId}.json` // AUDITARIA_WORKFLOW
+      : `copilot-mcp-${port}.json`,
+  );
   const newContent = JSON.stringify(mcpConfig, null, 2);
 
   let needsWrite = true;

@@ -1,3 +1,9 @@
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 // AUDITARIA_CODEX_PROVIDER: Codex-specific JSONL event types (codex exec --json)
 
 import type {
@@ -123,6 +129,7 @@ export interface CodexDriverConfig {
   toolBridgePort?: number;
   toolBridgeScript?: string;
   toolBridgeExclude?: string[]; // AUDITARIA_AGENT_SESSION: Tools to exclude from MCP bridge
+  toolBridgeCallId?: string; // AUDITARIA_WORKFLOW: per-call StructuredOutput correlation id
   reasoningEffort?: CodexReasoningEffort;
   codexConfigHome?: string; // AUDITARIA_AGENT_SESSION: Custom config directory (isolates concurrent instances)
   sandboxMode?: string; // AUDITARIA_AGENT_SESSION: 'danger-full-access' (default) | 'workspace-read-only' (consult)

@@ -1,0 +1,103 @@
+/* WEB_INTERFACE_FEATURE: live workflow tool card */
+
+.workflow-tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, rgba(128, 128, 128, 0.35));
+  border-radius: 8px;
+  background: var(--bg-secondary, rgba(128, 128, 128, 0.08));
+  font-size: 13px;
+}
+
+.workflow-tool-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.workflow-tool-card-glyph {
+  color: var(--accent-color, #7c8cff);
+}
+
+.workflow-tool-card-title {
+  font-weight: 600;
+}
+
+.workflow-tool-card-meta,
+.workflow-tool-card-log {
+  color: var(--text-secondary, #8a8f98);
+}
+
+.workflow-tool-card-status {
+  font-weight: 500;
+}
+
+.workflow-tool-card-status[data-status='completed'] {
+  color: var(--success-color, #3fb950);
+}
+
+.workflow-tool-card-status[data-status='failed'],
+.workflow-tool-card-status[data-status='killed'] {
+  color: var(--error-color, #f85149);
+}
+
+.workflow-tool-card-phase {
+  margin-top: 2px;
+  color: var(--text-secondary, #8a8f98);
+}
+
+.workflow-tool-card-agent {
+  padding-left: 14px;
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workflow-tool-card-agent[data-state='done'] .workflow-tool-card-agent-glyph {
+  color: var(--success-color, #3fb950);
+}
+
+.workflow-tool-card-agent[data-state='error'] .workflow-tool-card-agent-glyph {
+  color: var(--error-color, #f85149);
+}
+
+.workflow-tool-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.workflow-tool-card-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, rgba(128, 128, 128, 0.35));
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.workflow-tool-card-btn:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.workflow-tool-card-error {
+  color: var(--error-color, #f85149);
+  white-space: pre-wrap;
+}
+
+.workflow-tool-card-result {
+  max-height: 160px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(128, 128, 128, 0.12);
+  font-size: 12px;
+}

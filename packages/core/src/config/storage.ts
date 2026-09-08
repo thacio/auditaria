@@ -389,6 +389,12 @@ export class Storage {
     return path.join(this.getProjectTempDir(), 'plans');
   }
 
+  // AUDITARIA_WORKFLOW: deliberately NOT session-scoped so a run can be resumed
+  // from a later CLI session (see packages/core/src/workflow/workflowPaths.ts).
+  getProjectTempWorkflowsDir(): string {
+    return path.join(this.getProjectTempDir(), 'workflows');
+  }
+
   getProjectTempTrackerDir(): string {
     if (this.sessionId) {
       return path.join(this.getProjectTempDir(), this.sessionId, 'tracker');

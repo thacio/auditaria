@@ -13,6 +13,7 @@ export interface BridgeableToolSchema {
 export interface ToolExecuteRequest {
   tool: string;
   params: Record<string, unknown>;
+  callId?: string; // AUDITARIA_WORKFLOW: the bridge's --call-id, for StructuredOutput
 }
 
 export interface ToolExecuteResponse {

@@ -303,6 +303,7 @@ export interface CopilotDriverConfig {
   toolBridgePort?: number;
   toolBridgeScript?: string;
   toolBridgeExclude?: string[];
+  toolBridgeCallId?: string; // AUDITARIA_WORKFLOW: per-call StructuredOutput correlation id
   promptFileId?: string;
   // AUDITARIA_PROVIDER_TERMINAL: PTY-driver additions. mirrorPty=false keeps
   // headless drivers (sub-agents, Teams threads) off the web terminal.

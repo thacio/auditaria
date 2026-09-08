@@ -1269,6 +1269,25 @@ Logging in with Google... Restarting Gemini CLI to continue.
     };
   }, [config]);
 
+  // AUDITARIA_WORKFLOW_START: a finished workflow's <task-notification> is
+  // queued here and submitted as a turn at the next idle boundary (ungated —
+  // unlike model steering — and delivered to whichever provider is active
+  // because submitQuery goes through the provider interception).
+  const pendingWorkflowRef = useRef<string[]>([]);
+  const [pendingWorkflowCount, setPendingWorkflowCount] = useState(0);
+  useEffect(() => {
+    const listener = (text: string, source: InjectionSource) => {
+      if (source !== 'workflow_notification') return;
+      pendingWorkflowRef.current.push(text);
+      setPendingWorkflowCount((prev) => prev + 1);
+    };
+    config.injectionService.onInjection(listener);
+    return () => {
+      config.injectionService.offInjection(listener);
+    };
+  }, [config]);
+  // AUDITARIA_WORKFLOW_END
+
   const streamAgent = useMemo(
     () =>
       config?.getAgentSessionInteractiveEnabled()
@@ -2782,6 +2801,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     const service = webInterface?.service;
     if (!service) return;
     service.setArtifactService(config.getArtifactService());
+    service.setWorkflowService(config.getWorkflowService()); // AUDITARIA_WORKFLOW
     const onNotice = (text: string) => {
       historyManager.addItem({ type: MessageType.INFO, text }, Date.now());
     };
@@ -3537,6 +3557,62 @@ Logging in with Google... Restarting Gemini CLI to continue.
     pendingHistoryItems,
     pendingHintCount,
   ]);
+
+  // AUDITARIA_WORKFLOW_START: deliver queued workflow notifications at a
+  // genuine turn boundary (idle UI, no live external-provider turn, no tool
+  // awaiting confirmation, no compress/forget in flight); mark turn starts so
+  // budget.spent() is turn-relative; surface human-facing notices as INFO.
+  useEffect(() => {
+    if (
+      !isConfigInitialized ||
+      streamingState !== StreamingState.Idle ||
+      !isMcpReady ||
+      isToolAwaitingConfirmation(pendingHistoryItems) ||
+      pendingWorkflowRef.current.length === 0
+    ) {
+      return;
+    }
+    if (config.getProviderManager()?.isTurnActive?.()) return;
+    if (config.getWorkflowService().isHeld) return;
+    const text = pendingWorkflowRef.current.join('\n\n');
+    pendingWorkflowRef.current = [];
+    setPendingWorkflowCount(0);
+    // The model gets the full <task-notification>; the transcript shows one line.
+    const summaries = [...text.matchAll(/<summary>([^<]*)<\/summary>/g)].map(
+      (m) => m[1],
+    );
+    const displayText = `⧉ ${summaries.join(' · ') || 'Workflow finished'} — result delivered to the model`;
+    void submitQuery([{ text }], { isContinuation: false, displayText });
+  }, [
+    config,
+    isConfigInitialized,
+    isMcpReady,
+    streamingState,
+    submitQuery,
+    pendingHistoryItems,
+    pendingWorkflowCount,
+  ]);
+  const wasIdleRef = useRef(true);
+  useEffect(() => {
+    const idle = streamingState === StreamingState.Idle;
+    if (wasIdleRef.current && !idle)
+      config.getWorkflowService().markTurnStart();
+    wasIdleRef.current = idle;
+  }, [config, streamingState]);
+  useEffect(() => {
+    const service = config.getWorkflowService();
+    const onNotice = (notice: { text: string }) => {
+      historyManager.addItem(
+        { type: MessageType.INFO, text: notice.text },
+        Date.now(),
+      );
+    };
+    service.on('notice', onNotice);
+    return () => {
+      service.off('notice', onNotice);
+    };
+  }, [config, historyManager]);
+  // AUDITARIA_WORKFLOW_END
 
   const allToolCalls = useMemo(
     () => getAllToolCalls(pendingHistoryItems),

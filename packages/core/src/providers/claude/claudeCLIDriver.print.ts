@@ -3,18 +3,20 @@
  * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  *
- * PRESERVED LEGACY DRIVER — NOT IMPORTED ANYWHERE.
+ * HEADLESS DRIVER — the promptless form of Claude used for workflow
+ * sub-agents (packages/core/src/workflow/) via providers/driverFactory.ts.
+ * The main session keeps the interactive PTY driver (claudeCLIDriver.ts).
  *
  * This is the original `claude -p` (print mode) driver, kept for historical
  * reference and as a rescue fallback. It is NOT registered with the provider
  * manager — see `claudeCLIDriver.ts` for the active interactive-mode driver.
  *
- * Why preserved: starting 2026-06-15, Anthropic bills `claude -p` (and any
- * invocation that sets `CLAUDE_CODE_ENTRYPOINT=sdk-cli`) against a separate
- * Agent SDK credit cap ($20-$200/mo depending on plan) instead of the
- * subscription's interactive limits. Interactive Claude Code in a real TTY
- * continues to use subscription limits. The active driver spawns Claude
- * inside a PTY (no -p flag, real TTY) so usage stays on the interactive pool.
+ * Billing note (verified 2026-09-05, Anthropic support article 15036540):
+ * the announced 2026-06-15 split of `claude -p` / Agent SDK usage into a
+ * separate credit pool was PAUSED before taking effect — `claude -p` still
+ * draws on the subscription's usage limits. The main session nevertheless
+ * keeps the interactive PTY driver for its richer UX (web terminal mirror,
+ * AskUserQuestion, TUI slash commands).
  *
  * Class is renamed to `ClaudeCLIDriverPrint` so it stays compiling without
  * colliding with the active class name.
@@ -234,6 +236,17 @@ export class ClaudeCLIDriverPrint implements ProviderDriver {
       args.push('--model', this.config.model);
     }
 
+    // AUDITARIA_WORKFLOW: reasoning effort (`ultra` is the interactive-only
+    // ultracode mode; the flag itself tops out at max).
+    if (this.config.reasoningEffort) {
+      args.push(
+        '--effort',
+        this.config.reasoningEffort === 'ultra'
+          ? 'max'
+          : this.config.reasoningEffort,
+      );
+    }
+
     const sessionId = this.sessionManager.getSessionId();
     dbg('buildArgs sessionId:', sessionId || '(none - new session)');
     if (sessionId) {
@@ -302,6 +315,10 @@ export class ClaudeCLIDriverPrint implements ProviderDriver {
       // AUDITARIA_AGENT_SESSION: Append --exclude flags for tool filtering
       for (const name of this.config.toolBridgeExclude ?? []) {
         bridgeArgs.push('--exclude', name);
+      }
+      // AUDITARIA_WORKFLOW: per-call StructuredOutput schema correlation
+      if (this.config.toolBridgeCallId) {
+        bridgeArgs.push('--call-id', this.config.toolBridgeCallId);
       }
       claudeMcpServers['auditaria-tools'] = {
         type: 'stdio',

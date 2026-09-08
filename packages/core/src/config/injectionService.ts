@@ -12,7 +12,10 @@
 
 import { debugLogger } from '../utils/debugLogger.js';
 
-export type InjectionSource = 'user_steering' | 'background_completion';
+export type InjectionSource =
+  | 'user_steering'
+  | 'background_completion'
+  | 'workflow_notification'; // AUDITARIA_WORKFLOW: a finished workflow's <task-notification>, always accepted
 
 /**
  * Typed listener that receives both the injection text and its source.

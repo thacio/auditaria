@@ -54,6 +54,8 @@ export interface AgyDriverConfig {
   toolBridgeScript?: string;
   /** Tool names to hide from the bridge (sub-agent recursion / consult mode). */
   toolBridgeExclude?: string[];
+  /** AUDITARIA_WORKFLOW: per-call StructuredOutput correlation id. */
+  toolBridgeCallId?: string;
   /** Unique id for an isolated system-prompt file (sub-agents only). */
   promptFileId?: string;
   // AUDITARIA_PROVIDER_TERMINAL: PTY-driver addition. mirrorPty=false keeps

@@ -25,8 +25,12 @@ import {
   tryParseBrowserStepDisplay,
 } from './BrowserStepDisplay.js';
 // AUDITARIA_ARTIFACTS_START: publish result card
-import { tryParseArtifactDisplay } from '@google/gemini-cli-core';
+import {
+  tryParseArtifactDisplay,
+  tryParseWorkflowDisplay, // AUDITARIA_WORKFLOW
+} from '@google/gemini-cli-core';
 import { ArtifactCardDisplay } from './ArtifactCardDisplay.js';
+import { WorkflowCardDisplay } from './WorkflowCardDisplay.js'; // AUDITARIA_WORKFLOW
 // AUDITARIA_ARTIFACTS_END
 import { tryParseJSON } from '../../../utils/jsonoutput.js';
 import { useAlternateBuffer } from '../../hooks/useAlternateBuffer.js';
@@ -107,10 +111,13 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
 
     // AUDITARIA_ARTIFACTS: artifact card sentinel, before the JSON pretty-print
     const artifactData = tryParseArtifactDisplay(contentData);
+    const workflowData = tryParseWorkflowDisplay(contentData); // AUDITARIA_WORKFLOW
     // AUDITARIA: Check browser step data FIRST (before other checks)
     const browserStepData = tryParseBrowserStepDisplay(contentData);
     if (artifactData) {
       content = <ArtifactCardDisplay data={artifactData} />; // AUDITARIA_ARTIFACTS
+    } else if (workflowData) {
+      content = <WorkflowCardDisplay data={workflowData} />; // AUDITARIA_WORKFLOW
     } else if (browserStepData) {
       content = (
         <BrowserStepDisplay data={browserStepData} maxWidth={childWidth} />

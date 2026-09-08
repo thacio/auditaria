@@ -16,6 +16,7 @@ import {
   type ToolConfirmationOutcome,
   type ToolConfirmationPayload,
   type ArtifactService, // AUDITARIA_ARTIFACTS
+  type WorkflowService, // AUDITARIA_WORKFLOW
 } from '@google/gemini-cli-core';
 import type {
   ConsoleMessageItem,
@@ -60,6 +61,7 @@ import { FileBrowserFeature } from './features/FileBrowserFeature.js';
 import { KnowledgeBaseFeature } from './features/KnowledgeBaseFeature.js';
 import { ProviderTerminalFeature } from './features/ProviderTerminalFeature.js';
 import { ArtifactsFeature } from './features/ArtifactsFeature.js'; // AUDITARIA_ARTIFACTS
+import { WorkflowFeature } from './features/WorkflowFeature.js'; // AUDITARIA_WORKFLOW
 
 export interface WebInterfaceStatus {
   isRunning: boolean;
@@ -146,6 +148,13 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
   }
   // AUDITARIA_ARTIFACTS_END
 
+  // AUDITARIA_WORKFLOW_START: live workflow runs for the web client
+  private workflowService: WorkflowService | null = null;
+  setWorkflowService(service: WorkflowService): void {
+    this.workflowService = service;
+  }
+  // AUDITARIA_WORKFLOW_END
+
   // ---------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------
@@ -221,6 +230,10 @@ export class WebInterfaceService extends EventEmitter<WebInterfaceEventMap> {
             notify: (text) => this.emit('artifact_notice', text),
           }),
         );
+      }
+      // AUDITARIA_WORKFLOW: live run list + controls
+      if (this.workflowService) {
+        features.push(new WorkflowFeature(this.workflowService));
       }
       for (const feature of features) {
         await feature.attach(ctx);

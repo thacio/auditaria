@@ -372,6 +372,10 @@ export class CodexCLIDriver implements ProviderDriver {
       for (const name of this.config.toolBridgeExclude ?? []) {
         bridgeArgs.push(`"--exclude"`, `"${name}"`);
       }
+      // AUDITARIA_WORKFLOW: per-call StructuredOutput schema correlation
+      if (this.config.toolBridgeCallId) {
+        bridgeArgs.push(`"--call-id"`, `"${this.config.toolBridgeCallId}"`);
+      }
       mcpLines.push('[mcp_servers.auditaria-tools]');
       mcpLines.push(`command = "${nodePath}"`);
       mcpLines.push(`args = [${bridgeArgs.join(', ')}]`);

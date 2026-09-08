@@ -580,3 +580,26 @@ export {
   parseAgyModelsOutput,
 } from './providers/agy/agyModelCatalog.js';
 export type { AgyModelEntry } from './providers/agy/agyModelCatalog.js';
+
+// AUDITARIA_WORKFLOW_START
+export { WorkflowService } from './workflow/workflowService.js';
+export type {
+  WorkflowNotice,
+  WorkflowServiceEvents,
+} from './workflow/workflowService.js';
+export type {
+  WorkflowRunRecord,
+  WorkflowRunSummary,
+} from './workflow/taskRegistry.js';
+export type {
+  WorkflowMeta,
+  WorkflowProgressEvent,
+  WorkflowRunStatus,
+  WorkflowRunState,
+} from './workflow/types.js';
+export { readJournalLines } from './workflow/journal.js';
+export { tryParseWorkflowDisplay } from './workflow/display.js';
+export { parseWorkflowMeta } from './workflow/scriptParser.js';
+export { savedWorkflowDir } from './workflow/namedWorkflows.js';
+export type { WorkflowDisplayData } from './workflow/display.js';
+// AUDITARIA_WORKFLOW_END

@@ -65,6 +65,7 @@ import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import { getCurrentLanguage } from '../i18n/index.js'; // AUDITARIA_LANGUAGE - Auditaria Custom Feature
 import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 import { preflightActiveProvider } from '../providers/providerPreflight.js'; // AUDITARIA_PROVIDER_ONLY
+import { applyUltracodeReminders } from '../workflow/ultracode.js'; // AUDITARIA_WORKFLOW
 import {
   applyModelSelection,
   createAvailabilityContextProvider,
@@ -961,6 +962,11 @@ export class GeminiClient {
       return new Turn(this.getChat(), prompt_id);
     }
     // AUDITARIA_PROVIDER_ONLY_END
+
+    // AUDITARIA_WORKFLOW_START: ultracode reminders + "+Nk" budget directive
+    // ride the user turn for every provider (before the interception below).
+    request = applyUltracodeReminders(this.config, request);
+    // AUDITARIA_WORKFLOW_END
 
     if (providerManager?.isExternalProviderActive()) {
       // AUDITARIA_COLLABORATIVE_WRITING: Check for external file changes before sending to provider

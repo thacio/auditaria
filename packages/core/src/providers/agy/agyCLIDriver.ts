@@ -281,6 +281,10 @@ export function mergeAgyMcpConfig(config: AgyDriverConfig): boolean {
     for (const name of config.toolBridgeExclude ?? []) {
       bridgeArgs.push('--exclude', name);
     }
+    // AUDITARIA_WORKFLOW: per-call StructuredOutput schema correlation
+    if (config.toolBridgeCallId) {
+      bridgeArgs.push('--call-id', config.toolBridgeCallId);
+    }
     root.mcpServers[MCP_BRIDGE_KEY] = {
       command: process.execPath,
       args: bridgeArgs,

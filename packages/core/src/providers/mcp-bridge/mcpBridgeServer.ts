@@ -37,6 +37,14 @@ if (portIdx === -1 || !process.argv[portIdx + 1]) {
 const PORT = process.argv[portIdx + 1];
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+// AUDITARIA_WORKFLOW: --call-id correlates this bridge with one workflow
+// agent() call so the executor serves that call's StructuredOutput schema.
+const callIdIdx = process.argv.indexOf('--call-id');
+const CALL_ID =
+  callIdIdx !== -1 && process.argv[callIdIdx + 1]
+    ? process.argv[callIdIdx + 1]
+    : undefined;
+
 // AUDITARIA_AGENT_SESSION: Parse --exclude args (can appear multiple times)
 const excludeSet = new Set<string>();
 for (let i = 0; i < process.argv.length; i++) {
@@ -47,9 +55,12 @@ for (let i = 0; i < process.argv.length; i++) {
 
 // Fetch tool definitions from Auditaria's tool executor
 async function fetchTools(): Promise<BridgeableToolSchema[]> {
-  const res = await undiciFetch(`${BASE_URL}/tools`, {
-    dispatcher: longLivedDispatcher,
-  });
+  const res = await undiciFetch(
+    `${BASE_URL}/tools${CALL_ID ? `?callId=${encodeURIComponent(CALL_ID)}` : ''}`, // AUDITARIA_WORKFLOW
+    {
+      dispatcher: longLivedDispatcher,
+    },
+  );
   if (!res.ok)
     throw new Error(`Failed to fetch tools: ${res.status} ${res.statusText}`);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- API contract
@@ -68,7 +79,7 @@ async function executeTool(
   const res = await undiciFetch(`${BASE_URL}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tool: toolName, params }),
+    body: JSON.stringify({ tool: toolName, params, callId: CALL_ID }), // AUDITARIA_WORKFLOW
     dispatcher: longLivedDispatcher,
   });
   if (!res.ok)

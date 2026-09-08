@@ -1855,6 +1855,98 @@ Optionally run `npm run lint && npm run typecheck` for full verification.
 - **Code Marking**: `// AUDITARIA_ARTIFACTS` or `_START/_END` blocks in
   cli/core; new web files carry the `WEB_INTERFACE_FEATURE` header.
 
+### 25. Workflows (Claude-Code-compatible multi-agent orchestration, every provider)
+
+- **Implementation**: the `workflow` tool clones Claude Code's Workflow tool
+  1:1 at the observable level — same script contract (`export const meta`
+  first, plain JS body with `agent/parallel/pipeline/phase/log/workflow/args/
+  budget`), same caps, determinism guards, null/throw rules and error
+  strings, same background launch + `<task-notification>` completion, same
+  journal/resume semantics — so a script written for either host runs on the
+  other. Sub-agents run through EVERY provider's promptless form. User docs:
+  `docs/workflows.md`. Research, plans, refutations and the implementation
+  log: `.auditaria/workflow-research/` (`10-empirical-probes.md` = what
+  Claude Code verifiably does, `12-final-plan.md` = the plan,
+  `13-implementation-log.md` = what shipped and what was learned).
+- **Core module** `packages/core/src/workflow/`: `scriptParser.ts` (acorn:
+  meta pure-literal, AST determinism scan, forbidden syntax, async-IIFE
+  wrap), `sandbox.ts` (`node:vm` context, `codeGeneration:{strings:false}`,
+  in-realm Date/Math shims, pruned globals, realm-correct errors),
+  `hostApi.ts` (the six globals + budget; `AsyncLocalStorage` carries each
+  `parallel`/`pipeline` branch's forked hash chain so keys never depend on
+  completion order; FIFO slot pool `min(16, cpus-2)`, 1000-call and 4096-item
+  caps), `journal.ts` (append-only fsync'd JSONL, Claude's chained keys +
+  `chainBroken` resume rule), `subagentRunner.ts` (Gemini leaf via
+  `LocalAgentExecutor` with a fresh ALLOW-policy MessageBus; external leaves
+  via `providers/driverFactory.ts` `headless` style — `claude -p` print
+  driver, `codex exec`, Copilot ACP, `agy --print`; usage accounting; agy and
+  Codex serialized; `modelAliases.ts` maps haiku/sonnet/opus-style names to
+  the pinned provider's tier), `structuredOutputTool.ts` (per-call
+  `StructuredOutput` registry: the MCP bridge is spawned with `--call-id` and
+  the executor serves THAT call's schema, injecting the hidden `__callId`;
+  Gemini leaves get a per-leaf instance), `workflowService.ts` (per-Config
+  facade: launch/resume with an atomic `lease.json`, registry, state.json,
+  `.output`, notification queue → `InjectionService('workflow_notification')`,
+  turn budget, ultracode state), `namedWorkflows.ts` + `builtin/deepResearch.ts`,
+  `notification.ts`, `taskRegistry.ts`, `toolDescription.ts` (size guideline
+  sentence), `ultracode.ts` (keyword / session reminders + `+Nk` directive,
+  applied in `client.sendMessageStream` for every provider), `errors.ts`.
+  Tool: `tools/workflow.ts` (`Kind.Other`, Bridgeable; actions run/stop/
+  status/list; review dialog "Review dynamic workflow before running").
+  Skill: `skills/builtin/workflow-authoring/SKILL.md`.
+- **Storage**: `<projectTempDir>/workflows/{runs/<runId>/{journal.jsonl,
+  state.json, lease.json, agents/}, scripts/, tasks/}` — project-scoped (NOT
+  session-scoped) so a run resumes from a later session.
+- **Delivery**: `AppContainer.tsx` consumes `workflow_notification`
+  injections at an idle boundary (UI idle, no live provider turn, no tool
+  awaiting confirmation) via `submitQuery`, which reaches Gemini AND every
+  external orchestrator through the provider interception; INFO notices are
+  immediate. The Claude PTY orchestrator passes `--disallowedTools Workflow`
+  while our tool is enabled (verified live: without it Claude runs its native
+  Workflow tool instead of ours); Claude leaves get Workflow/Agent/Task
+  disallowed. The run's provider is pinned at launch from the ProviderManager
+  config (`claude-cli` → `claude`, …), not from `config.getModel()`.
+- **UIs**: CLI live card `WorkflowCardDisplay.tsx` (subscribes to the
+  registry) dispatched from `ToolResultDisplay.tsx`; `/workflows`
+  (`ui/commands/workflowsCommand.ts`: list/status/stop/resume/open/save/
+  ultracode); web `services/web/features/WorkflowFeature.ts`
+  (`workflow_list`/`workflow_event`, `workflow_list_request`/
+  `workflow_update_request`) + `web-client/src/workflows/WorkflowsManager.js`
+  + a live card in `ToolRenderer.js` (`styles/workflows.css`).
+- **Settings** (`settingsSchema.ts`, category Workflows → core
+  `WorkflowSettings`): `workflows.enabled`, `sizeGuideline`,
+  `keywordTriggerEnabled`, `ultracode`, `skipUsageWarning`. Env:
+  `AUDITARIA_DISABLE_WORKFLOW`, `AUDITARIA_WORKFLOW_NAME_ONLY`,
+  `MAX_STRUCTURED_OUTPUT_RETRIES`, `AUDITARIA_WORKFLOW_LEASE_STALENESS_MS`,
+  `AUDITARIA_WORKFLOW_SIZE_GUIDELINE`.
+- **Files Modified** (minimal, marked `// AUDITARIA_WORKFLOW` / `_START/_END`):
+  `core/tools/tool-names.ts`, `core/config/config.ts` (service, settings,
+  registration, shutdown pause), `core/config/storage.ts`
+  (`getProjectTempWorkflowsDir`), `core/config/injectionService.ts` (source
+  union), `core/core/client.ts` (ultracode hook), `core/providers/
+  agent-session-manager.ts` (drivers via `driverFactory`, `getToolBridge()`,
+  `workflow` excluded), `core/providers/claude/claudeCLIDriver.ts`
+  (`--disallowedTools Workflow`), `claudeCLIDriver.print.ts` (re-activated:
+  `--effort`, `--call-id`), `codex/codexCLIDriver.ts`, `copilot/shared.ts`,
+  `agy/agyCLIDriver.ts` (`--call-id`), `mcp-bridge/{mcpBridgeServer,
+  toolExecutorServer,types}.ts` (per-call schema), driver `types.ts` files
+  (`toolBridgeCallId`), `core/index.ts`; `cli/config/{settingsSchema,config}.ts`,
+  `cli/ui/AppContainer.tsx`, `cli/ui/components/messages/ToolResultDisplay.tsx`,
+  `cli/services/BuiltinCommandLoader.ts`, `cli/services/web/{WebInterfaceService,
+  protocol}.ts`; web-client `index.html`, `client.js`, `ToolRenderer.js`.
+  New dependency: `acorn` (core).
+- **Tests**: `core/src/workflow/*.test.ts` (80: parser, sandbox, journal,
+  hostApi, runner with fake drivers, service integration, structured output,
+  aliases, ultracode); live e2e scripts in the session scratchpad drive the
+  bundled app in a PTY over the web WebSocket with a Claude Haiku
+  orchestrator and Haiku leaves (launch → leaves → notification → reply,
+  journal/state on disk).
+- **Known gaps / follow-ups**: per-call `CODEX_HOME` isolation (Codex leaves
+  serialized instead); agy `--effort` unverified (effort maps onto model tier
+  ids); notifications for runs launched from Telegram/Discord/Teams turns go
+  to the CLI/web session; orphan-process sweep and the `/workflows` Ink picker
+  are not built; the web gallery panel is the live card only.
+
 ## Web Interface Code Marking System
 
 To facilitate merges with upstream and potential feature removal, all web

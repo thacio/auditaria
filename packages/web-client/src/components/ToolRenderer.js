@@ -331,6 +331,12 @@ function createToolOutput(tool) {
       toolOutputEl.appendChild(renderArtifactCard(artifactData.artifact));
       return toolOutputEl;
     }
+    // Workflow launch card ({"workflow": {...}} sentinel) — updates live
+    const workflowData = tryParseWorkflowDisplay(outputContent);
+    if (workflowData) {
+      toolOutputEl.appendChild(renderWorkflowCard(workflowData.workflow));
+      return toolOutputEl;
+    }
     // AUDITARIA: Check for browser step display data (JSON string)
     const browserStepData = tryParseBrowserStepDisplay(outputContent);
     console.log(
@@ -670,6 +676,139 @@ function renderArtifactCard(artifact) {
     actions.appendChild(note);
   }
   card.appendChild(actions);
+  return card;
+}
+
+// Workflow tool card: {"workflow": {...}} sentinel emitted by the workflow tool
+function tryParseWorkflowDisplay(input) {
+  if (typeof input !== 'string' || !input.startsWith('{"workflow"'))
+    return null;
+  try {
+    const parsed = JSON.parse(input);
+    return parsed && parsed.workflow && parsed.workflow.runId ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function workflowStatusLabel(run) {
+  if (!run) return 'Running in background · /workflows to monitor';
+  if (run.status === 'running') {
+    return `Running in background · ${run.agentsDone}/${run.agentCount} agents · ${run.totalTokens.toLocaleString()} tokens`;
+  }
+  const secs = Math.round(((run.endTime || Date.now()) - run.startTime) / 1000);
+  return `${run.status[0].toUpperCase()}${run.status.slice(1)} in ${secs}s · ${run.agentsDone}/${run.agentCount} agents · ${run.totalTokens.toLocaleString()} tokens`;
+}
+
+function renderWorkflowCardBody(body, workflow, run) {
+  body.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'workflow-tool-card-head';
+  head.innerHTML = `<span class="workflow-tool-card-glyph">⧉</span> <span class="workflow-tool-card-title">${escapeHtml(workflow.name)}</span> <span class="workflow-tool-card-meta">· ${workflow.resumed ? 'resumed ' : ''}task ${escapeHtml(workflow.taskId)}${run ? ' · ' + escapeHtml(run.provider) : ''}</span>`;
+  body.appendChild(head);
+  const status = document.createElement('div');
+  status.className = 'workflow-tool-card-status';
+  status.dataset.status = run ? run.status : 'running';
+  status.textContent = workflowStatusLabel(run);
+  body.appendChild(status);
+  if (workflow.description) {
+    const desc = document.createElement('div');
+    desc.className = 'workflow-tool-card-meta';
+    desc.textContent = workflow.description;
+    body.appendChild(desc);
+  }
+  if (run) {
+    const agents = run.progress.filter((e) => e.type === 'workflow_agent');
+    for (const phase of run.progress.filter(
+      (e) => e.type === 'workflow_phase',
+    )) {
+      const ph = document.createElement('div');
+      ph.className = 'workflow-tool-card-phase';
+      ph.textContent = (phase.kind === 'child' ? '' : '▸ ') + phase.title;
+      body.appendChild(ph);
+      for (const a of agents
+        .filter((x) => x.phaseIndex === phase.index)
+        .slice(-12)) {
+        const row = document.createElement('div');
+        row.className = 'workflow-tool-card-agent';
+        row.dataset.state = a.state;
+        const glyph = a.cached
+          ? '↺'
+          : a.state === 'done'
+            ? '✓'
+            : a.state === 'error'
+              ? '✗'
+              : a.state === 'progress'
+                ? '◐'
+                : '○';
+        const bits = [
+          a.model,
+          a.tokens ? `${a.tokens.toLocaleString()} tok` : '',
+          a.state === 'progress' && a.lastToolName
+            ? `${a.lastToolName}${a.lastToolSummary ? ': ' + a.lastToolSummary : ''}`
+            : '',
+          a.error ? a.error.slice(0, 80) : '',
+        ].filter(Boolean);
+        row.innerHTML = `<span class="workflow-tool-card-agent-glyph">${glyph}</span><span>${escapeHtml(a.label || a.promptPreview)}</span><span class="workflow-tool-card-meta">${escapeHtml(bits.join(' · '))}</span>`;
+        body.appendChild(row);
+      }
+    }
+    for (const line of (run.logs || []).slice(-4)) {
+      const l = document.createElement('div');
+      l.className = 'workflow-tool-card-log';
+      l.textContent = '› ' + line;
+      body.appendChild(l);
+    }
+    if (run.error && run.status !== 'running') {
+      const err = document.createElement('div');
+      err.className = 'workflow-tool-card-error';
+      err.textContent = run.error;
+      body.appendChild(err);
+    }
+    if (run.status === 'completed' && run.result !== undefined) {
+      const pre = document.createElement('pre');
+      pre.className = 'workflow-tool-card-result';
+      const text = JSON.stringify(run.result, null, 2);
+      pre.textContent = text.length > 2000 ? text.slice(0, 2000) + '…' : text;
+      body.appendChild(pre);
+    }
+    if (run.status === 'running') {
+      const actions = document.createElement('div');
+      actions.className = 'workflow-tool-card-actions';
+      const stop = document.createElement('button');
+      stop.className = 'workflow-tool-card-btn';
+      stop.textContent = 'Stop';
+      stop.addEventListener('click', () => {
+        document.dispatchEvent(
+          new CustomEvent('auditaria-workflow-update', {
+            detail: { op: 'stop', id: run.runId },
+          }),
+        );
+      });
+      actions.appendChild(stop);
+      body.appendChild(actions);
+    }
+  }
+}
+
+function renderWorkflowCard(workflow) {
+  const card = document.createElement('div');
+  card.className = 'workflow-tool-card';
+  card.dataset.runId = workflow.runId;
+  const known = window.auditariaWorkflowRuns
+    ? window.auditariaWorkflowRuns.find((r) => r.runId === workflow.runId)
+    : undefined;
+  renderWorkflowCardBody(card, workflow, known);
+  const onList = (event) => {
+    const runs = Array.isArray(event.detail) ? event.detail : [];
+    window.auditariaWorkflowRuns = runs;
+    const run = runs.find((r) => r.runId === workflow.runId);
+    if (run) renderWorkflowCardBody(card, workflow, run);
+    if (!card.isConnected && run && run.status !== 'running') {
+      document.removeEventListener('auditaria-workflow-list', onList);
+    }
+  };
+  document.addEventListener('auditaria-workflow-list', onList);
   return card;
 }
 

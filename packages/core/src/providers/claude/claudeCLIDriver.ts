@@ -809,8 +809,19 @@ export class ClaudeCLIDriver
     }
 
     // AUDITARIA_TOOL_RESTRICTION
-    if (this.config.disallowedTools?.length) {
-      args.push('--disallowedTools', this.config.disallowedTools.join(','));
+    // AUDITARIA_WORKFLOW_START: while Auditaria's `workflow` tool is enabled,
+    // Claude Code's native Workflow tool is disallowed so the model orchestrates
+    // through Auditaria (any provider's leaves, /workflows, journal, resume).
+    const disallowedTools = [...(this.config.disallowedTools ?? [])];
+    if (
+      process.env['AUDITARIA_DISABLE_WORKFLOW'] !== '1' &&
+      !disallowedTools.includes('Workflow')
+    ) {
+      disallowedTools.push('Workflow');
+    }
+    // AUDITARIA_WORKFLOW_END
+    if (disallowedTools.length) {
+      args.push('--disallowedTools', disallowedTools.join(','));
     }
 
     // AUDITARIA_CLAUDE_PROVIDER: MCP server passthrough

@@ -38,6 +38,7 @@ import { detectLanguage } from './utils/languageDetection.js';
 import { KnowledgeBaseManager } from './knowledge-base/KnowledgeBaseManager.js';
 import { ArtifactsManager } from './artifacts/ArtifactsManager.js';
 import { ArtifactsPanel } from './artifacts/ArtifactsPanel.js';
+import { WorkflowsManager } from './workflows/WorkflowsManager.js';
 
 // Arcade Mini-Games
 import { GamesPanel } from './components/GamesPanel.js';
@@ -71,6 +72,7 @@ class AuditariaWebClient {
     this.knowledgeBaseManager = new KnowledgeBaseManager(this.wsManager);
     this.artifactsManager = new ArtifactsManager(this.wsManager);
     this.artifactsPanel = new ArtifactsPanel(this.artifactsManager);
+    this.workflowsManager = new WorkflowsManager(this.wsManager);
 
     // Initialize Arcade mini-games
     this.gamesPanel = new GamesPanel();

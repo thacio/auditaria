@@ -130,6 +130,12 @@ import { ArtifactTool } from '../tools/artifact.js';
 import { ArtifactService } from '../artifacts/artifactService.js';
 import { createSampler } from '../artifacts/sampleExecutor.js';
 // AUDITARIA_ARTIFACTS_END
+// AUDITARIA_WORKFLOW_START: workflow tool + per-process service
+import { WorkflowTool } from '../tools/workflow.js';
+import { WorkflowService } from '../workflow/workflowService.js';
+import { StructuredOutputTool } from '../workflow/structuredOutputTool.js';
+import type { WorkflowSettings } from '../workflow/types.js';
+// AUDITARIA_WORKFLOW_END
 import { SessionRegistry } from '../providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 import { FileCheckpointManager } from '../file-checkpoints/index.js'; // AUDITARIA_REWIND
 import {
@@ -750,6 +756,7 @@ export interface ConfigParameters {
   enableHooksUI?: boolean;
   experiments?: Experiments;
   contextManagement?: Partial<ContextManagementConfig>;
+  workflows?: WorkflowSettings; // AUDITARIA_WORKFLOW
   hooks?: { [K in HookEventName]?: HookDefinition[] };
   disabledHooks?: string[];
   projectHooks?: { [K in HookEventName]?: HookDefinition[] };
@@ -860,6 +867,7 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly mcpPort: number | undefined; // AUDITARIA_EXPOSE_MCP
   private agentSessionManager_?: AgentSessionManager; // AUDITARIA_AGENT_SESSION
   private artifactService_?: ArtifactService; // AUDITARIA_ARTIFACTS
+  private workflowService_?: WorkflowService; // AUDITARIA_WORKFLOW
   private sessionRegistry_?: SessionRegistry; // AUDITARIA_SESSION_MANAGEMENT
   private providerAvailability: {
     claude: boolean;
@@ -1061,6 +1069,7 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly modelSteering: boolean;
   private memoryContextManager?: MemoryContextManager;
   private readonly contextManagement: ContextManagementConfig;
+  private readonly workflowSettings: WorkflowSettings; // AUDITARIA_WORKFLOW
   private terminalBackground: string | undefined = undefined;
   private remoteAdminSettings: AdminControlsSettings | undefined;
   private latestApiRequest: GenerateContentParameters | undefined;
@@ -1278,6 +1287,7 @@ export class Config implements McpContext, AgentLoopContext {
     this.experimentalContextManagementConfig =
       params.experimentalContextManagementConfig;
     this.memoryBoundaryMarkers = params.memoryBoundaryMarkers ?? ['.git'];
+    this.workflowSettings = params.workflows ?? {}; // AUDITARIA_WORKFLOW
     this.contextManagement = {
       enabled: params.contextManagement?.enabled ?? false,
       historyWindow: {
@@ -3405,6 +3415,28 @@ export class Config implements McpContext, AgentLoopContext {
   }
   // AUDITARIA_ARTIFACTS_END
 
+  // AUDITARIA_WORKFLOW_START: per-process workflow service (runs, journals, notifications)
+  getWorkflowService(): WorkflowService {
+    if (!this.workflowService_) {
+      this.workflowService_ = new WorkflowService(this);
+    }
+    return this.workflowService_;
+  }
+
+  /** The advisory agent-count guideline appended to the workflow tool description. */
+  getWorkflowSizeGuideline(): string | undefined {
+    return (
+      process.env['AUDITARIA_WORKFLOW_SIZE_GUIDELINE'] ||
+      this.workflowSettings.sizeGuideline ||
+      undefined
+    );
+  }
+
+  getWorkflowSettings(): WorkflowSettings {
+    return this.workflowSettings;
+  }
+  // AUDITARIA_WORKFLOW_END
+
   // AUDITARIA_AGENT_SESSION_START: Lazy-init agent session manager
   getAgentSessionManager(): AgentSessionManager {
     if (!this.agentSessionManager_) {
@@ -4681,6 +4713,20 @@ export class Config implements McpContext, AgentLoopContext {
       );
     }
     // AUDITARIA_ARTIFACTS_END
+    // AUDITARIA_WORKFLOW_START: workflow tool (disable with AUDITARIA_DISABLE_WORKFLOW=1)
+    if (
+      process.env['AUDITARIA_DISABLE_WORKFLOW'] !== '1' &&
+      this.workflowSettings.enabled !== false
+    ) {
+      maybeRegister(WorkflowTool, () =>
+        registry.registerTool(new WorkflowTool(this, this.messageBus)),
+      );
+      // Bridge-only: served to a workflow leaf's MCP bridge with that call's schema.
+      maybeRegister(StructuredOutputTool, () =>
+        registry.registerTool(new StructuredOutputTool(this.messageBus)),
+      );
+    }
+    // AUDITARIA_WORKFLOW_END
 
     if (this.isTrackerEnabled()) {
       maybeRegister(TrackerCreateTaskTool, () =>
@@ -4830,6 +4876,7 @@ export class Config implements McpContext, AgentLoopContext {
     this.logCurrentModeDuration(this.getApprovalMode());
     coreEvents.off(CoreEvent.AgentsRefreshed, this.onAgentsRefreshed);
     this.agentRegistry?.dispose();
+    void this.workflowService_?.pauseAllRunning(); // AUDITARIA_WORKFLOW: quietly pause running workflows
     this.agentSessionManager_?.disposeAll(); // AUDITARIA_AGENT_SESSION: Kill all sub-agent sessions
     this.sessionRegistry_?.dispose(); // AUDITARIA_SESSION_MANAGEMENT: Persist and clean up
     this.fileCheckpointManager_?.dispose(); // AUDITARIA_REWIND

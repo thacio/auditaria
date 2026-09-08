@@ -194,6 +194,10 @@ export const HIVE_CHECK_TOOL_NAME = 'hive_check';
 export const HIVE_FETCH_TOOL_NAME = 'hive_fetch';
 export const HIVE_OBJECT_TOOL_NAME = 'hive_object';
 
+// AUDITARIA_WORKFLOW - Auditaria Custom Feature
+export const WORKFLOW_TOOL_NAME = 'workflow';
+export const STRUCTURED_OUTPUT_TOOL_NAME = 'StructuredOutput';
+
 // AUDITARIA_ARTIFACTS - Auditaria Custom Feature
 export const ARTIFACT_TOOL_NAME = 'artifact';
 

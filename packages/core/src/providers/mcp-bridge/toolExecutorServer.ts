@@ -18,6 +18,21 @@ import type {
   ToolExecuteRequest,
   ToolExecuteResponse,
 } from './types.js';
+// AUDITARIA_WORKFLOW_START
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../tools/tool-names.js';
+import {
+  CALL_ID_PARAM,
+  bridgeSchemaFor,
+  structuredOutputSchemaFor,
+} from '../../workflow/structuredOutputTool.js';
+
+function readCallId(url: string | undefined): string | undefined {
+  const query = url?.split('?')[1];
+  if (!query) return undefined;
+  const value = new URLSearchParams(query).get('callId');
+  return value ?? undefined;
+}
+// AUDITARIA_WORKFLOW_END
 
 const BASE_PORT = 19751;
 const MAX_PORT_ATTEMPTS = 20;
@@ -204,8 +219,8 @@ export class ToolExecutorServer {
   }
 
   private handleRequest(req: IncomingMessage, res: ServerResponse): void {
-    if (req.method === 'GET' && req.url === '/tools') {
-      this.handleListTools(res);
+    if (req.method === 'GET' && req.url?.split('?')[0] === '/tools') {
+      this.handleListTools(res, readCallId(req.url)); // AUDITARIA_WORKFLOW
     } else if (req.method === 'POST' && req.url === '/execute') {
       this.handleExecuteTool(req, res);
     } else if (req.method === 'POST' && req.url === '/hook') {
@@ -266,8 +281,14 @@ export class ToolExecutorServer {
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
 
-  private handleListTools(res: ServerResponse): void {
-    const tools = this.getBridgeableTools();
+  private handleListTools(res: ServerResponse, callId?: string): void {
+    // AUDITARIA_WORKFLOW: StructuredOutput is served only to a bridge that
+    // names a workflow call with a registered schema — with THAT schema.
+    const schema = callId ? structuredOutputSchemaFor(callId) : undefined;
+    const tools = this.getBridgeableTools().flatMap((t) => {
+      if (t.name !== STRUCTURED_OUTPUT_TOOL_NAME) return [t];
+      return schema ? [{ ...t, inputSchema: bridgeSchemaFor(schema) }] : [];
+    });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(tools));
   }
@@ -299,7 +320,12 @@ export class ToolExecutorServer {
         return;
       }
 
-      const result = await this.executeTool(tool, request.params);
+      // AUDITARIA_WORKFLOW: hand the bridge's call id to StructuredOutput
+      const params =
+        request.callId && tool.name === STRUCTURED_OUTPUT_TOOL_NAME
+          ? { ...request.params, [CALL_ID_PARAM]: request.callId }
+          : request.params;
+      const result = await this.executeTool(tool, params);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
     } catch (e: unknown) {

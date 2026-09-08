@@ -94,7 +94,10 @@ export type ServerMessageType =
   | 'artifact_comments_response'
   | 'artifact_comment_event'
   | 'artifact_download_offer'
-  | 'artifact_sample_consent_request';
+  | 'artifact_sample_consent_request'
+  // Workflows (background runs) — AUDITARIA_WORKFLOW
+  | 'workflow_list'
+  | 'workflow_event';
 
 /** Messages chat clients send to the server. */
 export type ClientMessageType =
@@ -107,6 +110,9 @@ export type ClientMessageType =
   | 'tool_confirmation_response'
   | 'terminal_input'
   | 'set_model_request'
+  // Workflows — AUDITARIA_WORKFLOW
+  | 'workflow_list_request'
+  | 'workflow_update_request'
   // Provider terminal mirror
   | 'provider_pty_input'
   | 'provider_pty_resize'

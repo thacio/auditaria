@@ -2917,6 +2917,76 @@ const SETTINGS_SCHEMA = {
     },
   },
 
+  // AUDITARIA_WORKFLOW_START: background workflow orchestration (the `workflow` tool)
+  workflows: {
+    type: 'object',
+    label: 'Workflows',
+    category: 'Workflows',
+    requiresRestart: false,
+    default: {},
+    description:
+      'Multi-agent workflow orchestration through the `workflow` tool.',
+    showInDialog: false,
+    properties: {
+      enabled: {
+        type: 'boolean',
+        label: 'Enable Workflows',
+        category: 'Workflows',
+        requiresRestart: true,
+        default: true,
+        description:
+          'Register the workflow tool (multi-agent orchestration scripts run in the background).',
+        showInDialog: true,
+      },
+      sizeGuideline: {
+        type: 'enum',
+        label: 'Workflow Size Guideline',
+        category: 'Workflows',
+        requiresRestart: false,
+        default: 'medium',
+        description:
+          'Advisory agent-count guideline appended to the workflow tool description: small (<5), medium (<15), large (<50) or unrestricted.',
+        options: [
+          { value: 'unrestricted', label: 'Unrestricted' },
+          { value: 'small', label: 'Small (under 5 agents)' },
+          { value: 'medium', label: 'Medium (under 15 agents)' },
+          { value: 'large', label: 'Large (under 50 agents)' },
+        ],
+        showInDialog: true,
+      },
+      keywordTriggerEnabled: {
+        type: 'boolean',
+        label: 'Ultracode Keyword Trigger',
+        category: 'Workflows',
+        requiresRestart: false,
+        default: true,
+        description:
+          'Typing the word "ultracode" in a prompt opts that turn into multi-agent orchestration.',
+        showInDialog: true,
+      },
+      ultracode: {
+        type: 'boolean',
+        label: 'Ultracode Mode',
+        category: 'Workflows',
+        requiresRestart: false,
+        default: false,
+        description:
+          'Standing opt-in: the model orchestrates every substantive task with a workflow (also toggled per session with /workflows ultracode on|off).',
+        showInDialog: true,
+      },
+      skipUsageWarning: {
+        type: 'boolean',
+        label: 'Skip Workflow Usage Warning',
+        category: 'Workflows',
+        requiresRestart: false,
+        default: false,
+        description:
+          'Do not show the one-time cost warning before the first workflow of a session.',
+        showInDialog: false,
+      },
+    },
+  },
+  // AUDITARIA_WORKFLOW_END
   admin: {
     type: 'object',
     label: 'Admin',

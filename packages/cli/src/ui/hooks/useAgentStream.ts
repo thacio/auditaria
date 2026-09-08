@@ -349,7 +349,7 @@ export const useAgentStream = ({
   const submitQuery = useCallback(
     async (
       query: Part[] | string,
-      options?: { isContinuation: boolean },
+      options?: { isContinuation: boolean; displayText?: string }, // AUDITARIA_WORKFLOW
       _prompt_id?: string,
     ) => {
       if (!agent) return;
