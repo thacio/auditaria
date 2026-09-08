@@ -196,8 +196,11 @@ export class CodexPtyDriver
     () => this.hookFilePath ?? undefined,
   );
   private readonly rolloutTail = new JsonlFileTail(() => this.rolloutPath);
-  private spawnedAt = 0;
   private lastRolloutScanAt = 0;
+  /** When we last typed a chat prompt: the fallback only looks for rollouts
+   *  written after it, and only while such a prompt is unanswered. */
+  private rolloutExpectedSince = 0;
+  private readonly boundRollouts = new Set<string>();
   private readonly observer: CodexTurnObserver;
   private observerTimer: NodeJS.Timeout | null = null;
   private readonly externalEmitter = new EventEmitter();
@@ -341,6 +344,7 @@ export class CodexPtyDriver
     this.typedPrompt = prompt;
     this.truncatedPrompt = null;
     const isSlash = prompt.trimStart().startsWith('/');
+    if (!this.rolloutPath) this.rolloutExpectedSince = Date.now();
     void this.typePrompt(session, prompt);
     let typedAt = Date.now();
     const firstTypedAt = typedAt;
@@ -538,7 +542,6 @@ export class CodexPtyDriver
       onData: (data) => this.screenMirror?.write(data),
     });
     dbg('spawning', { file: this.codexExe.file, args });
-    this.spawnedAt = Date.now();
     const err = await session.spawn(this.codexExe.file, args);
     if (err) return err;
     this.session = session;
@@ -776,7 +779,7 @@ export class CodexPtyDriver
    * `sessions/YYYY/MM/DD/rollout-*.jsonl` written after our spawn.
    */
   private discoverRollout(): void {
-    if (!this.session?.isAlive() || !this.spawnedAt) return;
+    if (!this.session?.isAlive() || !this.rolloutExpectedSince) return;
     const now = Date.now();
     if (now - this.lastRolloutScanAt < 1_000) return;
     this.lastRolloutScanAt = now;
@@ -787,7 +790,7 @@ export class CodexPtyDriver
       'sessions',
     );
     let newest: { file: string; m: number } | undefined;
-    const since = this.spawnedAt - 5_000;
+    const since = this.rolloutExpectedSince - 2_000;
     // sessions/YYYY/MM/DD/rollout-*.jsonl — only the newest year/month and
     // the two newest days (a session can straddle midnight).
     const newestNames = (dir: string, take: number): string[] => {
@@ -803,6 +806,7 @@ export class CodexPtyDriver
           const dir = join(root, year, month, day);
           for (const f of newestNames(dir, 50)) {
             if (!f.startsWith('rollout-') || !f.endsWith('.jsonl')) continue;
+            if (this.boundRollouts.has(join(dir, f))) continue; // never re-bind an old session
             try {
               const m = statSync(join(dir, f)).mtimeMs;
               if (m >= since && (!newest || m > newest.m)) {
@@ -817,7 +821,9 @@ export class CodexPtyDriver
     }
     if (newest) {
       this.rolloutPath = newest.file;
+      this.boundRollouts.add(newest.file);
       this.rolloutTail.reset(0);
+      this.rolloutExpectedSince = 0;
       dbg('rollout discovered without hooks', newest.file);
     }
   }
@@ -829,6 +835,8 @@ export class CodexPtyDriver
     if (sessionId) this.sessionId = sessionId;
     if (transcript && transcript !== this.rolloutPath) {
       this.rolloutPath = transcript;
+      this.boundRollouts.add(transcript);
+      this.rolloutExpectedSince = 0;
       this.rolloutTail.reset(0);
       dbg('rollout bound', { session: sessionId?.slice(0, 8), transcript });
     }
