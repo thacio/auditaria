@@ -30,6 +30,8 @@ export class CircularMessageBuffer {
   private head = 0;
   private tail = 0;
   private size = 0;
+  private lastEvictedSequence = 0;
+  private lastEvictedPersistentSequence = 0;
   private readonly latestOnly = new Map<string, SequencedMessage>();
 
   constructor(private readonly capacity: number) {
@@ -45,6 +47,13 @@ export class CircularMessageBuffer {
       return;
     }
 
+    const evicted = this.buffer[this.tail];
+    if (this.size === this.capacity && evicted) {
+      this.lastEvictedSequence = evicted.sequence;
+      if (!evicted.ephemeral) {
+        this.lastEvictedPersistentSequence = evicted.sequence;
+      }
+    }
     this.buffer[this.tail] = message;
     this.tail = (this.tail + 1) % this.capacity;
 
@@ -83,6 +92,15 @@ export class CircularMessageBuffer {
       if (msg.sequence === sequence) return true;
     }
     return false;
+  }
+
+  /** Whether capacity eviction lost a requested message (not an ACK or snapshot replacement). */
+  hasEvictedMessagesAfter(sequence: number, persistentOnly = false): boolean {
+    return (
+      (persistentOnly
+        ? this.lastEvictedPersistentSequence
+        : this.lastEvictedSequence) > sequence
+    );
   }
 
   /** Oldest retained sequence in the ring, or null when empty. */

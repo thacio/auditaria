@@ -214,16 +214,73 @@ describe('WebSocketHub', () => {
     const replayed = await client.take(2);
     expect(replayed.map((e) => e['data'])).toEqual(['c', 'd']);
 
-    // Ack everything, then ask for a replay from before the retained window.
-    client.send({ type: 'ack', lastSequence: start + 5 });
-    hub.broadcaster.broadcast('history_item', 'e');
-    await client.take(1);
+    // Evict unacknowledged history, then ask for it from before the retained window.
+    for (const text of ['e', 'f', 'g', 'h', 'i']) {
+      hub.broadcaster.broadcast('history_item', text);
+    }
+    await client.take(5);
     client.send({ type: 'resync_request', from: start });
     const [forced, handshake] = await client.take(2);
     expect(forced['type']).toBe('force_resync');
     expect(handshake['type']).toBe('connection');
     expect(hub.sendInitialState).toHaveBeenCalledTimes(2);
     client.ws.close();
+  });
+
+  it('replays after ACK pruning without resetting the chat', async () => {
+    const hub = await startHub();
+    stop = hub.stop;
+    const client = await connect(hub.url);
+    const [connection, initialState] = await client.take(2);
+    const acknowledged = initialState['sequence'] as number;
+    client.send({ type: 'ack', lastSequence: acknowledged });
+    await vi.waitFor(() => {
+      const [ws] = Array.from(hub.clients);
+      expect(hub.clients.stateOf(ws)?.lastAcknowledgedSequence).toBe(
+        acknowledged,
+      );
+    });
+
+    hub.broadcaster.broadcast('history_item', 'tool completed');
+    const [completed] = await client.take(1);
+    // A stale persistent cursor may precede the most recent ACK.
+    client.send({
+      type: 'resync_request',
+      from: connection['sequence'],
+      persistentOnly: true,
+    });
+    expect(await client.take(1)).toEqual([completed]);
+    expect(hub.sendInitialState).toHaveBeenCalledTimes(1);
+    client.ws.close();
+  });
+
+  it('does not reset a client for sequence numbers used to initialize another tab', async () => {
+    const hub = await startHub();
+    stop = hub.stop;
+    const client = await connect(hub.url);
+    const [, initialState] = await client.take(2);
+    const acknowledged = initialState['sequence'] as number;
+    client.send({ type: 'ack', lastSequence: acknowledged });
+    await vi.waitFor(() => {
+      const [ws] = Array.from(hub.clients);
+      expect(hub.clients.stateOf(ws)?.lastAcknowledgedSequence).toBe(
+        acknowledged,
+      );
+    });
+
+    const otherTab = await connect(hub.url);
+    await otherTab.take(2);
+    hub.broadcaster.broadcast('history_item', 'tool completed');
+    const [completed] = await client.take(1);
+    client.send({
+      type: 'resync_request',
+      from: acknowledged,
+      persistentOnly: true,
+    });
+    expect(await client.take(1)).toEqual([completed]);
+    expect(hub.sendInitialState).toHaveBeenCalledTimes(2);
+    client.ws.close();
+    otherTab.ws.close();
   });
 
   it('close() shuts every socket down with a going-away code', async () => {

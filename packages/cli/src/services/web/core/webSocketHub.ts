@@ -345,8 +345,10 @@ export class WebSocketHub implements WsEndpointRegistry {
     const state = clients.stateOf(ws);
     if (!state) return;
 
-    const oldest = state.buffer.getOldestSequence();
-    if (oldest !== null && fromSequence < oldest) {
+    // ACKs prove delivery. Pruned entries, replaced snapshots and sequence
+    // numbers assigned to other clients are not evidence of buffer overrun.
+    const replayFrom = Math.max(fromSequence, state.lastAcknowledgedSequence);
+    if (state.buffer.hasEvictedMessagesAfter(replayFrom, persistentOnly)) {
       // Buffer overrun — the client is too far behind to replay.
       broadcaster.sendRaw(ws, {
         type: 'force_resync',
@@ -358,7 +360,7 @@ export class WebSocketHub implements WsEndpointRegistry {
     }
 
     for (const msg of state.buffer.getMessagesFrom(
-      fromSequence,
+      replayFrom,
       persistentOnly,
     )) {
       if (!broadcaster.replay(ws, msg.message)) break;

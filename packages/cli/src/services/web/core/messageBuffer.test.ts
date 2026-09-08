@@ -79,4 +79,28 @@ describe('CircularMessageBuffer', () => {
   it('reports null as the oldest sequence when empty', () => {
     expect(new CircularMessageBuffer(2).getOldestSequence()).toBeNull();
   });
+
+  it('distinguishes actual eviction from acknowledged entries and sequence gaps', () => {
+    const buffer = new CircularMessageBuffer(2);
+    buffer.add(entry(1));
+    buffer.pruneAcknowledged(1);
+    buffer.add(entry(5));
+    buffer.add(entry(8));
+    expect(buffer.hasEvictedMessagesAfter(1)).toBe(false);
+    buffer.add(entry(9));
+    expect(buffer.hasEvictedMessagesAfter(1)).toBe(true);
+    expect(buffer.hasEvictedMessagesAfter(5)).toBe(false);
+  });
+
+  it('does not require persistent recovery for evicted ephemeral updates or replaced snapshots', () => {
+    const buffer = new CircularMessageBuffer(1);
+    buffer.add(entry(1, true));
+    buffer.add(entry(2), 'file_tree_response');
+    buffer.add(entry(3), 'file_tree_response');
+    buffer.add(entry(4));
+    expect(buffer.hasEvictedMessagesAfter(0)).toBe(true);
+    expect(buffer.hasEvictedMessagesAfter(0, true)).toBe(false);
+    buffer.add(entry(5));
+    expect(buffer.hasEvictedMessagesAfter(0, true)).toBe(true);
+  });
 });

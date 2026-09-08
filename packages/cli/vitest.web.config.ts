@@ -17,7 +17,10 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/services/web/**/*.test.ts'],
+    include: [
+      'src/services/web/**/*.test.ts',
+      '../web-client/src/**/*.test.js',
+    ],
     environment: 'node',
     globals: true,
     testTimeout: 60_000,
