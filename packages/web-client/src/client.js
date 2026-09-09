@@ -198,11 +198,19 @@ class AuditariaWebClient {
       if (deepLink && this.artifactsPanel && !this.artifactDeepLinkOpened) {
         this.artifactDeepLinkOpened = true;
         const version = Number(new URLSearchParams(location.search).get('v'));
-        this.artifactsPanel.open(
-          deepLink[1],
-          Number.isInteger(version) && version > 0 ? version : null,
+        // The connection opens before the gallery snapshot arrives. Opening
+        // now would treat the empty list as a missing artifact.
+        this.artifactsManager.addEventListener(
+          'list',
+          () => {
+            this.artifactsPanel.open(
+              deepLink[1],
+              Number.isInteger(version) && version > 0 ? version : null,
+            );
+            history.replaceState(null, '', '/');
+          },
+          { once: true },
         );
-        history.replaceState(null, '', '/');
       }
       // Enable Knowledge Base button and request status
       if (this.knowledgeBaseButton) {
