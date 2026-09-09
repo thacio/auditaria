@@ -379,6 +379,27 @@
   font-size: 12px;
   background: transparent;
 }
+.tool-diff-stats {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tool-diff-added {
+  color: var(--diff-add-text);
+}
+.tool-diff-removed {
+  color: var(--diff-remove-text);
+}
+.tool-diff-proposed {
+  font: 10px var(--font-ui);
+  color: var(--text-subtle);
+}
 .tool-expand-indicator {
   font-size: 9px;
   min-width: 10px;

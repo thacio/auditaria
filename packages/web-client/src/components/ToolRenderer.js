@@ -83,6 +83,83 @@ function seemsLikeMarkdown(text) {
   return /```|^#{1,6}\s|\[.+?\]\(.+?\)|\*\*.*?\*\*/m.test(text);
 }
 
+/** Count changed lines inside unified diff hunks, excluding file headers. */
+function getDiffLineStats(diff) {
+  if (!diff || typeof diff !== 'object') return null;
+  let added = 0;
+  let removed = 0;
+  let oldRemaining = 0;
+  let newRemaining = 0;
+  let hasHunks = false;
+  const patch = typeof diff.fileDiff === 'string' ? diff.fileDiff : '';
+  for (const line of patch.split(/\r?\n/)) {
+    const hunk = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/.exec(line);
+    if (hunk) {
+      oldRemaining = Number(hunk[1] ?? 1);
+      newRemaining = Number(hunk[2] ?? 1);
+      hasHunks = true;
+    } else if (line.startsWith('+') && newRemaining > 0) {
+      added++;
+      newRemaining--;
+    } else if (line.startsWith('-') && oldRemaining > 0) {
+      removed++;
+      oldRemaining--;
+    } else if (line.startsWith(' ') && oldRemaining > 0 && newRemaining > 0) {
+      oldRemaining--;
+      newRemaining--;
+    }
+  }
+  if (hasHunks) return { added, removed };
+  const stats = diff.diffStat;
+  if (
+    Number.isInteger(stats?.model_added_lines) &&
+    stats.model_added_lines >= 0 &&
+    Number.isInteger(stats?.model_removed_lines) &&
+    stats.model_removed_lines >= 0
+  ) {
+    return {
+      added: stats.model_added_lines,
+      removed: stats.model_removed_lines,
+    };
+  }
+  return null;
+}
+
+function getToolDiffStats(tool) {
+  if (tool.status === 'Success') return getDiffLineStats(tool.resultDisplay);
+  if (
+    tool.status === 'Confirming' &&
+    tool.confirmationDetails?.type === 'edit'
+  ) {
+    return getDiffLineStats(tool.confirmationDetails);
+  }
+  return null;
+}
+
+function createDiffStatsBadge(stats, proposed = false) {
+  const badge = document.createElement('span');
+  badge.className = 'tool-diff-stats';
+  badge.title = `${proposed ? 'Proposed: ' : ''}${stats.added} lines added, ${stats.removed} lines removed`;
+  badge.setAttribute('aria-label', badge.title);
+  if (proposed) {
+    const label = document.createElement('span');
+    label.className = 'tool-diff-proposed';
+    label.textContent = 'Proposed';
+    badge.appendChild(label);
+  }
+  for (const [kind, value, sign] of [
+    ['added', stats.added, '+'],
+    ['removed', stats.removed, '−'],
+  ]) {
+    const count = document.createElement('span');
+    count.className = `tool-diff-${kind}`;
+    count.textContent = `${sign}${value}`;
+    count.setAttribute('aria-hidden', 'true');
+    badge.appendChild(count);
+  }
+  return badge;
+}
+
 // AUDITARIA: Browser step status icons and colors
 const BROWSER_STEP_STATUS = {
   pending: { icon: '○', colorClass: 'browser-step-pending' },
@@ -186,6 +263,26 @@ export function updateToolGroup(group, tools) {
   ]
     .filter(Boolean)
     .join(' · ');
+  const completedDiffs = tools
+    .filter((tool) => tool.status === 'Success')
+    .map(getToolDiffStats)
+    .filter(Boolean);
+  group.querySelector('.tool-activity-summary > .tool-diff-stats')?.remove();
+  if (completedDiffs.length) {
+    const totals = completedDiffs.reduce(
+      (sum, stats) => ({
+        added: sum.added + stats.added,
+        removed: sum.removed + stats.removed,
+      }),
+      { added: 0, removed: 0 },
+    );
+    group
+      .querySelector('.tool-activity-summary')
+      .insertBefore(
+        createDiffStatsBadge(totals),
+        group.querySelector('.activity-chevron'),
+      );
+  }
   if (
     document
       .getElementById('toggle-all-raw-btn')
@@ -328,6 +425,11 @@ function createToolHeader(tool) {
     preview.textContent = tool.description;
     disclosure.appendChild(preview);
   }
+  const diffStats = getToolDiffStats(tool);
+  if (diffStats)
+    disclosure.appendChild(
+      createDiffStatsBadge(diffStats, tool.status === 'Confirming'),
+    );
   disclosure.appendChild(toolStatusEl);
   toolHeaderEl.appendChild(disclosure);
 

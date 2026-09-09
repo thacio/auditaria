@@ -310,6 +310,157 @@ test('assistant and user messages separate activity runs in history and streamin
   );
 });
 
+test('edit and write calls show accurate line counts and collapsed activity totals', async () => {
+  await page.evaluate(() => {
+    manager.clearAllMessages();
+    const edit = {
+      fileName: 'policy.md',
+      fileDiff:
+        '--- a/policy.md\r\n+++ b/policy.md\r\n@@ -1,2 +1,3 @@\r\n keep\r\n---old\r\n+++new\r\n+extra\r\n\\ No newline at end of file\r\n@@ -10 +11 @@\r\n-before\r\n+after\r\n',
+      diffStat: { model_added_lines: 99, model_removed_lines: 99 },
+    };
+    const write = {
+      fileName: 'new.md',
+      fileDiff:
+        '--- /dev/null\n+++ b/new.md\n@@ -0,0 +1,2 @@\n+first\n+second\n',
+    };
+    manager.addHistoryItem({
+      type: 'tool_group',
+      tools: [
+        {
+          callId: 'edit',
+          name: 'replace',
+          status: 'Success',
+          description: 'policy.md',
+          resultDisplay: edit,
+        },
+      ],
+    });
+    manager.addHistoryItem({
+      type: 'tool_group',
+      tools: [
+        {
+          callId: 'write',
+          name: 'write_file',
+          status: 'Success',
+          description: 'new.md',
+          resultDisplay: write,
+        },
+      ],
+    });
+  });
+  const summaryStats = page.locator('.tool-activity-summary .tool-diff-stats');
+  assert.equal(
+    await summaryStats.getAttribute('aria-label'),
+    '5 lines added, 2 lines removed',
+  );
+  assert.equal(await summaryStats.isVisible(), true);
+  await page.locator('.tool-activity-summary').click();
+  assert.equal(
+    await page
+      .locator('[data-call-id="edit"] .tool-diff-stats')
+      .getAttribute('aria-label'),
+    '3 lines added, 2 lines removed',
+  );
+  assert.equal(
+    await page.locator('[data-call-id="write"] .tool-diff-added').innerText(),
+    '+2',
+  );
+  assert.equal(
+    await page.locator('[data-call-id="write"] .tool-diff-removed').innerText(),
+    '−0',
+  );
+  assert.equal(
+    await page.locator('[data-call-id="edit"] .tool-output').isVisible(),
+    false,
+  );
+  await page.locator('[data-call-id="edit"] .tool-disclosure').click();
+  assert.match(
+    await page.locator('[data-call-id="edit"] .diff-content').innerText(),
+    /---old/,
+  );
+  await page.setViewportSize({ width: 390, height: 1000 });
+  assert.equal(
+    await page
+      .locator('#messages')
+      .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    true,
+  );
+  await page.setViewportSize({ width: 1365, height: 1000 });
+});
+
+test('proposed changes stay separate from saved totals and update after success', async () => {
+  await page.evaluate(() => {
+    manager.clearAllMessages();
+    const proposal = {
+      type: 'edit',
+      fileDiff: '--- old\n+++ new\n@@ -1 +1 @@\n-old\n+new\n',
+    };
+    window.blocks = [
+      {
+        type: 'tool_group',
+        tools: [
+          {
+            callId: 'pending-edit',
+            name: 'replace',
+            status: 'Confirming',
+            confirmationDetails: proposal,
+          },
+          {
+            callId: 'failed-edit',
+            name: 'write_file',
+            status: 'Error',
+            resultDisplay: proposal,
+          },
+          {
+            callId: 'canceled-edit',
+            name: 'replace',
+            status: 'Canceled',
+            confirmationDetails: proposal,
+          },
+          {
+            callId: 'plain-tool',
+            name: 'run_shell_command',
+            status: 'Success',
+            resultDisplay: '+not a diff\n-neither is this',
+          },
+        ],
+      },
+    ];
+    manager.renderResponseState(blocks);
+  });
+  assert.equal(
+    await page.locator('.tool-activity-summary .tool-diff-stats').count(),
+    0,
+  );
+  assert.equal(
+    await page
+      .locator('[data-call-id="pending-edit"] .tool-diff-stats')
+      .getAttribute('aria-label'),
+    'Proposed: 1 lines added, 1 lines removed',
+  );
+  assert.equal(await page.locator('.tool-diff-stats').count(), 1);
+  await page.evaluate(() => {
+    blocks[0].tools[0] = {
+      ...blocks[0].tools[0],
+      status: 'Success',
+      resultDisplay: {
+        diffStat: { model_added_lines: 7, model_removed_lines: 2 },
+      },
+    };
+    manager.renderResponseState(blocks);
+    manager.renderResponseState(blocks);
+  });
+  assert.equal(
+    await page
+      .locator('.tool-activity-summary .tool-diff-stats')
+      .getAttribute('aria-label'),
+    '7 lines added, 2 lines removed',
+  );
+  assert.equal(await page.locator('.tool-diff-proposed').count(), 0);
+  assert.equal(await page.locator('.tool-diff-stats').count(), 2);
+});
+
 test('failures remain visible while collapsed and approval opens the relevant call', async () => {
   await seed();
   await page.evaluate(() => {
