@@ -21,9 +21,16 @@ import {
   type SpawnOptions,
   type SpawnOptionsWithStdioTuple,
 } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, normalize } from 'node:path';
-import { resolveExecutable } from './shell-utils.js';
+import { accessSync, constants, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import {
+  delimiter,
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  normalize,
+} from 'node:path';
 
 export interface SpawnSpec {
   /** The file to execute (a native binary, or the Node executable). */
@@ -34,19 +41,49 @@ export interface SpawnSpec {
   via: 'path' | 'shim-node' | 'shim-exe' | 'absolute';
 }
 
-/** Find `name` on PATH without invoking `where`/`which` — the existing
- *  shell-free walk in `shell-utils.ts` (exe, cmd, bat, then bare name). */
-export function findOnPath(name: string): string | undefined {
-  const found = resolveExecutable(name);
-  if (!found) return undefined;
-  // npm also drops an extension-less Unix shell script beside `<name>.cmd`;
-  // ConPTY cannot run it ("Cannot create process"), so never return it on
-  // Windows — the shim (parsed below) or a real binary must exist instead.
-  if (process.platform === 'win32' && !/\.[A-Za-z0-9]+$/.test(found)) {
-    const withCmd = found + '.cmd';
-    return existsSync(withCmd) ? withCmd : undefined;
+function isExecutableFile(file: string, mode = constants.X_OK): boolean {
+  try {
+    accessSync(file, mode);
+    return statSync(file).isFile();
+  } catch {
+    return false;
   }
-  return found;
+}
+
+/** Find a command without invoking a shell, `where`, `which`, or npm. */
+export function findOnPath(name: string): string | undefined {
+  if (isAbsolute(name)) return isExecutableFile(name) ? name : undefined;
+  const windows = process.platform === 'win32';
+  const pathKey = Object.keys(process.env).find((key) =>
+    windows ? key.toUpperCase() === 'PATH' : key === 'PATH',
+  );
+  const dirs = (pathKey ? process.env[pathKey] : '')?.split(delimiter) ?? [];
+  // A running app can inherit PATH before an installer updates it. Keep these
+  // fallbacks shared with the drivers so discovery and launching agree.
+  if (windows && ['claude', 'codex', 'copilot', 'agy'].includes(name)) {
+    const appData = process.env['APPDATA'];
+    const localAppData = process.env['LOCALAPPDATA'];
+    const npmPrefix = process.env['npm_config_prefix'];
+    if (npmPrefix) dirs.push(npmPrefix);
+    if (appData) dirs.push(join(appData, 'npm'));
+    dirs.push(dirname(process.execPath), join(homedir(), '.local', 'bin'));
+    if (localAppData) {
+      dirs.push(join(localAppData, 'Microsoft', 'WinGet', 'Links'));
+    }
+    dirs.push(join(homedir(), 'scoop', 'shims'));
+  }
+  // Never return npm's extensionless Unix shell script on Windows.
+  const extensions =
+    windows && !extname(name) ? ['.exe', '.com', '.cmd', '.bat', '.ps1'] : [''];
+  for (const dir of new Set(dirs)) {
+    const unquoted = dir.trim().replace(/^"(.*)"$/, '$1');
+    if (!unquoted) continue;
+    for (const extension of extensions) {
+      const candidate = join(unquoted, name + extension);
+      if (isExecutableFile(candidate)) return candidate;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -63,14 +100,20 @@ export function resolveNpmShim(shimPath: string): SpawnSpec | undefined {
     return undefined;
   }
   const dp0 = dirname(shimPath);
-  const targets = [...text.matchAll(/"%dp0%\\?([^"]+)"/g)].map((m) =>
-    normalize(join(dp0, m[1])),
+  // Only inspect the invocation's target, not IF EXIST "%dp0%\node.exe".
+  // Also recognize older cmd shims and npm's PowerShell-only launchers.
+  const pattern = /\.ps1$/i.test(shimPath)
+    ? /"\$basedir[\\/]([^"]+)"\s+\$args\b/gi
+    : /"%(?:dp0%|~dp0)[\\/]?([^"]+)"\s+%\*/gi;
+  const targets = [...text.matchAll(pattern)].map((m) =>
+    normalize(join(dp0, m[1].replace(/[\\/]/g, '/'))),
   );
-  const target = targets.find((t) => existsSync(t));
+  const target = targets.find((t) => isExecutableFile(t, constants.R_OK));
   if (!target) return undefined;
   if (/\.(exe|com)$/i.test(target)) {
     return { file: target, argsPrefix: [], via: 'shim-exe' };
   }
+  if (!/\.[cm]?js$/i.test(target)) return undefined;
   // A JS entry: run it with the Node that runs us (never the shell's `node`).
   return { file: process.execPath, argsPrefix: [target], via: 'shim-node' };
 }
@@ -83,7 +126,7 @@ export function resolveNpmShim(shimPath: string): SpawnSpec | undefined {
 export function resolveSpawnSpec(name: string): SpawnSpec | undefined {
   const found = findOnPath(name);
   if (!found) return undefined;
-  if (process.platform === 'win32' && /\.cmd$/i.test(found)) {
+  if (process.platform === 'win32' && /\.(cmd|bat|ps1)$/i.test(found)) {
     const parsed = resolveNpmShim(found);
     if (parsed) return parsed;
     // Unparseable shim: the caller must decide (a shell would be needed).

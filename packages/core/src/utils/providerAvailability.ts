@@ -6,8 +6,8 @@
 
 // AUDITARIA_PROVIDER_AVAILABILITY: Utility to check if external LLM providers are installed
 
-import { spawn } from 'node:child_process';
-import { spawnWithoutShell } from './resolveExecutable.js'; // AUDITARIA_PROVIDER_AVAILABILITY: no cmd.exe/PowerShell
+import { findOnPath } from './resolveExecutable.js';
+import { resolveCodexExecutable } from '../providers/codex/codexExecutable.js';
 
 export interface ProviderAvailability {
   claude: boolean;
@@ -18,61 +18,20 @@ export interface ProviderAvailability {
 }
 
 /**
- * Check if a command is available by running it with --version
- * @param command Command to check (e.g., 'claude', 'codex')
- * @param timeout Timeout in milliseconds (default: 5000)
- * @returns Promise that resolves to true if command is available
- */
-async function isCommandAvailable(
-  command: string,
-  timeout: number = 5000,
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    // AUDITARIA_PROVIDER_AVAILABILITY: resolve the real target (node script
-    // or native exe behind an npm shim) and spawn it WITHOUT a shell — on
-    // corporate machines cmd.exe/PowerShell are blocked and a shell spawn
-    // made every provider look "not installed". A shell is the fallback
-    // only when the command cannot be resolved.
-    const child =
-      spawnWithoutShell(command, ['--version'], { stdio: 'ignore' }) ??
-      spawn(command, ['--version'], {
-        shell: true,
-        stdio: 'ignore', // Suppress output
-        windowsHide: true, // Hide console window on Windows
-      });
-
-    const timer = setTimeout(() => {
-      child.kill();
-      resolve(false);
-    }, timeout);
-
-    child.on('error', () => {
-      clearTimeout(timer);
-      resolve(false);
-    });
-
-    child.on('exit', (code) => {
-      clearTimeout(timer);
-      // Exit code 0 means success
-      resolve(code === 0);
-    });
-  });
-}
-
-/**
- * Check availability of all external LLM providers
+ * Discover installed provider commands using the same lookup as the drivers.
+ * This is installation detection, not a health/authentication check: a blocked
+ * shell, slow cold start, or failed --version must not hide installed providers.
+ * No processes are started. Actual launch errors are reported by the drivers.
  * @returns Promise that resolves to an object with availability status for each provider
  */
 export async function checkProviderAvailability(): Promise<ProviderAvailability> {
-  const [claude, codex, copilot, agy] = await Promise.all([
-    isCommandAvailable('claude'),
-    isCommandAvailable('codex'),
-    isCommandAvailable('copilot'), // AUDITARIA_COPILOT_PROVIDER
-    isCommandAvailable('agy'), // AUDITARIA_AGY_PROVIDER
-  ]);
-
-  //Auditaria is always available (we ARE auditaria).
-  return { claude, codex, copilot, agy, auditaria: true };
+  return {
+    claude: findOnPath('claude') !== undefined,
+    codex: resolveCodexExecutable() !== undefined,
+    copilot: findOnPath('copilot') !== undefined,
+    agy: findOnPath('agy') !== undefined,
+    auditaria: true,
+  };
 }
 
 export type ExternalProviderKey = 'claude' | 'codex' | 'copilot' | 'agy';

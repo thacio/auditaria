@@ -24,7 +24,7 @@ export function resolveCodexExecutable(): CodexExecutable | undefined {
   if (fromEnv && existsSync(fromEnv)) return { file: fromEnv, argsPrefix: [] };
   const found = findOnPath('codex');
   if (!found) return undefined;
-  if (process.platform === 'win32' && /\.cmd$/i.test(found)) {
+  if (process.platform === 'win32' && /\.(cmd|bat|ps1)$/i.test(found)) {
     const shim = resolveNpmShim(found);
     if (shim?.via === 'shim-node') {
       const pkgDir = dirname(dirname(shim.argsPrefix[0])); // …/@openai/codex

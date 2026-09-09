@@ -18,7 +18,7 @@ import {
 } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-import { resolveExecutable } from '../../utils/shell-utils.js';
+import { findOnPath } from '../../utils/resolveExecutable.js';
 
 // ---------------------------------------------------------------------------
 // System context injection via AGENTS.md
@@ -182,10 +182,10 @@ export function buildMcpConfigArg(
 // ---------------------------------------------------------------------------
 
 export function resolveCopilotExecutable(): string | undefined {
-  const shim = resolveExecutable('copilot');
+  const shim = findOnPath('copilot');
   if (!shim) return undefined;
   if (process.platform !== 'win32') return shim;
-  if (!shim.toLowerCase().endsWith('.cmd')) return shim;
+  if (!/\.(cmd|bat|ps1)$/i.test(shim)) return shim;
 
   const shimDir = dirname(shim);
   const platformPkg = `copilot-${process.platform}-${process.arch}`;

@@ -1485,11 +1485,13 @@ class AuditariaWebClient {
         section.classList.toggle('is-expanded');
       });
 
-      // AUDITARIA_PROVIDER_AVAILABILITY: Show install message for unavailable providers
+      // Detection is advisory; installed providers may be missed by the startup snapshot.
       if (!isAvailable && group.installMessage) {
         const installMsg = document.createElement('div');
         installMsg.className = 'web-footer-model-menu-install-message';
-        installMsg.textContent = group.installMessage;
+        installMsg.textContent =
+          'Automatic detection did not find this provider. If it is installed, you can still select a model. ' +
+          group.installMessage;
         contentInner.append(installMsg);
       }
 
@@ -1497,16 +1499,9 @@ class AuditariaWebClient {
         const item = document.createElement('div');
         item.className = 'web-footer-model-menu-item';
 
-        // AUDITARIA_PROVIDER_AVAILABILITY: Disable unavailable providers
-        if (!isAvailable) {
-          item.classList.add('is-disabled');
-          item.setAttribute('aria-disabled', 'true');
-          item.title = `${option.label} (not available - install required)`;
-        } else {
-          item.setAttribute('role', 'button');
-          item.setAttribute('tabindex', '0');
-          item.title = option.description || option.label;
-        }
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.title = option.description || option.label;
 
         if (option.selection === this.modelMenuData.activeSelection) {
           item.classList.add('is-active');
@@ -1645,11 +1640,6 @@ class AuditariaWebClient {
         }
 
         item.addEventListener('click', () => {
-          // AUDITARIA_PROVIDER_AVAILABILITY: Prevent selection of unavailable providers
-          if (!isAvailable) {
-            return;
-          }
-
           if (hasEffortControl) {
             const state = this.getReasoningEffortStateForSelection(
               option.selection,
