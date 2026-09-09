@@ -491,6 +491,7 @@ export class ClaudeCLIDriver
 
     const RECENT_MAX = 128 * 1024;
     pty.onData((data) => {
+      if (this.activePty !== pty) return;
       this.recentPtyOutput += data;
       if (this.recentPtyOutput.length > RECENT_MAX) {
         this.recentPtyOutput = this.recentPtyOutput.slice(
@@ -514,6 +515,7 @@ export class ClaudeCLIDriver
     }
 
     pty.onExit((e) => {
+      if (this.activePty !== pty) return;
       this.ptyExited = true;
       this.ptyExitCode = e.exitCode ?? 0;
       dbg('pty exit', e);
@@ -585,6 +587,32 @@ export class ClaudeCLIDriver
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
 
+  // AUDITARIA: Resume the terminal without creating a conversation turn.
+  async startSession(
+    signal: AbortSignal,
+    systemContext?: string,
+  ): Promise<void> {
+    signal.throwIfAborted();
+    // AUDITARIA_CLAUDE_PROVIDER: systemContext is baked into spawn args on
+    // the FIRST startup; subsequent calls can't change it without
+    // respawning. Log a warning if it ever changes mid-session.
+    if (
+      this.lastSystemContext !== undefined &&
+      systemContext !== undefined &&
+      this.lastSystemContext !== systemContext
+    ) {
+      dbg(
+        'WARN: systemContext changed mid-session; not respawning, baked-in copy is stale',
+      );
+    }
+    if (this.lastSystemContext === undefined && systemContext !== undefined) {
+      this.lastSystemContext = systemContext;
+    }
+
+    const error = await this.ensurePtySpawned(signal);
+    if (error) throw new Error(error);
+  }
+
   async *sendMessage(
     prompt: string,
     signal: AbortSignal,
@@ -606,25 +634,13 @@ export class ClaudeCLIDriver
       return;
     }
 
-    // AUDITARIA_CLAUDE_PROVIDER: systemContext is baked into spawn args on
-    // the FIRST sendMessage; subsequent calls can't change it without
-    // respawning. Log a warning if it ever changes mid-session.
-    if (
-      this.lastSystemContext !== undefined &&
-      systemContext !== undefined &&
-      this.lastSystemContext !== systemContext
-    ) {
-      dbg(
-        'WARN: systemContext changed mid-session; not respawning, baked-in copy is stale',
-      );
-    }
-    if (this.lastSystemContext === undefined && systemContext !== undefined) {
-      this.lastSystemContext = systemContext;
-    }
-
-    const spawnError = await this.ensurePtySpawned(signal);
-    if (spawnError) {
-      yield { type: ProviderEventType.Error, message: spawnError };
+    try {
+      await this.startSession(signal, systemContext);
+    } catch (error) {
+      yield {
+        type: ProviderEventType.Error,
+        message: error instanceof Error ? error.message : String(error),
+      };
       return;
     }
     const pty = this.activePty!;
@@ -1021,6 +1037,13 @@ export class ClaudeCLIDriver
   private killPty(): void {
     const pty = this.activePty;
     if (!pty) return;
+    // Detach synchronously: resume can spawn again before onExit is delivered.
+    this.activePty = null;
+    this.writeQueue = null;
+    this.ptyExited = true;
+    this.sessionStarted = false;
+    this.stopObserver();
+    this.observer.abortCurrentTurn('pty-exit');
     try {
       pty.kill();
     } catch {

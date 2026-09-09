@@ -293,6 +293,8 @@ export interface ProviderDriver {
   // AUDITARIA_SESSION_MANAGEMENT_START: Session resume support for multi-context providers
   /** Set native session ID so next sendMessage resumes that session */
   setSessionId?(nativeSessionId: string): void;
+  /** Start a persistent provider terminal without submitting a user message. */
+  startSession?(signal: AbortSignal, systemContext?: string): Promise<void>;
   /** Whether this driver supports cross-restart resume */
   readonly canResume: boolean;
   // AUDITARIA_SESSION_MANAGEMENT_END

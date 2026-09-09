@@ -34,6 +34,7 @@ describe.each([
   const pm = {
     isTurnActive: vi.fn(() => false),
     setPendingResumeSessionId: vi.fn(),
+    startPendingResumeSession: vi.fn<() => Promise<void>>(),
   };
   const context = () =>
     createMockCommandContext({
@@ -52,6 +53,7 @@ describe.each([
     });
   beforeEach(() => {
     pm.isTurnActive.mockReturnValue(false);
+    pm.startPendingResumeSession.mockResolvedValue(undefined);
     vi.spyOn(adapter, 'validate').mockResolvedValue({
       valid: true,
       filePath: session.filePath,
@@ -74,11 +76,27 @@ describe.each([
     expect(pm.setPendingResumeSessionId).toHaveBeenCalledWith(
       session.sessionId,
     );
+    expect(pm.startPendingResumeSession).toHaveBeenCalledOnce();
     expect(ctx.ui.loadHistory).toHaveBeenCalledWith([
       { type: 'user', id: 1, text: 'Hello' },
       { type: 'gemini', id: 2, text: 'Hi' },
     ]);
   });
+  it('reports terminal startup failures without claiming success', async () => {
+    pm.startPendingResumeSession.mockRejectedValue(
+      new Error('Terminal could not start'),
+    );
+    await command.action!(context(), session.sessionId);
+    expect(coreEvents.emitFeedback).toHaveBeenCalledWith(
+      'error',
+      expect.stringContaining('Terminal could not start'),
+    );
+    expect(coreEvents.emitFeedback).not.toHaveBeenCalledWith(
+      'info',
+      expect.any(String),
+    );
+  });
+
   it('rejects a different active provider before looking up a session', async () => {
     const ctx = context();
     vi.mocked(

@@ -53,6 +53,7 @@ export function createResumeExternalCommand(
       config.getProviderManager()!.setPendingResumeSessionId(sessionId);
       config.initFileCheckpointManager();
       context.ui.loadHistory(buildUIHistoryFromContent(history));
+      await config.getProviderManager()!.startPendingResumeSession();
       coreEvents.emitFeedback(
         'info',
         `Resumed ${adapter.name} session ${sessionId.slice(0, 8)}`,

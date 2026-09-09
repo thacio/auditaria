@@ -576,6 +576,27 @@ export class ProviderManager {
       );
     }
   }
+  // AUDITARIA: Eagerly open a resumed terminal; headless drivers remain lazy.
+  async startPendingResumeSession(): Promise<void> {
+    if (this.nextTurn.kind !== 'resume') return;
+    if (this.isTurnActive()) {
+      throw new Error(
+        'Wait for the current turn to finish before starting a resumed session.',
+      );
+    }
+    this.turnActive = true;
+    try {
+      const driver = await this.getOrCreateDriver();
+      if (driver.startSession) {
+        let context = this.appConfig?.buildExternalProviderContext();
+        const appendedPrompt = this.appConfig?.getAppendSystemPrompt();
+        if (appendedPrompt) context = (context ?? '') + '\n\n' + appendedPrompt;
+        await driver.startSession(new AbortController().signal, context);
+      }
+    } finally {
+      this.turnActive = false;
+    }
+  }
   // AUDITARIA_REWIND_END
 
   // AUDITARIA: Wire the toolOutputHandler to the toolExecutorServer

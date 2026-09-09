@@ -291,6 +291,19 @@ export class CodexPtyDriver
     this.instructionsPath = null;
   }
 
+  // AUDITARIA: Resume the terminal without creating a conversation turn.
+  async startSession(
+    signal: AbortSignal,
+    systemContext?: string,
+  ): Promise<void> {
+    signal.throwIfAborted();
+    if (this.lastSystemContext === undefined && systemContext !== undefined) {
+      this.lastSystemContext = systemContext;
+    }
+    const error = await this.ensureSpawned(signal);
+    if (error) throw new Error(error);
+  }
+
   async *sendMessage(
     prompt: string,
     signal: AbortSignal,
@@ -307,12 +320,13 @@ export class CodexPtyDriver
       };
       return;
     }
-    if (this.lastSystemContext === undefined && systemContext !== undefined) {
-      this.lastSystemContext = systemContext;
-    }
-    const spawnError = await this.ensureSpawned(signal);
-    if (spawnError) {
-      yield { type: ProviderEventType.Error, message: spawnError };
+    try {
+      await this.startSession(signal, systemContext);
+    } catch (error) {
+      yield {
+        type: ProviderEventType.Error,
+        message: error instanceof Error ? error.message : String(error),
+      };
       return;
     }
     const session = this.session!;
@@ -568,6 +582,7 @@ export class CodexPtyDriver
     this.session = session;
     this.started = false;
     session.onExit((code) => {
+      if (this.session !== session) return;
       dbg('pty exit', code);
       this.observer.abortCurrentTurn('pty-exit');
       if (this.started) {
