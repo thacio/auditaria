@@ -140,6 +140,7 @@ export interface CliArgs {
   appendSystemPrompt: string | undefined;
   appendSystemPromptFile: string | undefined;
   // AUDITARIA_APPEND_SYSTEM_PROMPT_END
+  resumeCodex?: string; // AUDITARIA_CODEX_PROVIDER
   resumeClaude: string | undefined; // AUDITARIA_REWIND
 }
 
@@ -571,7 +572,14 @@ export async function parseArguments(
         })
         // AUDITARIA_APPEND_SYSTEM_PROMPT_END
         // AUDITARIA_REWIND_START
+        .conflicts('resume-claude', 'resume-codex')
+        .option('resume-codex', {
+          type: 'string',
+          nargs: 1,
+          description: 'Resume a Codex provider session by session ID.',
+        })
         .option('resume-claude', {
+          nargs: 1,
           type: 'string',
           description: 'Resume a Claude provider session by session ID.',
         })
@@ -1031,10 +1039,22 @@ export async function loadCliConfig(
       : String(rawModel ?? '').trim() || '';
 
   // AUDITARIA_PROVIDER_PERSISTENCE_START: Parse provider preferences persisted through model.name.
-  const persistedProviderConfig = parsePersistedProviderConfig(
+  let persistedProviderConfig = parsePersistedProviderConfig(
     specifiedModel,
     cwd,
   );
+  // AUDITARIA: Select the resume provider before client/auth initialization.
+  const resumeProviderType = argv.resumeCodex
+    ? 'codex-cli'
+    : argv.resumeClaude
+      ? 'claude-cli'
+      : undefined;
+  if (
+    resumeProviderType &&
+    persistedProviderConfig?.type !== resumeProviderType
+  ) {
+    persistedProviderConfig = { type: resumeProviderType };
+  }
   // AUDITARIA_PROVIDER_PERSISTENCE_END
 
   const resolvedModel = persistedProviderConfig

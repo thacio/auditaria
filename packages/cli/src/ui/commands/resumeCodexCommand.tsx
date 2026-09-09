@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA: Resume native Claude sessions.
+// AUDITARIA: Resume native Codex sessions.
 import { createResumeExternalCommand } from './resumeExternalCommand.js';
 
-export const resumeClaudeCommand = createResumeExternalCommand('claude');
+export const resumeCodexCommand = createResumeExternalCommand('codex');

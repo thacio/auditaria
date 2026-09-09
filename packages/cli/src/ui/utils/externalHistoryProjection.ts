@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_REWIND_FEATURE: Project a mirrored Claude Content[] into the
-// chat-log HistoryItem[]. Used by /resume-claude and the --resume-claude CLI
+// AUDITARIA_REWIND_FEATURE: Project a mirrored provider Content[] into the
+// chat-log HistoryItem[]. Used by native provider resume commands and the startup CLI
 // flag so both code paths render from the same parsed conversation.
 
 import type { Content, Part } from '@google/genai';
 import type { HistoryItem } from '../types.js';
 
 /**
- * Convert mirrored Content[] from a resumed Claude session into HistoryItem[]
+ * Convert mirrored Content[] from a resumed provider session into HistoryItem[]
  * for the chat log. Shows user text turns and assistant text turns; tool calls
  * are represented as inline markers (the full functionCall/functionResponse
  * pair stays in the mirrored history for rewind and token estimation). Skips
@@ -60,6 +60,8 @@ function extractDisplayText(parts: readonly Part[]): string {
       segments.push(`[Tool call: ${part.functionCall.name}]`);
     } else if ('inlineData' in part && part.inlineData) {
       segments.push(`[Attachment: ${part.inlineData.mimeType || 'binary'}]`);
+    } else if (part.fileData) {
+      segments.push(`[Attachment: ${part.fileData.mimeType || 'file'}]`);
     }
     // functionResponse parts aren't rendered here — they're represented by
     // the tool-call marker on the preceding assistant turn.

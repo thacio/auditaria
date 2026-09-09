@@ -12,6 +12,36 @@ import { formatDuration } from '../utils/formatters.js';
 vi.mock('../utils/formatters.js');
 
 describe('quitCommand', () => {
+  it.each(['claude', 'codex'] as const)(
+    'prints the correct native resume command for %s',
+    (provider) => {
+      const context = createMockCommandContext({
+        services: {
+          agentContext: {
+            config: {
+              isExternalProviderActive: vi.fn(() => true),
+              getProviderConfig: vi.fn(() => ({
+                type: `${provider}-cli` as const,
+              })),
+              getProviderManager: vi.fn(() => ({
+                getDriverSessionId: () => 'native-id',
+              })),
+            },
+          },
+        },
+      });
+      const result = quitCommand.action!(context, '');
+      expect(result).toMatchObject({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            text: expect.stringContaining(
+              `auditaria --resume-${provider} native-id`,
+            ),
+          }),
+        ]),
+      });
+    },
+  );
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-01T01:00:00Z'));

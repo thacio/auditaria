@@ -35,15 +35,22 @@ export const quitCommand: SlashCommand = {
       },
     ];
 
-    // AUDITARIA_REWIND_START: Show Claude session ID for resume
+    // AUDITARIA_REWIND_START: Show native provider session ID for resume
     const config = context.services.agentContext?.config;
     if (config?.isExternalProviderActive()) {
       const pm = config.getProviderManager();
       const sessionId = pm?.getDriverSessionId?.();
-      if (sessionId) {
+      const provider = config.getProviderConfig()?.type;
+      const name =
+        provider === 'claude-cli'
+          ? 'Claude'
+          : provider === 'codex-cli'
+            ? 'Codex'
+            : undefined;
+      if (sessionId && name) {
         messages.push({
           type: 'info',
-          text: `Claude session: ${sessionId}\nResume with: auditaria --resume-claude ${sessionId}`,
+          text: `${name} session: ${sessionId}\nResume with: auditaria --resume-${name.toLowerCase()} ${sessionId}`,
           id: now + 1,
         });
       }

@@ -133,7 +133,7 @@ import { calculateMainAreaWidth } from './utils/ui-sizing.js';
 import ansiEscapes from 'ansi-escapes';
 import { basename } from 'node:path';
 import { computeTerminalTitle } from '../utils/windowTitle.js';
-import { buildUIHistoryFromContent } from './utils/claudeHistoryProjection.js'; // AUDITARIA_REWIND_FEATURE
+import { buildUIHistoryFromContent } from './utils/externalHistoryProjection.js'; // AUDITARIA_REWIND_FEATURE
 import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
@@ -860,13 +860,13 @@ export const AppContainer = (props: AppContainerProps) => {
     [handleDeleteSessionSync],
   );
 
-  // AUDITARIA_REWIND_START: Apply --resume-claude CLI flag.
+  // AUDITARIA_REWIND_START: Apply native provider resume CLI flags.
   // The pending Content[] was parsed at startup; both the mirrored history (for
   // rewind / token estimation / summary-building) and the visible chat log are
   // derived from the same source, so they can't drift apart.
   useEffect(() => {
     if (!isGeminiClientInitialized) return;
-    const pendingContent = config.consumePendingClaudeResumeContent();
+    const pendingContent = config.consumePendingExternalResumeContent();
     if (!pendingContent || pendingContent.length === 0) return;
 
     try {

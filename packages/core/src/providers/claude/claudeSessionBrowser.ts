@@ -39,13 +39,8 @@ export function getClaudeProjectDirHash(cwd: string): string {
 /**
  * Metadata for a Claude session, extracted via lite loading.
  */
-export interface ClaudeSessionInfo {
-  sessionId: string;
-  firstPrompt: string;
-  timestamp: Date;
-  fileSize: number;
-  filePath: string;
-}
+export type { ExternalSessionInfo as ClaudeSessionInfo } from '../externalSession.js';
+import type { ExternalSessionInfo as ClaudeSessionInfo } from '../externalSession.js';
 
 const SCAN_CHUNK_SIZE = 65536; // 64KB per read
 const MAX_SCAN_BYTES = 2 * 1024 * 1024; // stop scanning after 2MB — previews only
@@ -419,8 +414,10 @@ export async function validateClaudeSessionId(
     `${sessionId}.jsonl`,
   );
   try {
-    await stat(filePath);
-    return { valid: true, filePath };
+    if (!/^[a-zA-Z0-9_-]+$/.test(sessionId))
+      return { valid: false, filePath: '' };
+    const info = await stat(filePath);
+    return { valid: info.isFile(), filePath };
   } catch {
     return { valid: false, filePath };
   }

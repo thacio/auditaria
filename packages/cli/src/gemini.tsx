@@ -828,43 +828,36 @@ export async function main() {
       })),
     ];
 
-    // AUDITARIA_REWIND_START: Store --resume-claude flag for later application
-    if (argv.resumeClaude && typeof argv.resumeClaude === 'string') {
-      const claudeSessionId = argv.resumeClaude;
-      config.setPendingClaudeResumeSessionId(claudeSessionId);
-
-      // Pre-parse the JSONL once into full-fidelity Content[] — the mirrored
-      // history and the UI log are both derived from this single source in
-      // AppContainer on mount.
+    // AUDITARIA_REWIND_START: Parse native history once for the client and UI.
+    const resumeProvider = argv.resumeCodex ? 'codex' : 'claude';
+    const resumeId = argv.resumeCodex || argv.resumeClaude;
+    if (resumeId) {
+      const { externalSessionProviders } = await import(
+        '@google/gemini-cli-core'
+      );
+      const adapter = externalSessionProviders[resumeProvider];
       try {
-        const { validateClaudeSessionId, loadClaudeSessionAsContent } =
-          await import('@google/gemini-cli-core');
-        const { valid, filePath } = await validateClaudeSessionId(
+        const { valid, filePath } = await adapter.validate(
           config.getTargetDir(),
-          claudeSessionId,
+          resumeId,
         );
-        if (valid) {
-          const content = await loadClaudeSessionAsContent(filePath);
-          if (content.length > 0) {
-            config.setPendingClaudeResumeContent(content);
-          }
-
-          startupWarnings.push({
-            id: 'resume-claude',
-            message: `Resuming Claude session ${claudeSessionId.slice(0, 8)}...`,
-            priority: WarningPriority.Low,
-          });
-        } else {
-          // Session not found — clear the pending ID and warn
-          config.setPendingClaudeResumeSessionId('');
-          startupWarnings.push({
-            id: 'resume-claude-not-found',
-            message: `Claude session ${claudeSessionId.slice(0, 8)}... not found for this project. Starting fresh.`,
-            priority: WarningPriority.High,
-          });
-        }
-      } catch {
-        // Non-fatal — session will still resume via --resume flag
+        if (!valid) throw new Error('Session not found for this project.');
+        const content = await adapter.load(filePath);
+        if (!content.length)
+          throw new Error('No conversation content could be read.');
+        config.setPendingExternalResumeSessionId(adapter.type, resumeId);
+        config.setPendingExternalResumeContent(content);
+        startupWarnings.push({
+          id: `resume-${resumeProvider}`,
+          message: `Resuming ${adapter.name} session ${resumeId.slice(0, 8)}...`,
+          priority: WarningPriority.Low,
+        });
+      } catch (error) {
+        startupWarnings.push({
+          id: `resume-${resumeProvider}-failed`,
+          message: `Could not resume ${adapter.name} session: ${error instanceof Error ? error.message : String(error)}`,
+          priority: WarningPriority.High,
+        });
       }
     }
     // AUDITARIA_REWIND_END

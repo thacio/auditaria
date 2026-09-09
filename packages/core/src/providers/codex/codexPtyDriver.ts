@@ -251,7 +251,11 @@ export class CodexPtyDriver
 
   setSessionId(id: string): void {
     if (this.sessionId === id) return;
+    this.stopObserver();
     this.sessionId = id;
+    this.rolloutPath = undefined;
+    this.rolloutTail.reset(0);
+    this.rolloutExpectedSince = 0;
     // The next message resumes it: kill the live TUI (a resume needs a spawn).
     if (this.session?.isAlive()) this.killSession();
   }
@@ -506,6 +510,23 @@ export class CodexPtyDriver
   private async ensureSpawned(signal: AbortSignal): Promise<string | null> {
     if (this.session?.isAlive()) return null;
     this.stopObserver();
+    // AUDITARIA_CODEX_PROVIDER: Snapshot the resumed rollout BEFORE spawning.
+    // SessionStart then binds the same path without replaying its old turns.
+    if (this.sessionId) {
+      const { validateCodexSessionId } = await import(
+        './codexSessionBrowser.js'
+      );
+      const { valid, filePath } = await validateCodexSessionId(
+        this.config.cwd,
+        this.sessionId,
+        this.config.codexConfigHome,
+      );
+      if (valid) {
+        this.rolloutPath = filePath;
+        this.rolloutExpectedSince = 0;
+        await this.rolloutTail.seekToEnd();
+      }
+    }
     this.ensureHookInfra();
     try {
       writeFileSync(this.hookFilePath!, '');

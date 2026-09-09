@@ -54,7 +54,9 @@ export default defineConfig({
     },
     server: {
       deps: {
-        inline: [/@google\/gemini-cli-core/],
+        // AUDITARIA: Workspace symlinks resolve to these paths. Keep the
+        // core/browser-agent ESM cycle in Node rather than Vite's evaluator.
+        external: [/\/packages\/core\//, /\/packages\/browser-agent\//],
       },
     },
   },

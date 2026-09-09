@@ -557,7 +557,7 @@ export class ProviderManager {
     // Future: codex-cli, copilot-cli adapters
     this.fileCheckpointAdapterProvider = currentProvider;
   }
-  // AUDITARIA_REWIND: Queue a Claude session ID for the next turn. If the driver
+  // AUDITARIA_REWIND: Queue a native provider session ID for the next turn. If the driver
   // exists, the ID is also applied immediately (so getDriverSessionId() reflects
   // it for display); if not, getOrCreateDriver() applies it after construction.
   // Overwrites any prior intent (resume > resetWithSummary — latest wins).
@@ -880,13 +880,15 @@ export class ProviderManager {
     // AUDITARIA_REWIND_START: Lazily initialize file checkpoint adapter for the active provider
     this.ensureFileCheckpointAdapter();
 
-    // AUDITARIA_REWIND: Apply --resume-claude flag from CLI startup (one-time, on first call)
-    if (this.config.type === 'claude-cli' && this.appConfig) {
-      const pendingId = this.appConfig.consumePendingClaudeResumeSessionId();
+    // AUDITARIA_REWIND: Apply native provider resume flag from CLI startup (one-time, on first call)
+    if (this.appConfig) {
+      const pendingId = this.appConfig.consumePendingExternalResumeSessionId(
+        this.config.type,
+      );
       if (pendingId) {
         this.setPendingResumeSessionId(pendingId);
         dbg(
-          '[REWIND] applied --resume-claude from CLI flag:',
+          '[REWIND] applied native session resume from CLI flag:',
           pendingId.slice(0, 8),
         );
       }

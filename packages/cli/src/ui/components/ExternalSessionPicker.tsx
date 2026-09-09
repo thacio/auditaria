@@ -1,10 +1,10 @@
 /**
  * @license
- * Copyright 2025 Thacio
+ * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_REWIND_FEATURE: Session picker for resuming Claude provider sessions
+// AUDITARIA_REWIND_FEATURE: Session picker shared by native provider resume commands
 
 import type React from 'react';
 import { Box, Text } from 'ink';
@@ -15,18 +15,20 @@ import { useKeypress } from '../hooks/useKeypress.js';
 import { useKeyMatchers } from '../hooks/useKeyMatchers.js';
 import { Command } from '../key/keyMatchers.js';
 import { formatTimeAgo } from '../utils/formatters.js';
-import type { ClaudeSessionInfo } from '@google/gemini-cli-core';
+import type { ExternalSessionInfo } from '@google/gemini-cli-core';
 import { useMemo } from 'react';
 
-interface ClaudeSessionPickerProps {
-  sessions: ClaudeSessionInfo[];
-  onSelect: (session: ClaudeSessionInfo) => void;
+interface ExternalSessionPickerProps {
+  providerName: string;
+  sessions: ExternalSessionInfo[];
+  onSelect: (session: ExternalSessionInfo) => void;
   onExit: () => void;
 }
 
 const MAX_PROMPT_LENGTH = 120;
 
-export const ClaudeSessionPicker: React.FC<ClaudeSessionPickerProps> = ({
+export const ExternalSessionPicker: React.FC<ExternalSessionPickerProps> = ({
+  providerName,
   sessions,
   onSelect,
   onExit,
@@ -60,7 +62,9 @@ export const ClaudeSessionPicker: React.FC<ClaudeSessionPickerProps> = ({
       paddingY={1}
     >
       <Box marginBottom={1}>
-        <Text bold>{'> '}Resume Claude Session</Text>
+        <Text bold>
+          {'> '}Resume {providerName} Session
+        </Text>
       </Box>
 
       <BaseSelectionList
@@ -69,14 +73,18 @@ export const ClaudeSessionPicker: React.FC<ClaudeSessionPickerProps> = ({
         isFocused={true}
         showNumbers={false}
         wrapAround={false}
-        onSelect={(session: ClaudeSessionInfo) => {
+        onSelect={(session: ExternalSessionInfo) => {
           onSelect(session);
         }}
-        renderItem={(itemWrapper: { key: string; value: ClaudeSessionInfo }) => {
+        renderItem={(itemWrapper: {
+          key: string;
+          value: ExternalSessionInfo;
+        }) => {
           const session = itemWrapper.value;
-          const prompt = session.firstPrompt.length > MAX_PROMPT_LENGTH
-            ? session.firstPrompt.slice(0, MAX_PROMPT_LENGTH) + '...'
-            : session.firstPrompt;
+          const prompt =
+            session.firstPrompt.length > MAX_PROMPT_LENGTH
+              ? session.firstPrompt.slice(0, MAX_PROMPT_LENGTH) + '...'
+              : session.firstPrompt;
           const timeAgo = formatTimeAgo(session.timestamp);
           const shortId = session.sessionId.slice(0, 8);
           const sizeKB = Math.round(session.fileSize / 1024);
@@ -97,9 +105,7 @@ export const ClaudeSessionPicker: React.FC<ClaudeSessionPickerProps> = ({
       />
 
       <Box marginTop={1}>
-        <Text color={theme.text.secondary}>
-          Enter to resume, Esc to cancel
-        </Text>
+        <Text color={theme.text.secondary}>Enter to resume, Esc to cancel</Text>
       </Box>
     </Box>
   );

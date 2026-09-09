@@ -242,6 +242,40 @@ describe('parseArguments', () => {
     );
   });
 
+  it.each(['claude', 'codex'])(
+    'parses --resume-%s with a native session ID',
+    async (provider) => {
+      process.argv = [
+        'node',
+        'script.js',
+        `--resume-${provider}`,
+        'native-session',
+      ];
+      const args = await parseArguments(createTestMergedSettings());
+      expect(provider === 'codex' ? args.resumeCodex : args.resumeClaude).toBe(
+        'native-session',
+      );
+    },
+  );
+
+  it('rejects conflicting native resume flags', async () => {
+    process.argv = [
+      'node',
+      'script.js',
+      '--resume-codex',
+      'one',
+      '--resume-claude',
+      'two',
+    ];
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called');
+    });
+    await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
+      'process.exit called',
+    );
+  });
+
   it('should parse --session-id option correctly', async () => {
     process.argv = ['node', 'script.js', '--session-id', 'test-uuid-1234'];
     vi.spyOn(process, 'exit').mockImplementation(() => {
@@ -1940,6 +1974,54 @@ describe('loadCliConfig model selection', () => {
     );
 
     expect(config.getModel()).toBe('auto');
+  });
+
+  it.each(['claude', 'codex'])(
+    'selects the native resume provider %s before client initialization',
+    async (provider) => {
+      process.argv = [
+        'node',
+        'script.js',
+        `--resume-${provider}`,
+        'native-session',
+      ];
+      const argv = await parseArguments(createTestMergedSettings());
+      const config = await loadCliConfig(
+        createTestMergedSettings(),
+        'test-session',
+        argv,
+      );
+      expect(config.getProviderConfig()?.type).toBe(`${provider}-cli`);
+      expect(config.isExternalProviderActive()).toBe(true);
+      config.setPendingExternalResumeSessionId(
+        `${provider}-cli` as 'claude-cli' | 'codex-cli',
+        'native-session',
+      );
+      expect(
+        config.consumePendingExternalResumeSessionId('gemini'),
+      ).toBeUndefined();
+      expect(
+        config.consumePendingExternalResumeSessionId(`${provider}-cli`),
+      ).toBe('native-session');
+      expect(
+        config.consumePendingExternalResumeSessionId(`${provider}-cli`),
+      ).toBeUndefined();
+    },
+  );
+
+  it('preserves the configured Codex model when resuming Codex', async () => {
+    process.argv = ['node', 'script.js', '--resume-codex', 'native-session'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({ model: { name: 'codex-code:gpt-5.5|xhigh' } }),
+      'test-session',
+      argv,
+    );
+    expect(config.getProviderConfig()).toMatchObject({
+      type: 'codex-cli',
+      model: 'gpt-5.5',
+      options: { reasoningEffort: 'xhigh' },
+    });
   });
 
   it('rehydrates persisted Claude provider preference from model.name', async () => {

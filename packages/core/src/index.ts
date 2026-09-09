@@ -603,3 +603,15 @@ export { parseWorkflowMeta } from './workflow/scriptParser.js';
 export { savedWorkflowDir } from './workflow/namedWorkflows.js';
 export type { WorkflowDisplayData } from './workflow/display.js';
 // AUDITARIA_WORKFLOW_END
+
+// AUDITARIA: Native provider session interoperability.
+export { externalSessionProviders } from './providers/externalSession.js';
+export type {
+  ExternalSessionInfo,
+  ResumableExternalProvider,
+} from './providers/externalSession.js';
+export {
+  listCodexSessions,
+  validateCodexSessionId,
+} from './providers/codex/codexSessionBrowser.js';
+export { loadCodexSessionAsContent } from './providers/codex/codexSessionLoader.js';

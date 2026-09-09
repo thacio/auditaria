@@ -883,13 +883,18 @@ export class Config implements McpContext, AgentLoopContext {
     auditaria: true,
   }; // AUDITARIA_PROVIDER_AVAILABILITY
   private fileCheckpointManager_?: FileCheckpointManager; // AUDITARIA_REWIND
-  private pendingClaudeResumeSessionId_?: string; // AUDITARIA_REWIND
-  // AUDITARIA_REWIND: Full-fidelity Content[] parsed from a Claude JSONL session.
+  private pendingExternalResumeSession_?: {
+    provider: 'claude-cli' | 'codex-cli';
+    id: string;
+  }; // AUDITARIA_REWIND
+  // AUDITARIA_REWIND: Full-fidelity Content[] parsed from a native provider session.
   // The single source of truth for both the mirrored history (passed to
   // client.setHistory) and the visible UI log (projected via buildUIHistoryFromContent).
   // Replaces the earlier pair of ui-history + summary fields, which let the two
   // representations drift apart.
-  private pendingClaudeResumeContent_?: Array<import('@google/genai').Content>;
+  private pendingExternalResumeContent_?: Array<
+    import('@google/genai').Content
+  >;
   private customProviders_?: Array<
     import('../providers/openai-compat/types.js').CustomProviderConfig
   >; // AUDITARIA_OPENAI_COMPAT
@@ -3130,27 +3135,32 @@ export class Config implements McpContext, AgentLoopContext {
     }
     return this.fileCheckpointManager_;
   }
-  setPendingClaudeResumeSessionId(id: string): void {
-    this.pendingClaudeResumeSessionId_ = id;
+  setPendingExternalResumeSessionId(
+    provider: 'claude-cli' | 'codex-cli',
+    id: string,
+  ): void {
+    this.pendingExternalResumeSession_ = { provider, id };
   }
 
-  consumePendingClaudeResumeSessionId(): string | undefined {
-    const id = this.pendingClaudeResumeSessionId_;
-    this.pendingClaudeResumeSessionId_ = undefined;
+  consumePendingExternalResumeSessionId(provider: string): string | undefined {
+    if (this.pendingExternalResumeSession_?.provider !== provider)
+      return undefined;
+    const id = this.pendingExternalResumeSession_.id;
+    this.pendingExternalResumeSession_ = undefined;
     return id;
   }
 
-  setPendingClaudeResumeContent(
+  setPendingExternalResumeContent(
     content: Array<import('@google/genai').Content>,
   ): void {
-    this.pendingClaudeResumeContent_ = content;
+    this.pendingExternalResumeContent_ = content;
   }
 
-  consumePendingClaudeResumeContent():
+  consumePendingExternalResumeContent():
     | Array<import('@google/genai').Content>
     | undefined {
-    const c = this.pendingClaudeResumeContent_;
-    this.pendingClaudeResumeContent_ = undefined;
+    const c = this.pendingExternalResumeContent_;
+    this.pendingExternalResumeContent_ = undefined;
     return c;
   }
   // AUDITARIA_REWIND_END

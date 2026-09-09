@@ -61,6 +61,7 @@ import { languageCommand } from '../ui/commands/languageCommand.js';
 import { webCommand } from '../ui/commands/webCommand.js';
 // WEB_INTERFACE_END
 import { skillsCommand } from '../ui/commands/skillsCommand.js';
+import { resumeCodexCommand } from '../ui/commands/resumeCodexCommand.js'; // AUDITARIA_CODEX_PROVIDER
 import { resumeClaudeCommand } from '../ui/commands/resumeClaudeCommand.js'; // AUDITARIA_REWIND
 import { settingsCommand } from '../ui/commands/settingsCommand.js';
 import { tasksCommand } from '../ui/commands/tasksCommand.js';
@@ -219,6 +220,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       toolsCommand,
       languageCommand,
       resumeClaudeCommand, // AUDITARIA_REWIND
+      resumeCodexCommand, // AUDITARIA_CODEX_PROVIDER
       // WEB_INTERFACE_START: Add web command to builtin commands
       webCommand,
       // WEB_INTERFACE_END
