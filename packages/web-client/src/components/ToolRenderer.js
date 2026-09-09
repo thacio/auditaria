@@ -95,15 +95,140 @@ const BROWSER_STEP_STATUS = {
  * Render a tool group
  */
 export function renderToolGroup(tools) {
-  const toolListEl = document.createElement('div');
-  toolListEl.className = 'tool-list';
-
-  tools.forEach((tool) => {
-    const toolItemEl = renderToolItem(tool);
-    toolListEl.appendChild(toolItemEl);
-  });
-
+  const toolListEl = document.createElement('details');
+  toolListEl.className = 'tool-list tool-activity';
+  const summary = document.createElement('summary');
+  summary.className = 'tool-activity-summary';
+  summary.innerHTML =
+    '<span class="activity-indicator" aria-hidden="true"></span><span class="activity-label"></span><span class="activity-preview"></span><span class="activity-chevron" aria-hidden="true">›</span>';
+  toolListEl.appendChild(summary);
+  const items = document.createElement('div');
+  items.className = 'tool-activity-items';
+  toolListEl.appendChild(items);
+  updateToolGroup(toolListEl, tools);
   return toolListEl;
+}
+
+/** Keep disclosures, raw output, focus and unchanged tool DOM stable while streaming. */
+export function updateToolGroup(group, tools) {
+  const items = group.querySelector('.tool-activity-items');
+  const existing = new Map(
+    Array.from(items.children, (item) => [item.dataset.toolKey, item]),
+  );
+  tools.forEach((tool, index) => {
+    const key = tool.callId || `${tool.name}-${index}`;
+    const previous = existing.get(key);
+    const snapshot = JSON.stringify(tool);
+    let item = previous;
+    if (!previous || previous._toolSnapshot !== snapshot) {
+      item = renderToolItem(tool);
+      item.dataset.toolKey = key;
+      item._toolSnapshot = snapshot;
+      if (previous) {
+        const focusedClass = previous.contains(document.activeElement)
+          ? document.activeElement.className
+          : null;
+        const output = previous.querySelector('.tool-output');
+        const scrollPositions = Array.from(
+          output?.children || [],
+          (el) => el.scrollTop,
+        );
+        previous.replaceWith(item);
+        restoreToolState(previous, item);
+        item.querySelectorAll('.tool-output > *').forEach((el, i) => {
+          el.scrollTop = scrollPositions[i] || 0;
+        });
+        if (focusedClass) {
+          Array.from(item.querySelectorAll('button'))
+            .find((el) => el.className === focusedClass)
+            ?.focus({ preventScroll: true });
+        }
+      }
+    }
+    if (items.children[index] !== item)
+      items.insertBefore(item, items.children[index] || null);
+    if (
+      tool.status === 'Confirming' &&
+      previous?._toolStatus !== 'Confirming'
+    ) {
+      group.open = true;
+      setToolExpanded(item, true);
+    }
+    item._toolStatus = tool.status;
+    existing.delete(key);
+  });
+  existing.forEach((item) => item.remove());
+
+  const active =
+    tools.find((tool) => tool.status === 'Executing') ||
+    tools.find((tool) => tool.status === 'Pending');
+  const confirming = tools.some((tool) => tool.status === 'Confirming');
+  const errors = tools.filter((tool) => tool.status === 'Error').length;
+  const canceled = tools.filter((tool) => tool.status === 'Canceled').length;
+  const count = `${tools.length} ${tools.length === 1 ? 'step' : 'steps'}`;
+  group.dataset.status = confirming
+    ? 'confirming'
+    : active
+      ? 'executing'
+      : errors
+        ? 'error'
+        : 'complete';
+  group.querySelector('.activity-label').textContent = confirming
+    ? 'Approval needed'
+    : active
+      ? 'Working'
+      : 'Activity';
+  group.querySelector('.activity-preview').textContent = [
+    count,
+    errors ? `${errors} failed` : '',
+    canceled ? `${canceled} canceled` : '',
+    active?.description || active?.name || '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  if (
+    document
+      .getElementById('toggle-all-raw-btn')
+      ?.classList.contains('active') &&
+    tools.some((tool) => tool.llmOutput)
+  )
+    group.open = true;
+}
+
+export function setToolExpanded(item, expanded) {
+  item.classList.toggle('tool-item-expanded', expanded);
+  item.classList.toggle('tool-item-collapsed', !expanded);
+  item
+    .querySelector('.tool-disclosure')
+    .setAttribute('aria-expanded', String(expanded));
+  item.querySelector('.tool-collapsible-content').inert = !expanded;
+}
+
+function restoreToolState(previous, item) {
+  const rawButton = item.querySelector('.tool-toggle-llm-btn');
+  const wasRaw = !!previous.querySelector('.tool-toggle-llm-btn.active');
+  if (rawButton && rawButton.classList.contains('active') !== wasRaw)
+    rawButton.click();
+  setToolExpanded(item, previous.classList.contains('tool-item-expanded'));
+}
+
+/** Carry inspection state from a streaming tool group into finalized history. */
+export function restoreToolGroupState(source, target) {
+  if (!source || !target) return;
+  const previous = new Map(
+    Array.from(source.querySelectorAll('.tool-item'), (item) => [
+      item.dataset.toolKey,
+      item,
+    ]),
+  );
+  target.querySelectorAll('.tool-item').forEach((item) => {
+    const old = previous.get(item.dataset.toolKey);
+    if (old) {
+      restoreToolState(old, item);
+      if (old.closest('.tool-activity').open)
+        item.closest('.tool-activity').open = true;
+    }
+  });
 }
 
 /**
@@ -111,7 +236,7 @@ export function renderToolGroup(tools) {
  */
 function renderToolItem(tool) {
   const toolItemEl = document.createElement('div');
-  toolItemEl.className = 'tool-item tool-item-expanded'; // Start expanded
+  toolItemEl.className = 'tool-item tool-item-collapsed';
 
   // Add data attribute with callId for tracking
   if (tool.callId) {
@@ -143,10 +268,15 @@ function renderToolItem(tool) {
   toolItemEl.appendChild(collapsibleContentEl);
 
   // Add click handler for collapsing/expanding
-  toolHeaderEl.addEventListener('click', () => {
-    toolItemEl.classList.toggle('tool-item-expanded');
-    toolItemEl.classList.toggle('tool-item-collapsed');
-  });
+  setToolExpanded(toolItemEl, false);
+  toolHeaderEl
+    .querySelector('.tool-disclosure')
+    .addEventListener('click', () => {
+      setToolExpanded(
+        toolItemEl,
+        !toolItemEl.classList.contains('tool-item-expanded'),
+      );
+    });
 
   // If global RAW mode is active, auto-activate RAW on this new tool
   const globalRawBtn = document.getElementById('toggle-all-raw-btn');
@@ -166,6 +296,10 @@ function renderToolItem(tool) {
 function createToolHeader(tool) {
   const toolHeaderEl = document.createElement('div');
   toolHeaderEl.className = 'tool-header tool-header-clickable';
+  const disclosure = document.createElement('button');
+  disclosure.type = 'button';
+  disclosure.className = 'tool-disclosure';
+  disclosure.setAttribute('aria-expanded', 'false');
 
   // Add expand/collapse indicator
   const expandIndicatorEl = document.createElement('span');
@@ -178,16 +312,24 @@ function createToolHeader(tool) {
 
   const toolNameEl = document.createElement('span');
   toolNameEl.className = 'tool-name';
-  toolNameEl.textContent = tool.name;
+  toolNameEl.textContent = tool.name.replace(/[_-]+/g, ' ');
+  toolNameEl.title = tool.name;
 
   const toolStatusEl = document.createElement('span');
   toolStatusEl.className = `tool-status tool-status-${tool.status.toLowerCase()}`;
   toolStatusEl.textContent = tool.status;
 
-  toolHeaderEl.appendChild(expandIndicatorEl);
-  toolHeaderEl.appendChild(toolStatusIndicatorEl);
-  toolHeaderEl.appendChild(toolNameEl);
-  toolHeaderEl.appendChild(toolStatusEl);
+  disclosure.appendChild(expandIndicatorEl);
+  disclosure.appendChild(toolStatusIndicatorEl);
+  disclosure.appendChild(toolNameEl);
+  if (tool.description) {
+    const preview = document.createElement('span');
+    preview.className = 'tool-preview';
+    preview.textContent = tool.description;
+    disclosure.appendChild(preview);
+  }
+  disclosure.appendChild(toolStatusEl);
+  toolHeaderEl.appendChild(disclosure);
 
   // AUDITARIA: Add toggle button for LLM Output
   if (tool.llmOutput) {
@@ -195,6 +337,7 @@ function createToolHeader(tool) {
     toggleLlmBtn.className = 'tool-toggle-llm-btn';
     toggleLlmBtn.textContent = 'RAW';
     toggleLlmBtn.title = 'Toggle raw LLM output';
+    toggleLlmBtn.setAttribute('aria-pressed', 'false');
 
     // Prevent expanding/collapsing when clicking the button
     toggleLlmBtn.addEventListener('click', (e) => {
@@ -231,6 +374,7 @@ function createToolHeader(tool) {
             collapsibleContainer.removeChild(outputEl);
           }
           toggleLlmBtn.classList.remove('active');
+          toggleLlmBtn.setAttribute('aria-pressed', 'false');
         } else {
           // Show LLM output
           outputEl.dataset.showingLlm = 'true';
@@ -250,10 +394,12 @@ function createToolHeader(tool) {
             outputEl.appendChild(pre);
           }
           toggleLlmBtn.classList.add('active');
+          toggleLlmBtn.setAttribute('aria-pressed', 'true');
 
           // Ensure the tool item is expanded to see the output
-          parentItem.classList.add('tool-item-expanded');
-          parentItem.classList.remove('tool-item-collapsed');
+          setToolExpanded(parentItem, true);
+          const group = parentItem.closest('.tool-activity');
+          if (group) group.open = true;
         }
       }
     });

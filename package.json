@@ -1,6 +1,6 @@
 {
   "name": "@thacio/auditaria",
-  "version": "0.59.2",
+  "version": "0.59.3",
   "engines": {
     "node": ">=20.0.0"
   },

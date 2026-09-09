@@ -941,6 +941,13 @@ class AuditariaWebClient {
 <div class="messages-container">${messagesContainer.innerHTML}</div>
 </body></html>`);
       doc.close();
+      // Include inspected and collapsed tool details in the exported transcript.
+      doc.querySelectorAll('.tool-activity').forEach((group) => {
+        group.open = true;
+      });
+      doc.querySelectorAll('[inert]').forEach((element) => {
+        element.inert = false;
+      });
 
       // Wait for content to render, then print and clean up
       iframe.contentWindow.onafterprint = () => iframe.remove();
@@ -1063,6 +1070,12 @@ class AuditariaWebClient {
             }
             /* Expand all collapsed tool items for print */
             .tool-item-collapsed .tool-output { display: block !important; }
+            button.tool-disclosure, button.message-header {
+                display: block !important; background: none; border: 0;
+                padding: 0; color: inherit; font: inherit; text-align: left;
+            }
+            .tool-expand-indicator, .message-expand-indicator,
+            .activity-chevron, .tool-preview { display: none; }
             /* Orphans/widows */
             p { orphans: 2; widows: 2; }
         `;
