@@ -446,6 +446,22 @@ export const artifactsCommand: SlashCommand = {
   action: (context) => openPicker(context),
   subCommands: [
     {
+      name: 'export',
+      description:
+        'Export an independent HTML copy for SharePoint, with lossless compression and size warnings',
+      kind: CommandKind.BUILT_IN,
+      action: withId(async (_context, service, id) => {
+        const result = await service.exportArtifact(
+          { id },
+          { target: 'sharepoint', compression: 'lossless' },
+        );
+        const diagnostics = result.report.diagnostics
+          .map((d) => `${d.severity}: ${d.message}`)
+          .join('\n');
+        return `${result.htmlFile ? `Exported HTML: ${result.htmlFile}` : 'Export needs adaptation; see report.'}\nSize: ${result.report.outputMiB.toFixed(2)} MiB\nReport: ${result.reportFile}\nInstructions: ${result.instructionsFile}\n${diagnostics}`;
+      }),
+    },
+    {
       name: 'list',
       description: 'List the artifacts of this project',
       kind: CommandKind.BUILT_IN,

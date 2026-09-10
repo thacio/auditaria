@@ -7,6 +7,7 @@
 // AUDITARIA_ARTIFACTS: This entire file is part of the artifacts feature.
 
 import path from 'node:path';
+import * as fs from 'node:fs/promises';
 import { ArtifactStore } from './artifactStore.js';
 import { artifactUrl, viewerUrl } from './artifactPaths.js';
 import { AssetStore } from './assets.js';
@@ -15,6 +16,15 @@ import { CommentStore } from './comments.js';
 import { ArtifactDb } from './dbStore.js';
 import { loadOwnerIdentity, type OwnerIdentity } from './identity.js';
 import type { ArtifactId } from './types.js';
+import { exportHtml } from './export/index.js';
+import { saveExport } from './export/saveExport.js';
+import type {
+  ExportInput,
+  ExportOptions,
+  ExportResult,
+  SavedExport,
+} from './export/types.js';
+import { renderMarkdown, MARKDOWN_STYLE } from './htmlShell.js';
 
 /**
  * What the CLI side plugs in when the web server runs. Core never imports
@@ -56,6 +66,78 @@ interface TrackedArtifact {
  * why the same file path from any of them redeploys the same artifact.
  */
 export class ArtifactService {
+  async analyzeExport(
+    source: { id?: string; version?: number; filePath?: string },
+    options: ExportOptions = {},
+  ): Promise<ExportResult> {
+    if (!!source.id === !!source.filePath)
+      throw new Error('Provide exactly one artifact id or file path.');
+    let input: ExportInput;
+    if (source.id) {
+      const store = await this.getStore();
+      await store.require(source.id);
+      const version =
+        source.version === undefined
+          ? await store.servedVersion(source.id)
+          : await store.version(source.id, source.version);
+      if (!version) throw new Error('Artifact version not found.');
+      const assets = await this.getAssets(source.id);
+      const mapping = new Map<string, string>();
+      let after: string | undefined;
+      do {
+        const page = assets.list({ limit: 500, after });
+        for (const asset of page.assets) {
+          mapping.set(asset.id, assets.fileOf(asset));
+          if (!mapping.has(asset.name))
+            mapping.set(asset.name, assets.fileOf(asset));
+        }
+        after = page.next ?? undefined;
+      } while (after);
+      let html = await store.readBody(source.id, version.n);
+      if (version.format === 'markdown')
+        html = MARKDOWN_STYLE + renderMarkdown(html);
+      input = {
+        html,
+        rootDir:
+          (await store.siteDir(source.id, version.n)) ??
+          store.paths(source.id).versionsDir,
+        assets: mapping,
+        artifactId: source.id,
+        version: version.n,
+        title: version.title,
+      };
+    } else {
+      let file = path.resolve(source.filePath!);
+      if ((await fs.stat(file)).isDirectory())
+        file = path.join(file, 'index.html');
+      input = {
+        html: await fs.readFile(file, {
+          encoding: 'utf8',
+          signal: options.signal,
+        }),
+        rootDir: path.dirname(file),
+        entry: path.basename(file),
+      };
+      if (/\.md$/i.test(file))
+        input.html = MARKDOWN_STYLE + renderMarkdown(input.html);
+    }
+    return exportHtml(input, options);
+  }
+
+  async exportArtifact(
+    source: { id?: string; version?: number; filePath?: string },
+    options: ExportOptions & { outDir?: string; dryRun?: boolean } = {},
+  ): Promise<SavedExport> {
+    const result = await this.analyzeExport(source, options);
+    if (options.dryRun) return { report: result.report };
+    return saveExport(
+      result,
+      options.outDir ?? path.join(this.projectConfigDir, 'exports'),
+      source.id ?? 'artifact',
+      options.signal,
+    );
+  }
+
   private store: ArtifactStore | null = null;
   private storePromise: Promise<ArtifactStore> | null = null;
   private identity: OwnerIdentity | null = null;

@@ -51,6 +51,9 @@ export const ASSET_TYPES: Readonly<Record<string, string>> = {
   wav: 'audio/wav',
   ogg: 'audio/ogg',
   pdf: 'application/pdf',
+  sqlite: 'application/vnd.sqlite3',
+  sqlite3: 'application/vnd.sqlite3',
+  db: 'application/vnd.sqlite3',
   ttf: 'font/ttf',
   otf: 'font/otf',
   woff: 'font/woff',
@@ -181,6 +184,20 @@ export class AssetStore {
         'too_large',
         `"${name}" is ${size} bytes; an asset may be at most ${MAX_ASSET_BYTES} bytes`,
       );
+    }
+    if (['sqlite', 'sqlite3', 'db'].includes(ext)) {
+      const handle = await fsp.open(sourcePath, 'r');
+      try {
+        const header = Buffer.alloc(16);
+        await handle.read(header, 0, 16, 0);
+        if (header.toString() !== 'SQLite format 3\0')
+          throw new AssetError(
+            'invalid_argument',
+            'This file is not a SQLite database.',
+          );
+      } finally {
+        await handle.close();
+      }
     }
     if (this.totalBytes + size > MAX_ASSETS_TOTAL_BYTES) {
       throw new AssetError(

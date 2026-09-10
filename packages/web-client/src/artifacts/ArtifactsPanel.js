@@ -417,6 +417,11 @@ export class ArtifactsPanel {
       ),
     );
     tools.appendChild(copy);
+    const exportButton = el('button', 'artifacts-btn', 'Export HTML');
+    exportButton.addEventListener('click', () =>
+      this.openExportDialog(a, served),
+    );
+    tools.appendChild(exportButton);
     const share = this.manager.shareOf(a.id);
     const pending = this.sharePending === a.id;
     const publish = el(
@@ -459,6 +464,160 @@ export class ArtifactsPanel {
     tools.appendChild(close);
     header.appendChild(tools);
     return header;
+  }
+
+  openExportDialog(artifact, version) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'artifacts-export-dialog';
+    const heading = el('h2', '', 'Export HTML');
+    dialog.setAttribute('aria-label', 'Export HTML');
+    dialog.append(
+      heading,
+      el(
+        'p',
+        '',
+        `${artifact.title} · v${version}. Create an independent copy with its libraries, styles and data.`,
+      ),
+    );
+    const select = (label, choices) => {
+      const wrapper = el('label', 'artifacts-export-field', label);
+      const control = document.createElement('select');
+      for (const [value, text] of choices) {
+        const option = el('option', '', text);
+        option.value = value;
+        control.append(option);
+      }
+      wrapper.append(control);
+      dialog.append(wrapper);
+      return control;
+    };
+    const target = select('Destination', [
+      ['sharepoint', 'SharePoint'],
+      ['standalone', 'Independent HTML'],
+    ]);
+    const compression = select('Compression', [
+      ['lossless', 'Lossless — keep all content'],
+      ['none', 'Preserve without compression'],
+    ]);
+    const label = el(
+      'label',
+      'artifacts-export-field',
+      'Compress embedded data (requires a recent browser)',
+    );
+    const compressData = document.createElement('input');
+    compressData.type = 'checkbox';
+    compressData.checked = true;
+    label.prepend(compressData);
+    dialog.append(label);
+    dialog.append(
+      el(
+        'p',
+        '',
+        'Large files generate warnings; size does not prevent export. Server features may need adaptation.',
+      ),
+    );
+    const output = el('div', 'artifacts-export-result');
+    output.setAttribute('aria-live', 'polite');
+    dialog.append(output);
+    const prepare = el('button', 'artifacts-btn', 'Prepare export');
+    const close = el('button', 'artifacts-btn', 'Close');
+    let controller;
+    close.addEventListener('click', () => {
+      controller?.abort();
+      dialog.close();
+    });
+    dialog.addEventListener('close', () => {
+      controller?.abort();
+      dialog.remove();
+    });
+    prepare.addEventListener('click', async () => {
+      controller?.abort();
+      controller = new AbortController();
+      prepare.disabled = true;
+      close.textContent = 'Cancel';
+      output.replaceChildren(
+        el('p', '', 'Reading dependencies and preparing HTML…'),
+      );
+      try {
+        const result = await this.manager.prepareExport(
+          artifact.id,
+          {
+            version,
+            target: target.value,
+            compression: compression.value,
+            compressData: compressData.checked,
+          },
+          controller.signal,
+        );
+        const report = result.report;
+        output.replaceChildren(
+          el(
+            'p',
+            '',
+            `${report.outputMiB.toFixed(2)} MiB (${report.outputBytes.toLocaleString()} bytes) · ${report.conversionStatus === 'ready' ? 'Ready to download' : 'Needs adaptation'}`,
+          ),
+        );
+        if (report.dataBytesSaved)
+          output.append(
+            el(
+              'p',
+              '',
+              `Embedded data compression saved ${report.dataBytesSaved.toLocaleString()} bytes before Base64.`,
+            ),
+          );
+        if (report.imageBytesSaved)
+          output.append(
+            el(
+              'p',
+              '',
+              `Lossless PNG optimization saved ${report.imageBytesSaved.toLocaleString()} bytes before Base64.`,
+            ),
+          );
+        if (report.largestResources.length) {
+          output.append(el('strong', '', 'Largest resources'));
+          const list = document.createElement('ul');
+          for (const resource of report.largestResources)
+            list.append(
+              el(
+                'li',
+                '',
+                `${(resource.bytes / 1024).toFixed(1)} KiB · ${resource.source}`,
+              ),
+            );
+          output.append(list);
+        }
+        for (const diagnostic of report.diagnostics)
+          output.append(
+            el(
+              'p',
+              diagnostic.severity === 'error' ? 'artifacts-export-error' : '',
+              diagnostic.message,
+            ),
+          );
+        for (const [kind, text] of [
+          ['html', 'Download HTML'],
+          ['report', 'Download report'],
+          ['instructions', 'SharePoint instructions'],
+        ]) {
+          if (kind === 'html' && report.conversionStatus !== 'ready') continue;
+          const link = el('a', 'artifacts-btn', text);
+          link.href = `${result.downloadBase}/${kind}`;
+          link.setAttribute('download', '');
+          output.append(link);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError')
+          output.replaceChildren(
+            el('p', 'artifacts-export-error', error.message),
+          );
+      } finally {
+        prepare.disabled = false;
+        close.textContent = 'Close';
+      }
+    });
+    dialog.append(prepare, close);
+    document.body.append(dialog);
+    dialog.showModal();
   }
 }
 

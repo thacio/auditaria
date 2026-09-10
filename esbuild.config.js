@@ -57,6 +57,9 @@ function createWasmPlugins() {
 }
 
 const external = [
+  // AUDITARIA_ARTIFACTS: native/runtime engines locate their own installed assets.
+  'esbuild',
+  'sharp',
   '@lydell/node-pty',
   'node-pty',
   '@lydell/node-pty-darwin-arm64',

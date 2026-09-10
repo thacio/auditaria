@@ -59,11 +59,13 @@ import {
   type ToolCallConfirmationDetails,
   type ToolInvocation,
   type ToolResult,
+  type ExecuteOptions,
 } from './tools.js';
 
 /** Claude Code's action enum, kept whole so trained agents never hit a schema error. */
 export const ARTIFACT_ACTIONS = [
   'publish',
+  'export',
   'list',
   'read',
   'list_types',
@@ -131,6 +133,14 @@ export interface ArtifactToolParams {
   asset_id?: string;
   after?: string;
   assets?: string[];
+  version?: number;
+  target?: 'standalone' | 'sharepoint';
+  compression?: 'none' | 'lossless';
+  compress_data?: boolean;
+  dry_run?: boolean;
+  allow_remote?: boolean;
+  warn_mib?: number;
+  resources?: Record<string, string>;
 }
 
 /**
@@ -176,7 +186,7 @@ export function tryParseArtifactDisplay(
   return null;
 }
 
-const DESCRIPTION = `Publish an HTML page as an artifact hosted by Auditaria's own web server, so the user can open it in a browser, keep it, comment on it, and share it for a session. Use it when communicating visually beats terminal text, or when the user would use the page rather than only read it. Publishing your own work-product proactively is fine (artifacts start private to this machine); when the user didn't ask for a page, offer it in one line first.
+const DESCRIPTION = `Publish an HTML page as an artifact hosted by Auditaria's own web server, so the user can open it in a browser, keep it, comment on it, and share it for a session. Use action="export" to convert a file/folder or stored artifact version into independent HTML for offline use or SharePoint: CDN scripts, CSS, fonts, images and static data are incorporated, with lossless compression by default. dry_run=true reports compatibility and size first. File size generates warnings, never an export refusal. APIs, shared writes and host capabilities need fallback/adaptation. Read the artifact-capabilities export reference for instructions. Export does not publish or change permissions. Use it when communicating visually beats terminal text, or when the user would use the page rather than only read it. Publishing your own work-product proactively is fine (artifacts start private to this machine); when the user didn't ask for a page, offer it in one line first.
 
 BEFORE WRITING A PAGE load the artifact-design skill; BEFORE passing capabilities or writing window.claude code load the artifact-capabilities skill. They carry the authoring rules in full. The essentials: author page content only (a <title> in the first 8KB, <style>, markup, <script>) with no <!DOCTYPE>/<html>/<head>/<body> — the host wraps it; the page must be 16MB or smaller; a .md file renders as a styled page; mermaid renders natively; scripts may load only from cdnjs, jsDelivr /npm/, the Tailwind play CDN and jQuery (fonts from Google Fonts), everything else inlined; the page runs in the viewer's light/dark/system theme via data-theme on the root; never publish content impersonating real people or organizations, fabricated records, or credential flows, and never publish a file you have not read in full.
 
@@ -307,6 +317,50 @@ export class ArtifactTool extends BaseDeclarativeTool<
             description:
               'read: save the source to a file here instead of returning it inline. read_db: write each row as <out_dir>/<collection>/<doc_id>.json. read_asset: save the asset here (default: the working directory).',
           },
+          version: {
+            type: 'integer',
+            minimum: 1,
+            description:
+              'export: stored version (default: served/pinned version).',
+          },
+          target: {
+            type: 'string',
+            enum: ['standalone', 'sharepoint'],
+            description: 'export profile; defaults to sharepoint.',
+          },
+          compression: {
+            type: 'string',
+            enum: ['none', 'lossless'],
+            description:
+              'export: lossless compression is the default; no image quality or data is discarded.',
+          },
+          compress_data: {
+            type: 'boolean',
+            description:
+              'export: gzip embedded data where smaller (default true); needs browser DecompressionStream.',
+          },
+          dry_run: {
+            type: 'boolean',
+            description:
+              'export: analyze and return report without writing final files.',
+          },
+          allow_remote: {
+            type: 'boolean',
+            description:
+              'export: download public HTTPS dependencies (default true); no browser credentials.',
+          },
+          warn_mib: {
+            type: 'number',
+            minimum: 0,
+            description:
+              'export: size warning threshold in MiB (default 5); does not block export.',
+          },
+          resources: {
+            type: 'object',
+            additionalProperties: { type: 'string' },
+            description:
+              'export: explicit key to resource path/URL. Page can await __auditariaExport.bytes(key), text(key), json(key). Static fetch of JSON/CSV/text/SQLite is also converted.',
+          },
           asset_id: {
             type: 'string',
             description: 'read_asset/delete_asset: the asset id.',
@@ -341,6 +395,12 @@ export class ArtifactTool extends BaseDeclarativeTool<
       return `Unknown action "${String(action)}". Actions: ${ARTIFACT_ACTIONS.join(', ')}.`;
     }
     switch (action) {
+      case 'export':
+        if (!!params.url === !!params.file_path)
+          return 'export requires exactly one url or file_path.';
+        if (params.url && !parseArtifactReference(params.url))
+          return 'Invalid artifact url.';
+        return null;
       case 'publish':
         if (!params.file_path?.trim()) {
           return 'file_path is required to publish.';
@@ -459,6 +519,7 @@ class ArtifactInvocation extends BaseToolInvocation<
     abortSignal: AbortSignal,
   ): Promise<ToolCallConfirmationDetails | false> {
     const action = this.action;
+    if (action === 'export') return false;
     if (READ_ONLY_ACTIONS.has(action)) return false;
 
     if (action === 'publish') {
@@ -542,8 +603,31 @@ class ArtifactInvocation extends BaseToolInvocation<
     return this.service.idForPath(this.params.file_path ?? '');
   }
 
-  async execute(): Promise<ToolResult> {
+  async execute(options?: ExecuteOptions): Promise<ToolResult> {
     try {
+      if (this.action === 'export') {
+        const result = await this.service.exportArtifact(
+          {
+            id: this.params.url
+              ? parseArtifactReference(this.params.url)!
+              : undefined,
+            filePath: this.params.file_path,
+            version: this.params.version,
+          },
+          {
+            target: this.params.target,
+            compression: this.params.compression,
+            compressData: this.params.compress_data,
+            allowRemote: this.params.allow_remote,
+            warnMiB: this.params.warn_mib,
+            resources: this.params.resources,
+            dryRun: this.params.dry_run,
+            outDir: this.params.out_dir,
+            signal: options?.abortSignal,
+          },
+        );
+        return text(JSON.stringify(result, null, 2));
+      }
       const result = await this.run();
       const notices = this.service.drainNotices();
       if (notices.length === 0) return result;

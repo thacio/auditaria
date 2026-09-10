@@ -75,6 +75,22 @@ export class ArtifactsManager extends EventTarget {
     this.wsManager.send({ type: 'artifact_list_request' });
   }
 
+  async prepareExport(id, options, signal) {
+    const response = await fetch(
+      `/api/artifact-exports/${encodeURIComponent(id)}/export`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options),
+        signal,
+      },
+    );
+    const result = await response.json();
+    if (!response.ok)
+      throw new Error(result.error || 'Could not export artifact.');
+    return result;
+  }
+
   get(id) {
     return this.artifacts.find((a) => a.id === id) || null;
   }

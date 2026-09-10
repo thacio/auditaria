@@ -409,6 +409,17 @@ export {
   UNSERVED_CAPABILITIES,
 } from './artifacts/artifactStore.js';
 export { ArtifactService } from './artifacts/artifactService.js';
+export { exportHtml } from './artifacts/export/index.js';
+export {
+  saveExport,
+  SHAREPOINT_INSTRUCTIONS,
+} from './artifacts/export/saveExport.js';
+export type {
+  ExportOptions,
+  ExportResult,
+  ExportReport,
+  SavedExport,
+} from './artifacts/export/types.js';
 export type { ArtifactHost } from './artifacts/artifactService.js';
 export {
   artifactHostname,

@@ -129,7 +129,9 @@
   background: var(--surface-alt, var(--surface));
   cursor: pointer;
   overflow: hidden;
-  transition: border-color var(--transition-fast, 120ms), box-shadow var(--transition-fast, 120ms);
+  transition:
+    border-color var(--transition-fast, 120ms),
+    box-shadow var(--transition-fast, 120ms);
 }
 .artifact-card:hover {
   border-color: var(--border-hover, var(--accent));
@@ -513,4 +515,39 @@
 }
 .artifacts-download-text {
   word-break: break-word;
+}
+/* AUDITARIA_ARTIFACTS: independent export options and size report. */
+.artifacts-export-dialog {
+  max-width: min(720px, 90vw);
+  max-height: 85vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--border-color, #bbb);
+  border-radius: 12px;
+  color: var(--text-primary, #222);
+  background: var(--bg-primary, #fff);
+}
+.artifacts-export-dialog::backdrop {
+  background: #0008;
+}
+.artifacts-export-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 0;
+}
+.artifacts-export-field select {
+  padding: 8px;
+}
+.artifacts-export-result {
+  overflow-wrap: anywhere;
+  margin: 20px 0;
+}
+.artifacts-export-result .artifacts-btn {
+  display: inline-block;
+  margin: 4px;
+}
+.artifacts-export-error {
+  color: #b3261e;
 }

@@ -149,6 +149,25 @@ describe('ArtifactTool', () => {
     expect(tool.validateToolParams({ action: 'list_types' })).toBeNull();
   });
 
+  it('exports through the AI tool without changing the artifact or requiring publish confirmation', async () => {
+    const source = await writePage('export.html', 'Export');
+    const params: ArtifactToolParams = {
+      action: 'export',
+      file_path: source,
+      out_dir: path.join(dir, 'exports'),
+    };
+    const output = await run(params);
+    const result = JSON.parse(String(output.llmContent));
+    expect(result.report.conversionStatus).toBe('ready');
+    expect(result.htmlFile).toContain('sharepoint.html');
+    expect(await readFile(source, 'utf8')).toBe(fragment('Export'));
+    expect(host.openInBrowser).not.toHaveBeenCalled();
+    const analyzed = JSON.parse(
+      String((await run({ ...params, dry_run: true })).llmContent),
+    );
+    expect(analyzed.htmlFile).toBeUndefined();
+  });
+
   it('publishes, opens the browser once, and redeploys the same file to the same artifact', async () => {
     const file = await writePage('report.html', 'Deploy Failures');
     const first = await run({

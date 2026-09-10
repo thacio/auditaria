@@ -11,6 +11,7 @@ import type { WebSocket } from 'ws';
 import { randomBytes } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import express from 'express';
 import {
   ArtifactStoreError,
   DbError,
@@ -43,6 +44,8 @@ import {
   type ArtifactStore,
   type ArtifactSummary,
   type PublishOutcome,
+  SHAREPOINT_INSTRUCTIONS,
+  type ExportResult,
 } from '@google/gemini-cli-core';
 import { openBrowser } from '../../../utils/browserUtils.js';
 import { WebFeature } from '../core/webFeature.js';
@@ -129,6 +132,10 @@ export class ArtifactsFeature extends WebFeature {
   private shares: ShareManager | null = null;
   private static cleanupRegistered = false;
   private static readonly liveManagers = new Set<ShareManager>();
+  private readonly exportDownloads = new Map<
+    string,
+    { result: ExportResult; expiresAt: number }
+  >();
 
   constructor(private readonly options: ArtifactsFeatureOptions) {
     super();
@@ -136,6 +143,113 @@ export class ArtifactsFeature extends WebFeature {
 
   protected async onAttach(ctx: WebFeatureContext): Promise<void> {
     const { service } = this.options;
+    const exports = express.Router();
+    exports.post(
+      '/:id/export',
+      express.json({ limit: '16kb' }),
+      async (req, res) => {
+        if (
+          !req.headers.origin ||
+          !this.consoleOrigins.includes(req.headers.origin)
+        ) {
+          res.status(403).json({
+            error: 'Export must be requested from the Auditaria console.',
+          });
+          return;
+        }
+        const abort = new AbortController();
+        res.on('close', () => {
+          if (!res.writableEnded) abort.abort();
+        });
+        try {
+          const body: unknown = req.body;
+          if (!isRecord(body)) throw new Error('Expected export options.');
+          const version = body['version'];
+          if (
+            version !== undefined &&
+            (!Number.isInteger(version) || Number(version) < 1)
+          )
+            throw new Error('Invalid version.');
+          const target = body['target'] ?? 'sharepoint';
+          const compression = body['compression'] ?? 'lossless';
+          if (target !== 'sharepoint' && target !== 'standalone')
+            throw new Error('Invalid export target.');
+          if (compression !== 'lossless' && compression !== 'none')
+            throw new Error('Invalid compression.');
+          const result = await service.analyzeExport(
+            {
+              id: req.params['id'],
+              version: typeof version === 'number' ? version : undefined,
+            },
+            {
+              target,
+              compression,
+              compressData: body['compressData'] !== false,
+              signal: abort.signal,
+            },
+          );
+          for (const [key, value] of this.exportDownloads)
+            if (value.expiresAt < Date.now()) this.exportDownloads.delete(key);
+          // Keep a small, session-only download cache. Files are never served inline.
+          while (this.exportDownloads.size >= 4)
+            this.exportDownloads.delete(
+              this.exportDownloads.keys().next().value!,
+            );
+          const token = randomBytes(24).toString('base64url');
+          this.exportDownloads.set(token, {
+            result,
+            expiresAt: Date.now() + 15 * 60 * 1000,
+          });
+          res.json({
+            report: result.report,
+            downloadBase: `/api/artifact-exports/download/${token}`,
+          });
+        } catch (error) {
+          if (!abort.signal.aborted)
+            res.status(400).json({
+              error: error instanceof Error ? error.message : String(error),
+            });
+        }
+      },
+    );
+    exports.get('/download/:token/:kind', (req, res) => {
+      const entry = this.exportDownloads.get(req.params['token']);
+      if (!entry || entry.expiresAt < Date.now()) {
+        res.status(404).send('Export expired. Prepare it again.');
+        return;
+      }
+      const kind = req.params['kind'];
+      const { result } = entry;
+      if (
+        !['html', 'report', 'instructions'].includes(kind) ||
+        (kind === 'html' && result.report.conversionStatus !== 'ready')
+      ) {
+        res.status(404).end();
+        return;
+      }
+      const filename =
+        kind === 'html'
+          ? `artifact.${result.report.target}.html`
+          : kind === 'report'
+            ? 'export-report.json'
+            : 'LEIA-ME.md';
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'no-store');
+      res
+        .type('application/octet-stream')
+        .send(
+          kind === 'html'
+            ? result.html
+            : kind === 'report'
+              ? JSON.stringify(result.report, null, 2)
+              : SHAREPOINT_INSTRUCTIONS,
+        );
+    });
+    ctx.http.mount('/api/artifact-exports', exports);
     ctx.http.mountHost(
       createArtifactHost({
         service,
@@ -244,6 +358,7 @@ export class ArtifactsFeature extends WebFeature {
   }
 
   protected async onDetach(): Promise<void> {
+    this.exportDownloads.clear();
     const shares = this.shares;
     this.shares = null;
     if (shares) {

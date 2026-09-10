@@ -6,9 +6,18 @@ description:
   attached to the artifact, handing the viewer a download, saving new
   versions of itself, asking the model). Load it before passing
   `capabilities` to the artifact tool or writing any `claude.use()` code.
+  Also load it when exporting an artifact as independent HTML or for SharePoint.
 ---
 
 # Artifact runtime capabilities
+
+## Independent HTML and SharePoint export
+
+For this destination, read [Exporting independent HTML](references/standalone-export.md).
+Use `artifact` with `action: "export"`; the exporter incorporates finite CDN/local
+dependencies and offers lossless compression. Size warnings never block export.
+The independent copy has no Auditaria server: capabilities resolve `null`,
+and data is a snapshot. Keep the normal hosted artifact as the editable source.
 
 A page published with the artifact tool can declare **runtime
 capabilities** — abilities the host grants the page when a viewer opens it

@@ -85,6 +85,52 @@ it at once.
 Visitors get the latest version, read-only: no runtime capability is granted on
 a public share, so a page must render sensibly when everything resolves `null`.
 
+## Independent HTML and SharePoint
+
+**Export HTML** in the artifact viewer prepares a copy with supported scripts,
+styles, fonts, images and static data incorporated. Choose SharePoint or
+independent HTML, lossless compression (default) or uncompressed resources, and
+whether to gzip data. Download the HTML, dependency report and SharePoint guide.
+The source and its version history are unchanged.
+
+The agent uses `artifact` with `action: "export"`, either `url` (an artifact) or
+`file_path` (HTML/Markdown or a folder with `index.html`), optional `version`,
+`out_dir`, `target`, `compression`, `compress_data`, `allow_remote`, `warn_mib`,
+`resources`, and `dry_run`. `/artifacts export <id>` exports the served version
+with default options. Analysis does not require the web server.
+
+Sizes above 5 MiB produce a warning and above 16 MiB an additional warning;
+**size never prevents export**. The separate hosted-artifact publish limit still
+applies if the exported file is later published back into Auditaria. Compressed
+data requires browser DecompressionStream. Images retain their original quality.
+
+The report identifies dependencies needing adaptation. APIs, shared database
+writes and other server capabilities are not reproduced; `claude.use()` resolves
+`null`. Static one-argument fetch calls for JSON/CSV/text/SQLite can read
+embedded memory data. Explicit `resources` are available through
+`window.__auditariaExport.bytes(key)`, `.text(key)` and `.json(key)`. PDF
+viewers, general multipage navigation and dynamic loaders may need adaptation.
+
+For SharePoint, upload the HTML to a library, grant access to the file and the
+page, obtain its real `UniqueId`, and put this in a modern page's Embed
+component:
+
+```html
+<iframe
+  src="https://TENANT.sharepoint.com/sites/SITE/_layouts/15/embed.aspx?UniqueId=GUID&amp;nb=true"
+  width="100%"
+  height="900"
+  title="Artifact"
+></iframe>
+```
+
+Replace the placeholders and test with another authorized reader. Organization
+links require login. Updating the same file can preserve its GUID; deleting and
+recreating it may require updating the iframe. The export's `LEIA-ME.md`
+includes instructions and troubleshooting. This route and restrictions were
+verified in one SharePoint Online tenant; they are not universal Microsoft
+guarantees.
+
 ## Multi-file sites
 
 A single page is the normal shape and matches Claude exactly. When a real site

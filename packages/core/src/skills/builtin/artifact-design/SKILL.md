@@ -29,6 +29,22 @@ flashy hero. Some requests want an editorial treatment: a landing page, a
 game, a tool the user will keep. When unsure, a well-composed page is never
 wrong; an over-designed identity sometimes is.
 
+**Choose the reading experience, not just the visual style.** For an outreach,
+showcase, or presentation request, prefer a guided sequence over a long report:
+tabs or steps, one main message per screen, visible progress, and previous/next
+controls. Put supporting detail behind explicit actions. Don't force this shape
+on reference documents or dashboards, and don't prescribe a fixed slide count.
+Use purposeful transitions, keyboard navigation, and reduced-motion support;
+allow small screens to scroll rather than clipping content. If the user requests
+a white background to match SharePoint, keep that canvas explicitly white.
+
+For documentary evidence in a visual presentation, offer readable images of the
+relevant PDF pages or excerpts, with page labels and zoom, rather than a wall of
+extracted text. Render the actual source; never generate substitute evidence.
+Keep necessary context, accessible descriptions, and a clear distinction between
+source content and your summary. Choose relevant pages and lossless compression
+where useful; this is not a reason to rasterize the whole presentation.
+
 ## Fundamentals for every artifact
 
 **Honor what is already there.** Look for a design system first: a CLAUDE.md
@@ -59,6 +75,14 @@ come from the allowed hosts (cdnjs, jsDelivr `/npm/`, the Tailwind play
 CDN, jQuery); a library's stylesheet must be inlined. Most pages need no
 library at all. When `AUDITARIA_ARTIFACT_CDN=0` is set the host serves
 fully offline — inline everything.
+
+**Exporting for SharePoint or independent use.** Keep the normal artifact as
+the source and use `artifact action="export"` to incorporate supported CDN/local
+dependencies. Load `artifact-capabilities` and its export reference for this
+workflow. The export offers lossless compression and size warnings, without a
+size-based refusal. Minimize unused library/font variants; retain fallbacks.
+Network services and the Auditaria runtime need adaptation in the independent
+copy. Functional converter tests are distinct from the visual review rhythm below.
 
 **Choose neutrals, don't default to them.** A pure mid-grey reads as
 unconsidered; a grey with a slight bias toward the accent reads as chosen.
@@ -91,8 +115,10 @@ by role.
 names a value the chart reaches; chart text takes its color from the theme
 tokens; marks stay inside the drawing's bounds.
 
-**Show the page at rest.** Everything meant to be read is visible once the
-page loads, without scrolling to trigger it. No `opacity: 0` waiting on an
+**Show the page at rest.** The initial reading surface is visible once the
+page loads, without scrolling to trigger it. In a guided presentation, show the
+active step immediately; inactive steps and optional details can stay hidden
+until the viewer chooses them. No `opacity: 0` waiting on an
 observer, no `100vh` opener. A tool opens in a realistic working state with
 real data, or example rows plainly marked as examples.
 
@@ -149,6 +175,11 @@ test loop around your own file: no repeated screenshots, no DOM probes.
 Publish, check once any `claude.use()` call the preview could not run, and
 stop: the live page is the review surface. If the user reports something
 visibly broken, fix it and republish once.
+
+That visual-review budget does not replace functional checks. For a guided or
+exported page, exercise navigation and evidence controls in the hosted viewer
+and the final exported HTML, including offline use. Recheck affected behavior
+after a reported defect; a successful local preview alone is not sufficient.
 
 ## When the request is editorial
 
