@@ -68,22 +68,41 @@ page. Both are plain links you can bookmark or paste.
 
 ## Publish (public sharing)
 
-Publish in the viewer opens a public address for that one artifact:
+Publish in the viewer gives you a public link for that artifact:
 
 ```
-https://<random>.trycloudflare.com/s/<token>
+https://<random>.trycloudflare.com/s/<token>/
 ```
 
-It runs a Cloudflare quick tunnel (the same `cloudflared` the hive uses) in
-front of a private listener that knows exactly one artifact — nothing else on
-your machine is reachable through it. The link works only for the current
-session: the tunnel, the listener and the token die when Auditaria closes, and
-nothing about the share is saved except a line in the artifact's history noting
-the tunnel's host name. Click Publish again for a new address. Unpublish stops
-it at once.
+All active shares in your Auditaria session use one Cloudflare quick tunnel (the
+same `cloudflared` launcher the hive uses) and one private listener. Each
+artifact gets its own unguessable link under the same host name. The listener
+serves shared artifacts, their attached files, and the reduced page runtime; it
+exposes no console routes or workspace file browser.
 
-Visitors get the latest version, read-only: no runtime capability is granted on
-a public share, so a page must render sensibly when everything resolves `null`.
+Publishing an already shared artifact returns its existing link. **Unpublish**
+revokes that artifact's link and stops its active downloads. Your other shares
+keep working at their existing addresses. When you unpublish the last artifact,
+Auditaria closes the listener and tunnel. Publishing again creates a fresh link.
+
+Links work only for the current session. The tunnel, listener, and access tokens
+end when Auditaria closes. Auditaria saves only the tunnel's host name in the
+artifact's history, never the access token. Anyone with the complete link can
+view that artifact, so share the link only with your intended audience.
+
+Public pages use independent browser sandboxes and require their own token on
+every resource request. They don't use shared login cookies or browser storage.
+Responses disable caching and referrer disclosure. Visitors get the served
+version (the pinned version, or the latest), read-only: no runtime capability is
+granted, so a page must render sensibly when everything resolves `null`.
+
+Scripts, styles, and relative resource requests work within each share.
+Auditaria rebases root-relative HTML and CSS resource links under the share's
+directory. Use relative URLs in authored JavaScript, such as
+`fetch('./data.json')`; strings in scripts aren't rewritten. The public sandbox
+disables local storage, service workers, web workers, embedded frames, and form
+submissions. These restrictions apply to public shares; the local artifact
+viewer keeps its existing behavior.
 
 ## Independent HTML and SharePoint
 

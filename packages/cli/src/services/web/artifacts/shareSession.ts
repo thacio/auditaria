@@ -5,7 +5,7 @@
  */
 
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
-// AUDITARIA_ARTIFACTS: ephemeral public sharing of ONE artifact.
+// AUDITARIA_ARTIFACTS: ephemeral public shares behind one isolated listener and tunnel.
 
 import { randomBytes } from 'node:crypto';
 import express from 'express';
@@ -24,16 +24,17 @@ import {
 } from '@google/gemini-cli-core';
 import type { WebLogger } from '../core/types.js';
 import { buildArtifactCsp } from './artifactHost.js';
+import { scopeShareCss, scopeShareHtml } from './sharePaths.js';
 
 /**
  * A running public share. Nothing here is ever written to disk: the
  * listener, the tunnel process and the access token die with the Auditaria
  * process, so a share is valid for the current session only — which is the
- * whole point. Publishing again mints a new address.
+ * whole point. Publishing after revocation mints a new address.
  */
 export interface ShareState {
   readonly id: ArtifactId;
-  /** The public address to hand out: `https://<random>.trycloudflare.com/s/<token>`. */
+  /** The public address to hand out: `https://<random>.trycloudflare.com/s/<token>/`. */
   readonly url: string;
   readonly startedAt: string;
 }
@@ -53,109 +54,58 @@ export interface ShareSessionOptions {
   readonly tunnelFactory: TunnelFactory;
 }
 
-const COOKIE_NAME = 'auditaria_share';
-/** Cookie lifetime; the share itself ends with the process anyway. */
-const COOKIE_MAX_AGE_SECONDS = 7 * 24 * 3600;
-/** Cap on concurrent requests; a quick tunnel allows ~200 in flight. */
+/** Shared across all artifacts to bound work on the public listener. */
 const MAX_IN_FLIGHT = 32;
 
-function newToken(): string {
-  return randomBytes(24).toString('base64url');
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-/**
- * Serves exactly one artifact behind a capability link. The listener knows
- * nothing about the console: it is a separate Express app bound to a random
- * loopback port and imports none of the console routes, so nothing but this
- * artifact can ever be reached through the tunnel.
- *
- * Reduced runtime: the page and its runtime script are served, but no
- * capability is granted (every `use()` resolves `null`), so visitors can
- * read and interact locally and never write back to the store.
- */
-export class ShareSession {
-  private server: Server | null = null;
-  private tunnel: TunnelLike | null = null;
-  private token = '';
-  private inFlight = 0;
-  private state: ShareState | null = null;
+/** A read-only router; transport lifetime belongs exclusively to ShareManager. */
+class ShareSession {
+  private readonly responses = new Set<express.Response>();
+  readonly token = randomBytes(24).toString('base64url');
+  readonly basePath = `/s/${this.token}/`;
+  readonly router: express.Express;
+  readonly state: ShareState;
 
   constructor(
     readonly id: ArtifactId,
     private readonly options: ShareSessionOptions,
-  ) {}
-
-  get current(): ShareState | null {
-    return this.state;
-  }
-
-  /** The loopback port of the private listener (for tests). */
-  get localPort(): number | null {
-    const address = this.server?.address();
-    return address && typeof address !== 'string' ? address.port : null;
-  }
-
-  async start(): Promise<ShareState> {
-    if (this.state) return this.state;
-    this.token = newToken();
-    const app = this.buildApp();
-    this.server = createServer(app);
-    await new Promise<void>((resolve, reject) => {
-      this.server!.once('error', reject);
-      this.server!.listen(0, '127.0.0.1', () => resolve());
-    });
-    const port = this.localPort;
-    if (port === null) throw new Error('share listener did not bind');
-    try {
-      this.tunnel = await this.options.tunnelFactory(port);
-    } catch (error) {
-      await this.stop();
-      throw error;
-    }
+    origin: string,
+  ) {
     this.state = {
-      id: this.id,
-      url: `${this.tunnel.url.replace(/\/$/, '')}/s/${this.token}`,
+      id,
+      url: `${origin}${this.basePath}`,
       startedAt: new Date().toISOString(),
     };
-    return this.state;
+    this.router = this.buildApp();
   }
 
-  async stop(): Promise<void> {
-    this.state = null;
-    const tunnel = this.tunnel;
-    this.tunnel = null;
-    try {
-      tunnel?.stop();
-    } catch {
-      /* already gone */
-    }
-    const server = this.server;
-    this.server = null;
-    if (server) {
-      await new Promise<void>((resolve) => {
-        server.close(() => resolve());
-        server.closeAllConnections();
-      });
-    }
-    this.token = '';
+  track(res: express.Response): void {
+    this.responses.add(res);
+    const release = () => this.responses.delete(res);
+    res.once('finish', release);
+    res.once('close', release);
   }
 
-  private hasCookie(cookieHeader: string | undefined): boolean {
-    if (!cookieHeader || !this.token) return false;
-    for (const part of cookieHeader.split(';')) {
-      const [name, ...rest] = part.trim().split('=');
-      if (name === COOKIE_NAME && timingSafeEqual(rest.join('='), this.token)) {
-        return true;
-      }
-    }
-    return false;
+  revoke(): void {
+    // A download already in flight must not survive unpublishing this share.
+    for (const res of this.responses) res.destroy();
+    this.responses.clear();
+  }
+
+  /**
+   * Paths are not browser origins. Give every document an opaque origin,
+   * including SVG/HTML attachments, so shares cannot share DOM, storage or
+   * service workers. Restrict network loads to this capability's directory.
+   */
+  get csp(): string {
+    return (
+      buildArtifactCsp(["'none'"])
+        .replace("frame-ancestors 'self' 'none'", "frame-ancestors 'none'")
+        .replace(/'self'/g, this.state.url)
+        .replace(/worker-src [^;]+/, "worker-src 'none'")
+        .replace(/frame-src [^;]+/, "frame-src 'none'")
+        .replace(/form-action [^;]+/, "form-action 'none'") +
+      '; sandbox allow-scripts allow-downloads'
+    );
   }
 
   private buildApp(): express.Express {
@@ -163,52 +113,6 @@ export class ShareSession {
     const app = express();
     app.disable('x-powered-by');
     app.set('trust proxy', false);
-
-    app.use((req, res, next) => {
-      if (this.inFlight >= MAX_IN_FLIGHT) {
-        res.status(503).type('text/plain').send('Busy');
-        return;
-      }
-      this.inFlight++;
-      res.on('finish', () => {
-        this.inFlight--;
-      });
-      res.on('close', () => {
-        if (!res.writableFinished) this.inFlight--;
-      });
-      res.setHeader('Cache-Control', 'no-store');
-      res.setHeader('Referrer-Policy', 'no-referrer');
-      res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      next();
-    });
-
-    app.get('/robots.txt', (_req, res) => {
-      res.type('text/plain').send('User-agent: *\nDisallow: /\n');
-    });
-
-    // The capability link: exchange the token for an HttpOnly cookie.
-    app.get('/s/:token', (req, res) => {
-      const token = req.params['token'];
-      if (!this.token || !timingSafeEqual(token, this.token)) {
-        res.status(404).type('text/plain').send('This link is not active.');
-        return;
-      }
-      res.setHeader(
-        'Set-Cookie',
-        `${COOKIE_NAME}=${this.token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE_SECONDS}`,
-      );
-      res.redirect(302, '/');
-    });
-
-    // Everything below needs the cookie.
-    app.use((req, res, next) => {
-      if (this.hasCookie(req.headers.cookie)) {
-        next();
-        return;
-      }
-      res.status(404).type('text/plain').send('This link is not active.');
-    });
 
     app.get('/', async (_req, res) => {
       try {
@@ -248,15 +152,13 @@ export class ShareSession {
         const runtimeHead =
           `<script>window.__AUDITARIA_FRAME=${JSON.stringify(frameConfig).replace(/</g, '\\u003c')}</script>` +
           `<script src="/__rt/claude.js"></script>`;
-        res.setHeader(
-          'Content-Security-Policy',
-          buildArtifactCsp(["'none'"]).replace(
-            "frame-ancestors 'self' 'none'",
-            "frame-ancestors 'none'",
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(
+          scopeShareHtml(
+            wrapDocument({ body: fragment, runtimeHead, extraHead }),
+            this.basePath,
           ),
         );
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(wrapDocument({ body: fragment, runtimeHead, extraHead }));
       } catch (error) {
         logger.error('Share listener error:', error);
         if (!res.headersSent) res.status(500).type('text/plain').send('Error');
@@ -277,7 +179,7 @@ export class ShareSession {
         }
         res.setHeader('Content-Type', asset.type);
         res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.sendFile(assets.fileOf(asset));
+        res.sendFile(assets.fileOf(asset), { cacheControl: false });
       } catch (error) {
         logger.error('Share asset error:', error);
         if (!res.headersSent) res.status(500).type('text/plain').send('Error');
@@ -289,12 +191,12 @@ export class ShareSession {
       express.static(runtimeDir, {
         index: false,
         dotfiles: 'deny',
-        maxAge: '5m',
+        cacheControl: false,
       }),
     );
 
     // Multi-file sites: the version's files at their own paths (behind the
-    // cookie, like everything above). Pages get the same read-only wrap as
+    // capability path, like everything above). Pages get the same read-only wrap as
     // the entry; other files are served as-is.
     app.get('/*', async (req, res) => {
       try {
@@ -311,12 +213,23 @@ export class ShareSession {
           res.status(404).type('text/plain').send('Not Found');
           return;
         }
+        if (path.extname(hit.file).toLowerCase() === '.css') {
+          res
+            .type('css')
+            .send(
+              scopeShareCss(
+                await fsp.readFile(hit.file, 'utf-8'),
+                this.basePath,
+              ),
+            );
+          return;
+        }
         if (!hit.html) {
           res.setHeader('X-Content-Type-Options', 'nosniff');
-          res.setHeader('Cache-Control', 'no-cache');
           res.sendFile(path.basename(hit.file), {
             root: path.dirname(hit.file),
             dotfiles: 'deny',
+            cacheControl: false,
           });
           return;
         }
@@ -337,15 +250,13 @@ export class ShareSession {
         const runtimeHead =
           `<script>window.__AUDITARIA_FRAME=${JSON.stringify(frameConfig).replace(/</g, '\\u003c')}</script>` +
           `<script src="/__rt/claude.js"></script>`;
-        res.setHeader(
-          'Content-Security-Policy',
-          buildArtifactCsp(["'none'"]).replace(
-            "frame-ancestors 'self' 'none'",
-            "frame-ancestors 'none'",
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(
+          scopeShareHtml(
+            wrapDocument({ body: fragment, runtimeHead, extraHead }),
+            this.basePath,
           ),
         );
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(wrapDocument({ body: fragment, runtimeHead, extraHead }));
       } catch (error) {
         logger.error('Share listener error:', error);
         if (!res.headersSent) res.status(500).type('text/plain').send('Error');
@@ -359,55 +270,234 @@ export class ShareSession {
   }
 }
 
-/** Owns every live share of the process; tears them all down at exit. */
+/** Owns one public transport and independent, revocable shares. */
 export class ShareManager {
   private readonly sessions = new Map<ArtifactId, ShareSession>();
+  private readonly tokens = new Map<string, ShareSession>();
+  private server: Server | null = null;
+  private tunnel: TunnelLike | null = null;
+  private inFlight = 0;
+  // Serialize transport changes, including simultaneous publish/unpublish and
+  // shutdown during tunnel startup. A failed operation must not poison the queue.
+  private pending: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly options: ShareSessionOptions) {}
 
+  get localPort(): number | null {
+    const address = this.server?.address();
+    return address && typeof address !== 'string' ? address.port : null;
+  }
+
   get(id: ArtifactId): ShareState | null {
-    return this.sessions.get(id)?.current ?? null;
+    return this.sessions.get(id)?.state ?? null;
   }
 
   states(): ShareState[] {
-    return Array.from(this.sessions.values())
-      .map((s) => s.current)
-      .filter((s): s is ShareState => s !== null);
+    return Array.from(this.sessions.values(), (session) => session.state);
   }
 
-  async start(id: ArtifactId): Promise<ShareState> {
-    let session = this.sessions.get(id);
-    if (!session) {
-      session = new ShareSession(id, this.options);
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.pending.then(operation);
+    this.pending = result.catch(() => undefined);
+    return result;
+  }
+
+  start(id: ArtifactId): Promise<ShareState> {
+    return this.enqueue(async () => {
+      const existing = this.get(id);
+      if (existing) return existing;
+      const store = await this.options.service.getStore();
+      await store.require(id);
+      await this.openTransport();
+      const session = new ShareSession(
+        id,
+        this.options,
+        new URL(this.tunnel!.url).origin,
+      );
       this.sessions.set(id, session);
-    }
-    try {
-      const state = await session.start();
+      this.tokens.set(session.token, session);
       // History records WHERE it was shared, never the capability token.
-      const origin = new URL(state.url).origin;
-      await (await this.options.service.getStore())
-        .noteShare(id, origin)
+      await store
+        .noteShare(id, new URL(session.state.url).origin)
         .catch(() => undefined);
-      return state;
+      return session.state;
+    });
+  }
+
+  stop(id: ArtifactId): Promise<void> {
+    return this.enqueue(async () => {
+      await this.revoke(id);
+      if (this.sessions.size === 0) await this.closeTransport();
+    });
+  }
+
+  stopAll(): Promise<void> {
+    return this.enqueue(async () => {
+      const ids = Array.from(this.sessions.keys());
+      // Revoke all access before waiting for transport or history I/O.
+      for (const session of this.sessions.values()) session.revoke();
+      this.sessions.clear();
+      this.tokens.clear();
+      await this.closeTransport();
+      await Promise.all(ids.map((id) => this.noteUnshared(id)));
+    });
+  }
+
+  private async noteUnshared(id: ArtifactId): Promise<void> {
+    try {
+      await (await this.options.service.getStore()).noteShare(id, null);
+    } catch {
+      // History must not prevent transport cleanup.
+    }
+  }
+
+  private async revoke(id: ArtifactId): Promise<void> {
+    const session = this.sessions.get(id);
+    if (!session) return;
+    this.sessions.delete(id);
+    this.tokens.delete(session.token);
+    session.revoke();
+    await this.noteUnshared(id);
+  }
+
+  private async openTransport(): Promise<void> {
+    if (this.tunnel) return;
+    const server = createServer(this.buildApp());
+    this.server = server;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+          server.off('error', reject);
+          resolve();
+        });
+      });
+      const port = this.localPort;
+      if (port === null) throw new Error('share listener did not bind');
+      const tunnel = await this.options.tunnelFactory(port);
+      this.tunnel = tunnel;
+      // Only a bare HTTP(S) origin is usable for capability URLs and CSP.
+      const url = new URL(tunnel.url);
+      if (
+        !['http:', 'https:'].includes(url.protocol) ||
+        url.username ||
+        url.password ||
+        url.pathname !== '/' ||
+        url.search ||
+        url.hash
+      ) {
+        throw new Error('Invalid public tunnel origin');
+      }
     } catch (error) {
-      this.sessions.delete(id);
+      await this.closeTransport();
       throw error;
     }
   }
 
-  async stop(id: ArtifactId): Promise<void> {
-    const session = this.sessions.get(id);
-    if (!session) return;
-    this.sessions.delete(id);
-    await session.stop();
-    await (await this.options.service.getStore())
-      .noteShare(id, null)
-      .catch(() => undefined);
+  private async closeTransport(): Promise<void> {
+    const tunnel = this.tunnel;
+    this.tunnel = null;
+    try {
+      tunnel?.stop();
+    } catch {
+      /* already gone */
+    }
+    const server = this.server;
+    this.server = null;
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+        server.closeAllConnections();
+      });
+    }
   }
 
-  async stopAll(): Promise<void> {
-    const ids = Array.from(this.sessions.keys());
-    await Promise.all(ids.map((id) => this.stop(id)));
+  private buildApp(): express.Express {
+    const app = express();
+    app.disable('x-powered-by');
+    app.set('trust proxy', false);
+    app.use((_req, res, next) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'none'; frame-ancestors 'none'; sandbox",
+      );
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader(
+        'Permissions-Policy',
+        'camera=(), microphone=(), geolocation=()',
+      );
+      if (this.inFlight >= MAX_IN_FLIGHT) {
+        res.status(503).type('text/plain').send('Busy');
+        return;
+      }
+      this.inFlight++;
+      let released = false;
+      const release = () => {
+        if (!released) this.inFlight--;
+        released = true;
+      };
+      res.once('finish', release);
+      res.once('close', release);
+      next();
+    });
+    app.get('/robots.txt', (_req, res) => {
+      res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+    });
+    app.use('/s/:token', async (req, res, next) => {
+      const session = this.tokens.get(req.params['token']);
+      if (!session || !['GET', 'HEAD'].includes(req.method)) {
+        res.status(404).type('text/plain').send('This link is not active.');
+        return;
+      }
+      session.track(res);
+      try {
+        const record = await (
+          await this.options.service.getStore()
+        ).get(session.id);
+        // Recheck after I/O in case the share was revoked while reading.
+        if (
+          !record ||
+          record.deletedAt ||
+          this.tokens.get(session.token) !== session
+        ) {
+          res.status(404).type('text/plain').send('This link is not active.');
+          return;
+        }
+        res.setHeader('Content-Security-Policy', session.csp);
+        // Sandboxed scripts have opaque origins. Access requires the token in
+        // the URL, never ambient cookies; no credentialed CORS is enabled.
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (req.originalUrl.split('?')[0] === session.basePath.slice(0, -1)) {
+          res.redirect(302, session.basePath);
+          return;
+        }
+        session.router(req, res, next);
+      } catch (error) {
+        this.options.logger.error('Share listener error:', error);
+        if (!res.headersSent) res.status(500).type('text/plain').send('Error');
+      }
+    });
+    app.use((_req, res) => {
+      res.status(404).type('text/plain').send('Not Found');
+    });
+    app.use(
+      (
+        _error: unknown,
+        _req: express.Request,
+        res: express.Response,
+        _next: express.NextFunction,
+      ) => {
+        // Malformed URL escapes and static-file errors must not disclose paths
+        // or Express stack traces on this public listener.
+        if (!res.headersSent)
+          res.status(404).type('text/plain').send('Not Found');
+      },
+    );
+    return app;
   }
 }
 
