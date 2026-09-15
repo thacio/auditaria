@@ -119,6 +119,21 @@ const GATED_TOOL_NAMES = new Set([
 /** Tools that must NEVER be gated — replying is part of message reliability. */
 const NEVER_GATED = new Set(['hive_send', 'hive_status', 'hive_check']);
 
+/** A small ASCII-only handoff avoids terminal encoding changes and long pastes. */
+export function buildHiveFetchNotice(messageId: string, attemptNo = 0): string {
+  const id = JSON.stringify(messageId).replace(
+    /[^\x20-\x7e]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+  return (
+    `Hive message ready. Call hive_fetch with {"message_id":${id}} to read the full peer message and reply instructions. ` +
+    'Only hive_send sends a reply; normal response text stays local.' +
+    (attemptNo > 0
+      ? ` Delivery attempt ${attemptNo + 1}: do not repeat completed work.`
+      : '')
+  );
+}
+
 /**
  * Deterministic gate decision for one tool call requested during a
  * hive-triggered turn from a non-trusted peer. Unknown tools

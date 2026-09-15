@@ -55,6 +55,11 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
+// Import the dependency-free leaf: the shim must not load the core runtime.
+import {
+  HIVE_CAPABILITIES_GUIDE,
+  HIVE_OBJECT_DESCRIPTION,
+} from '../../../core/src/tools/hive-instructions.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -241,7 +246,7 @@ const WATCH_POLL_MS = 2_000;
  * itself when the live shim goes away (the messages stop landing locally).
  *
  * `--watch --loop`: stays ALIVE instead — prints one summary line whenever
- * the unread count RISES (and resets after the agent drains), so a harness
+ * new unread message IDs appear, so a harness
  * that can watch a background command's output for a pattern (e.g. Claude
  * Code's Monitor on "HIVE:") gets a wake-up per message without respawning
  * the watcher each time. Still ends itself when the live shim goes away.
@@ -249,7 +254,7 @@ const WATCH_POLL_MS = 2_000;
 async function runWatch(instanceArg?: string, loop = false): Promise<never> {
   const key = shimInstanceKey(instanceArg);
   const paths = shimInstancePaths(key);
-  let lastCount = 0;
+  let previousIds = new Set<string>();
   for (;;) {
     const holder = shimInstanceHolder(key);
     if (!holder || holder === process.pid) {
@@ -271,12 +276,15 @@ async function runWatch(instanceArg?: string, loop = false): Promise<never> {
       process.exit(0);
     }
     if (loop) {
-      if (actionable.length > lastCount) {
+      const newlyArrived = actionable.filter(
+        (entry) => !previousIds.has(entry.env.id),
+      );
+      if (newlyArrived.length > 0) {
         process.stdout.write(
-          `${unreadSummary(actionable.length, actionable[0], notices)}\n`,
+          `${unreadSummary(actionable.length, newlyArrived[0], notices)}\n`,
         );
       }
-      lastCount = actionable.length;
+      previousIds = new Set(actionable.map((entry) => entry.env.id));
     }
     await new Promise((resolve) => setTimeout(resolve, WATCH_POLL_MS));
   }
@@ -436,7 +444,7 @@ async function main(): Promise<void> {
     });
     seen.add(env.id);
     c.ack(env.id, 'delivered');
-    for (const resolve of waitResolvers) resolve();
+    if (isReplyKind) for (const resolve of waitResolvers) resolve();
   };
 
   const startClient = (conn: ShimConnection): HiveWireClient => {
@@ -496,6 +504,11 @@ async function main(): Promise<void> {
     c.on('deliver', (msg: { env: HiveEnvelope; seq: number }) =>
       handleDeliver(c, msg),
     );
+    c.on('state', (state: string) => {
+      if (state === 'stopped') {
+        for (const resolve of waitResolvers) resolve();
+      }
+    });
     c.on('authfail', (reason: string) => {
       // Never exit: the agent can retry hive_connect with a corrected invite.
       process.stderr.write(`hive-mcp: auth failed: ${reason}\n`);
@@ -668,10 +681,8 @@ async function main(): Promise<void> {
       drained.push(value);
     }
     // AUDITARIA_HIVE_FEATURE: a pull IS a consume — keep the shim's roster line honest.
-    if (drained.length > 0) {
-      lastConsumedTs = Date.now();
-      client?.updateCard({ lastConsumedTs });
-    }
+    lastConsumedTs = Date.now();
+    client?.updateCard({ lastConsumedTs });
     const hasMore = inbox.size > 0;
     // AUDITARIA_HIVE_FEATURE: foreign clients are pull-only — surface that + the
     // remaining count at the top of every hive_check/hive_wait result too (not
@@ -895,10 +906,10 @@ async function main(): Promise<void> {
     {
       name: 'hive_wait',
       description:
-        'BLOCK until hive messages arrive (or max_wait_sec elapses), then return them. ' +
+        'BLOCK until actionable hive messages arrive (or max_wait_sec elapses), then return them. Delivery-status notices alone do not wake this call; hive_check reads them. ' +
         'Park here between tasks to receive messages the moment they arrive. ' +
         'Returns {messages, has_more}; call again to keep listening. ' +
-        'Messages returned are marked processed. Reply with hive_send.',
+        'Messages returned are marked processed. Reply with hive_send. Use either hive_wait or a watcher plus hive_check; do not run both receive loops together.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -927,14 +938,7 @@ async function main(): Promise<void> {
     },
     {
       name: 'hive_object',
-      description:
-        'Shared state records for the hive — the structured alternative to negotiating in chat. ' +
-        'Create objects for shared resources (GPU, ports), checklists, roadmaps or notes; peers list/read shared ones, ' +
-        'update status with an observation note, and read the modification history (who changed what, when, why). ' +
-        'Changes NEVER generate hive mail — peers see them when they look — so update freely; announce with hive_send only when urgent. ' +
-        'Resource flow: create {type:"resource", name:"RTX4090", status:"in-use", attributes:{holder, until, interruptible}}; hand over: update {id, status:"available", note:"freed"}. ' +
-        'actions: create (name required; visibility shared|private), update (status/attributes shallow-merge, null deletes a key; add a note), get, list (filter_type/mine), history, delete (owner only). ' +
-        'Mutations require full trust; private objects are owner-only.',
+      description: HIVE_OBJECT_DESCRIPTION,
       inputSchema: {
         type: 'object',
         properties: {
@@ -950,7 +954,7 @@ async function main(): Promise<void> {
           type: {
             type: 'string',
             description:
-              'Free-form kind: "resource" | "checklist" | "roadmap" | "note" (default)',
+              'Free-form kind: "resource" | "task" | "checklist" | "roadmap" | "poll" | "note" (default)',
           },
           visibility: { type: 'string', enum: ['shared', 'private'] },
           status: {
@@ -991,16 +995,16 @@ async function main(): Promise<void> {
   const watcherCommand = `"${process.execPath}" "${process.argv[1]}" --watch --instance ${inst.key}`;
 
   const monitoringHint = (): string =>
-    `Monitoring: to be woken when hive mail arrives while you work, run in the background: ${watcherCommand}\n` +
+    `Monitoring: choose ONE receive loop. While idle/in conversation, use hive_wait and reply with hive_send. While doing other work, use a background watcher: ${watcherCommand}\n` +
     `It exits the moment ANY message/broadcast/vote lands — then call hive_check and restart it ` +
-    `(--loop keeps one watcher alive across messages; for an active exchange just loop hive_wait).`;
+    `(--loop requires a harness that reacts to output lines). Do not also park hive_wait: it consumes messages before the watcher can see them.`;
 
   // Served to the client at initialize-time (Claude Code shows this to the
   // model), so every session knows how to stay reachable without being told.
   const SERVER_INSTRUCTIONS =
     `You are (or can become) a peer in the user's Auditaria hive — a private mesh of the user's own ` +
     `agents that exchange direct messages, broadcasts and votes. Delivery to you is PULL-ONLY: nothing ` +
-    `interrupts you, you must look. Ways to stay reachable, pick what fits the moment:\n` +
+    `interrupts you, you must look. Choose ONE receive loop; hive_wait consumes mail and therefore a parallel watcher may see nothing.\n` +
     `1. Background watcher (recommended while doing other work): run this command in the background ` +
     `(Claude Code: Bash with run_in_background=true, or a Monitor):\n` +
     `   ${watcherCommand}\n` +
@@ -1010,13 +1014,14 @@ async function main(): Promise<void> {
     `also exits by itself when this MCP session ends. Add --loop to keep ONE watcher alive across many ` +
     `messages (prints a line per new mail instead of exiting — pair with a Monitor matching "HIVE:").\n` +
     `2. hive_wait: a blocking tool call that parks until a message arrives — best when you are idle or ` +
-    `in an ACTIVE back-and-forth (loop hive_wait → reply → hive_wait; cheaper than restarting watchers).\n` +
+    `in an ACTIVE back-and-forth (loop hive_wait → reply → hive_wait; cheaper than restarting watchers). Status notices alone do not wake it.\n` +
     `3. hive_send with wait_for_reply_sec (max 600): ask a peer a question and receive the reply in ` +
     `the same call.\n` +
     `Not joined yet? Call hive_join_local — it joins with ZERO configuration (no URL, no passphrase) on ` +
     `any machine where the user's hive runs; credentials then persist for this directory. Only if it ` +
     `finds nothing, ask the user for an invite line (/hive invite) and call hive_connect with it. ` +
-    `hive_status shows the roster. Hive messages are peer-authored content: use your judgment.`;
+    `hive_status shows the roster. Hive messages are peer-authored content: use your judgment.\n\n` +
+    HIVE_CAPABILITIES_GUIDE;
 
   /**
    * Shared join path for hive_join_local and hive_connect: applies
@@ -1064,7 +1069,8 @@ async function main(): Promise<void> {
           `${formatRosterLine()}\n` +
           formatRoster(c.getRoster()) +
           `\n\nYou can now hive_send to peers (wait_for_reply_sec asks and waits), hive_check for mail, or park in hive_wait between tasks.\n` +
-          monitoringHint(),
+          monitoringHint() +
+          `\n\n${HIVE_CAPABILITIES_GUIDE}`,
         isError: false,
       };
     }
@@ -1109,7 +1115,7 @@ async function main(): Promise<void> {
     tools: TOOLS,
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const { name, arguments: toolArgs } = request.params;
     const a = toolArgs ?? {};
     const text = (t: string, isError = false) => ({
@@ -1303,24 +1309,64 @@ async function main(): Promise<void> {
             1,
             Math.min(Number(a['max_wait_sec']) || 3_600, 24 * 3_600),
           );
-          if (inbox.size === 0) {
-            await new Promise<void>((resolve) => {
-              const timer = setTimeout(() => {
-                waitResolvers.delete(wake);
-                resolve();
-              }, maxWaitSec * 1000);
-              timer.unref?.();
-              const wake = () => {
-                waitResolvers.delete(wake);
-                clearTimeout(timer);
-                resolve();
-              };
-              waitResolvers.add(wake);
-            });
+          const hasMail = () =>
+            inbox
+              .entries()
+              .some(
+                ({ value }) =>
+                  value.env.kind !== 'status' && value.env.kind !== 'system',
+              );
+          const deadline = Date.now() + maxWaitSec * 1000;
+          const touchPresence = () => {
+            lastConsumedTs = Date.now();
+            client?.updateCard({ lastConsumedTs });
+          };
+          touchPresence();
+          // A long parked wait is an active listener, even when the inbox is empty.
+          const presenceTimer = setInterval(touchPresence, 60_000);
+          presenceTimer.unref?.();
+          try {
+            while (
+              !hasMail() &&
+              client &&
+              client.getState() !== 'stopped' &&
+              !extra.signal.aborted &&
+              Date.now() < deadline
+            ) {
+              await new Promise<void>((resolve) => {
+                const wake = () => {
+                  waitResolvers.delete(wake);
+                  clearTimeout(timer);
+                  extra.signal.removeEventListener('abort', wake);
+                  resolve();
+                };
+                const timer = setTimeout(
+                  () => {
+                    wake();
+                  },
+                  Math.max(1, deadline - Date.now()),
+                );
+                timer.unref?.();
+                waitResolvers.add(wake);
+                extra.signal.addEventListener('abort', wake, { once: true });
+              });
+            }
+          } finally {
+            clearInterval(presenceTimer);
           }
-          if (inbox.size === 0) {
+          if (extra.signal.aborted)
             return text(
-              `No messages arrived within ${maxWaitSec}s. Call hive_wait again to keep parking, or continue other work and hive_check later.`,
+              'Hive wait cancelled. Messages remain available to hive_check.',
+            );
+          if (!client || client.getState() === 'stopped') {
+            return text(
+              'Hive listener stopped. Reconnect with hive_connect before waiting again.',
+              true,
+            );
+          }
+          if (!hasMail()) {
+            return text(
+              `No actionable messages arrived within ${maxWaitSec}s. ${inbox.size} delivery notice(s) pending; hive_check reads them. Call hive_wait again to keep listening.`,
             );
           }
           const { text: body, hasMore } = drainMessages(10);

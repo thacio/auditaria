@@ -220,13 +220,6 @@ export function applyObjectOp(
       }
       const changedKeys: string[] = [];
       let statusChanged = false;
-      if (params.status !== undefined) {
-        const s = sanitizeInline(String(params.status), MAX_OBJECT_STATUS);
-        if (s !== rec.status) {
-          rec.status = s || undefined;
-          statusChanged = true;
-        }
-      }
       if (params.attributes) {
         const merged = { ...rec.attributes };
         for (const [k, v] of Object.entries(params.attributes)) {
@@ -244,6 +237,15 @@ export function applyObjectOp(
           return err('attributes too large (max 8KB serialized)');
         }
         rec.attributes = merged;
+      }
+      // Validate attributes before changing status: a rejected update must
+      // leave the shared record, version and history unchanged.
+      if (params.status !== undefined) {
+        const s = sanitizeInline(String(params.status), MAX_OBJECT_STATUS);
+        if (s !== rec.status) {
+          rec.status = s || undefined;
+          statusChanged = true;
+        }
       }
       if (params.name !== undefined) {
         const n = sanitizeInline(String(params.name), MAX_OBJECT_NAME);

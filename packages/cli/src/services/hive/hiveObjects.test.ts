@@ -37,6 +37,25 @@ function createGpu(objects: Record<string, HiveObjectRecord>) {
 }
 
 describe('applyObjectOp', () => {
+  it('leaves the entire object unchanged when a status update has invalid attributes', () => {
+    const objects: Record<string, HiveObjectRecord> = {};
+    const rec = createGpu(objects);
+    const before = JSON.stringify(objects);
+    const result = applyObjectOp(
+      objects,
+      {
+        action: 'update',
+        id: rec.id,
+        status: 'available',
+        attributes: { oversized: 'x'.repeat(9 * 1024) },
+        note: 'must not partially release the resource',
+      },
+      FULL,
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('attributes too large');
+    expect(JSON.stringify(objects)).toBe(before);
+  });
   it('creates with attributes, status and a history entry', () => {
     const objects: Record<string, HiveObjectRecord> = {};
     const rec = createGpu(objects);

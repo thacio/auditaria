@@ -160,6 +160,69 @@ tool (native and shim); humans list them with `/hive objects`.
   wake watchers. Peers see the current state when they look; an agent announces
   a change with `hive_send` only when it needs attention now.
 
+### Coordinate work with objects
+
+Native and MCP agents receive a coordination guide when they join. MCP startup
+instructions also include it, and both versions of `hive_object` share the same
+usage guidance. Agents learn to discover existing objects before creating plans
+and to separate persistent state from messages that need a response.
+
+Use these patterns for shared work:
+
+| Object type | Example attributes                                 | Handoff                                                                    |
+| ----------- | -------------------------------------------------- | -------------------------------------------------------------------------- |
+| `resource`  | `holder`, `until`, `interruptible`                 | Agree on exclusive use with the holder; record availability when released. |
+| `task`      | `assignee`, `acceptance`, `depends_on`, `evidence` | Send the assignee the object ID and request acknowledgement.               |
+| `roadmap`   | `task_ids`, `milestones`, `objective`              | Link separate task objects so peers can update their work independently.   |
+| `checklist` | `items: [{id, text, done}]`                        | Read the current items before updating completion.                         |
+| `poll`      | `question`, `options`, `deadline`, `result`        | Collect votes through messages and record the decision.                    |
+
+For example, call `hive_object` with:
+
+```json
+{
+  "action": "create",
+  "name": "Review deployment",
+  "type": "task",
+  "status": "todo",
+  "attributes": {
+    "assignee": "fable",
+    "acceptance": "Review configuration and record test results",
+    "depends_on": [],
+    "evidence": []
+  },
+  "note": "Ready for review"
+}
+```
+
+Send the returned ID to the assignee with `hive_send`. Update the task through
+`in-progress`, `review`, and `done`, or mark it `blocked` with a reason. The
+creator owns the object; `assignee` is a separate attribute. The `mine` filter
+selects objects you own, not tasks assigned to you.
+
+Objects store advisory state. They do not execute tasks, schedule deadlines, or
+provide exclusive resource locks. Concurrent updates to the same attribute use
+the last value written. Updates replace entire arrays and nested objects, so
+read them before editing and coordinate concurrent writers. History records the
+actor, time, status, changed keys, and note; it does not archive complete
+previous values.
+
+### Run a poll
+
+Polls use the existing proposal and vote message kinds. The proposer collects
+and counts votes; Hive does not enforce deadlines or calculate consensus.
+
+1. Send `hive_send` with `to: "*"`, `kind: "proposal"`, and
+   `data: {proposalId: "release-1", question: "Which release?", options: ["A", "B"]}`.
+   Include a deadline and decision rule in `body`.
+2. Have voters reply directly to the proposer on the same thread with
+   `kind: "vote"` and
+   `data: {proposalId: "release-1", choice: "A", reason: "Tests passed"}`.
+3. Collect replies with `hive_check` or MCP `hive_wait`, count them by sender,
+   and record the decision in a `poll` object. A broadcast with
+   `wait_for_reply_sec` returns only the first reply.
+4. Announce the result with `hive_send` when participants need to act on it.
+
 ## Trust and the tool gate
 
 Every peer is one of your own machines, but the hive still has a safety boundary
@@ -250,9 +313,9 @@ The shim's tools:
   peer's reply and returns it in the same call — the easy way to ask a peer a
   question
 - `hive_check` — non-blocking inbox drain
-- `hive_wait` — BLOCK until messages arrive (park between tasks; Claude Code's
-  stdio tool timeout defaults to ~28h, so messages wake the agent the instant
-  they arrive)
+- `hive_wait` — block until actionable messages arrive or `max_wait_sec`
+  expires. Status/system notices alone do not wake it; `hive_check` reads them.
+  Cancellation releases the listener without consuming later mail.
 - `hive_describe` — update the roster self-description
 - `hive_leave` — disconnect + disable auto-reconnect (identity kept)
 
@@ -276,6 +339,13 @@ Notes:
   teach the agent this recipe (with the exact per-instance command)
   automatically. The watcher never touches the hub and ends itself when the
   agent's session goes away.
+- Choose **one receive loop**: `hive_wait` while idle or conversing, or a
+  background watcher followed by `hive_check` while working. A parallel
+  `hive_wait` consumes messages before a watcher can see them. `--watch --loop`
+  stays alive and prints when new message IDs appear, even if the unread count
+  is unchanged; use it only with a harness that reacts to output lines.
+- Empty `hive_check` calls and parked `hive_wait` calls refresh listener
+  presence, so a peer actively listening is not reported as inactive.
 - A one-shot `node <auditaria>/bundle/hive-mcp.js --check` prints the unread
   count + a preview and exits — wire it into a Stop/PostToolUse hook as a "you
   have mail" nudge. It is safe beside a live shim: it peeks the running
@@ -331,6 +401,20 @@ to consult even under `open` (a valid token's embedded trust always wins).
 - If an identity is replaced by another connection, the displaced client stops.
   Use different `AUDITARIA_HIVE_INSTANCE` names for native sessions sharing a
   directory; MCP sessions automatically claim separate instance slots.
+
+### Native delivery through Codex or Claude
+
+Auditaria sends a short ASCII notice containing a message ID to the provider's
+terminal. The agent calls `hive_fetch` to retrieve the full message, trust
+boundary and reply instructions. This avoids terminal paste transformations that
+previously caused successful Codex replies to be retried as failed turns. Gemini
+receives messages inline. Only `hive_send` transmits a reply; ordinary assistant
+text stays local.
+
+`hive_status` includes the latest native delivery error. A failed external turn
+that already requested a tool is not automatically replayed, because that tool
+may have changed state. Restart running Auditaria and MCP sessions after
+updating their bundles to load these changes.
 
 ## Security notes
 

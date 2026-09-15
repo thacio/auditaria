@@ -44,6 +44,7 @@ import {
   ToolErrorType,
   recordToolCallInteractions,
   registerHiveTransport,
+  HIVE_CAPABILITIES_GUIDE,
 } from '@google/gemini-cli-core';
 import type { Part } from '@google/genai';
 import {
@@ -87,7 +88,11 @@ import {
   writeJsonFile,
 } from './HiveStore.js';
 import { HiveWireClient, type HiveClientState } from './HiveWireClient.js';
-import { isToolGatedForConsult, hubInfoFallbackUrls } from './hivePolicy.js';
+import {
+  isToolGatedForConsult,
+  hubInfoFallbackUrls,
+  buildHiveFetchNotice,
+} from './hivePolicy.js';
 import {
   formatObjectOpResult,
   type HiveObjectOpParams,
@@ -139,49 +144,9 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
   return kind && VALID_KINDS.has(kind) ? (kind as HiveMessageKind) : 'chat';
 }
 
-// AUDITARIA_HIVE_FEATURE: Above this FENCED-CONTENT size (the message block —
-// body + data + fence, NOT the constant prompt boilerplate around it),
-// delivering to an external-provider peer by typing into the CLI's PTY risks a
-// truncated render — a long message that lands while the provider TUI is
-// mid-turn is previewed head+tail (middle silently dropped). So for large
-// messages under an external provider we DON'T type the body: we hold its full
-// content in memory and type only a short notice with a message_id, and the
-// receiver retrieves the exact content by calling the hive_fetch tool (which
-// returns it as the tool result — no truncation, no filesystem, and a clean
-// seam to encrypt-on-hold / decrypt-on-fetch later).
-// History: 1200 (whole prompt) → 2000 (fenced content) after peers flagged
-// sub-1KB replies going by-reference — then IMMEDIATELY reverted to 600 after
-// a live SILENT CORRUPTION: a ~2000-char fenced block typed into the
-// receiver's Claude PTY arrived with ~2 consecutive 512-char chunks excised
-// mid-word (Ink's input parser drops paced chunks of long typed prompts —
-// the very reason writeChunked exists; the closed-loop typing check verifies
-// SUBMISSION, not body INTEGRITY, so a middle excision passes silently).
-// Inline typing is only proven safe well under ~1200 TOTAL typed chars
-// (content + ~700 boilerplate). Anything bigger goes by-reference: hive_fetch
-// returns the exact content as a tool result — nothing is typed, nothing can
-// corrupt. Do NOT raise this again until the driver types long prompts
-// verifiably intact (bracketed paste + integrity check before CR), validated
-// live. Silent corruption is strictly worse than an extra fetch round-trip.
-//
-// HONEST LABEL (peer review insisted, correctly): 600 is exposure
-// REDUCTION, not a proven-safe boundary. The race is probabilistic — clean
-// samples can never prove a threshold safe — and composition collisions
-// (a delivery typed into an input box already holding a user draft merges
-// both into ONE submitted stream) make the effective typed size unbounded
-// regardless of this cap. Worse, the failure geometry INVERTS the "small is
-// safe" intuition: the payload sits between head/tail boilerplate, so one
-// discarded pipe read (read size is BOUNDED by 1024, not fixed at it;
-// sub-1024 excisions are possible in principle but UNOBSERVED — both clean
-// specimens lost exactly-full reads, consistent with the reader coalescing
-// to the ceiling under the same backlog that triggers the drop) can erase
-// a SMALL payload entirely while both imperative boilerplate ends survive —
-// a well-formed instruction with its content gone (the silent, most
-// dangerous variant; large payloads lose a detectable piece instead). If a
-// much-smaller gap is ever observed, treat it as a POSSIBLY DIFFERENT bug,
-// not as this one pre-explained. The lasting fixes are the turn gate + a future
-// don't-type-into-a-non-empty-input-box check + by-reference delivery, not
-// any threshold value.
-const HIVE_INLINE_MAX_CHARS = 600;
+// AUDITARIA_HIVE_FEATURE: External-provider delivery always uses a short ASCII
+// hive_fetch notice. Peer text, Unicode and the full reply instructions travel
+// through the tool result, avoiding both long-paste loss and prompt mismatches.
 // Held delivery content is pruned once older than this. The receiver fetches it
 // within the same delivery turn, so a generous window is plenty; the TTL only
 // bounds memory if a turn never fetches (e.g. the model ignored the notice).
@@ -361,6 +326,7 @@ export class HiveService implements HiveTransport {
   private offlineNotices = 0;
   // AUDITARIA_HIVE_FEATURE: last time this node actually consumed a hive message.
   private lastConsumedTs = 0;
+  private lastDeliveryError: string | undefined;
   private savedConfig: HiveNodeConfig;
 
   constructor(
@@ -1156,10 +1122,9 @@ export class HiveService implements HiveTransport {
     if (!geminiClient?.isInitialized()) {
       return { ok: false, retrySafe: true };
     }
-    // True once a tool has executed via OUR scheduler this turn — a real,
-    // non-idempotent side effect that must not be replayed by a retry. (Tools
-    // an external provider runs inside its own CLI are invisible here, so the
-    // double-action guard only covers the local/Gemini path — documented.)
+    // Native tools are tracked by our scheduler. External tool requests may
+    // already have executed in their CLI, so conservatively prevent replay
+    // after observing one, even if the enclosing turn later fails.
     let sideEffectExecuted = false;
 
     const { env } = entry;
@@ -1238,6 +1203,13 @@ export class HiveService implements HiveTransport {
           if (event.type === GeminiEventType.Content) {
             accumulatedText += event.value;
           } else if (event.type === GeminiEventType.ToolCallRequest) {
+            // External tools execute in the provider CLI, outside our scheduler.
+            // A subsequent error must not replay a turn that may have mutated state.
+            if (
+              this.config.getProviderManager?.()?.isExternalProviderActive?.()
+            ) {
+              sideEffectExecuted = true;
+            }
             toolCallRequests.push(event.value);
           } else if (event.type === GeminiEventType.ToolCallResponse) {
             // External providers execute tools inside their own CLI and
@@ -1335,6 +1307,7 @@ export class HiveService implements HiveTransport {
       // when retrySafe (no side effect yet); otherwise it DLQs to avoid
       // replaying an executed tool.
       debugLogger.error('hive: agent turn failed:', e);
+      this.lastDeliveryError = `${env.id}: ${e instanceof Error ? e.message : String(e)}`;
       this.uiInfo(
         `hive: turn for message from ${entry.fromNickname} failed: ${e instanceof Error ? e.message : String(e)}`,
       );
@@ -1355,15 +1328,10 @@ export class HiveService implements HiveTransport {
 
   /**
    * AUDITARIA_HIVE_FEATURE: Render a received message into the prompt for its
-   * delivery turn. Normally the fenced block is inlined. But a large message
-   * under an external provider gets typed into the CLI's PTY, where a long input
-   * risks a truncated render (see HIVE_INLINE_MAX_CHARS) — so instead of typing
-   * the body we hold it in memory and type only a short notice with a
-   * message_id; the receiver retrieves the exact content with hive_fetch, which
-   * returns it as a tool result (no truncation, no filesystem, and delivered via
-   * a trusted tool call rather than ambiguous typed text). This is the single
-   * seam that owns how a delivery is rendered to the model; future by-reference
-   * delivery (e.g. real file attachments) plugs in here.
+   * delivery turn. Gemini receives the full prompt. External providers receive
+   * a short ASCII notice through their terminal; hive_fetch returns the full
+   * peer message, trust boundary and reply instructions without terminal paste
+   * transformations or long-input truncation.
    */
   private buildDeliveryPrompt(
     entry: InboxEntry,
@@ -1395,43 +1363,21 @@ export class HiveService implements HiveTransport {
       .filter(Boolean)
       .join('\n');
 
-    // By-reference delivery for a large message under an external provider:
-    // hold the full block in memory and hand the receiver a message_id to
-    // retrieve with hive_fetch (a short notice never truncates in the PTY).
-    // Native providers (no PTY) and small messages stay inline. A RETRY under
-    // an external provider also goes by reference regardless of size: the
-    // earlier attempt already typed the full text, so re-typing it would
-    // duplicate the content in the model's context — a short notice (with the
-    // content re-pullable via hive_fetch) is both deduplicating and safe.
-    // Size check keys on the fenced CONTENT (block), not the whole prompt:
-    // the intro/reply boilerplate adds a constant ~700 chars that made
-    // inlining unpredictable for senders (a 900-char body went by reference).
+    // Always hand external providers a short ASCII notice. Live Codex hooks
+    // and rollouts dropped em dashes even from our old fetch-notice wrapper:
+    // the model answered, but prompt matching never accepted the submitted
+    // turn, so Hive retried and dead-lettered messages already answered.
+    // Keep ALL peer text and reply/trust instructions in the tool response.
     const providerManager = this.config.getProviderManager?.();
-    if (
-      providerManager?.isExternalProviderActive?.() &&
-      (attemptNo > 0 || block.length > HIVE_INLINE_MAX_CHARS)
-    ) {
-      this.holdDeliveryContent(env.id, block);
-      const retryPrefix =
-        attemptNo > 0
-          ? `(Delivery retry ${attemptNo + 1} — an earlier copy of this notice or message may already appear in your context; process it ONCE.) `
-          : '';
-      return [
-        intro,
-        retryPrefix +
-          `This message (${block.length} chars) was not inlined to avoid a truncated render. ` +
-          `Call the hive_fetch tool with message_id="${env.id}" to get its full, exact content, then act on it.`,
-        expectLine,
-        replyLine,
-      ]
-        .filter(Boolean)
-        .join('\n');
+    if (providerManager?.isExternalProviderActive?.()) {
+      this.holdDeliveryContent(env.id, inlinePrompt);
+      return buildHiveFetchNotice(env.id, attemptNo);
     }
     return inlinePrompt;
   }
 
   /**
-   * AUDITARIA_HIVE_FEATURE: Hold a large message's full fenced block in memory
+   * AUDITARIA_HIVE_FEATURE: Hold a message's full delivery prompt in memory
    * for the receiver's hive_fetch call, pruning anything past the TTL first
    * (bounds memory if a delivery turn never fetches).
    */
@@ -1776,7 +1722,7 @@ export class HiveService implements HiveTransport {
     } else {
       text += ` Use hive_status for the roster. To move this node to a DIFFERENT hive, the user must run /hive leave first.`;
     }
-    return text;
+    return `${text}\n\n${HIVE_CAPABILITIES_GUIDE}`;
   }
 
   async send(params: HiveSendParams): Promise<string> {
@@ -1838,6 +1784,9 @@ export class HiveService implements HiveTransport {
       `Hive connection: ${state === 'online' ? 'online' : state} | you are "${this.getNickname()}" (${this.client.getTrust() ?? '?'})`,
       ...(!this.client.isOnline() && this.client.getLastError()
         ? [`Last connection error: ${this.client.getLastError()}`]
+        : []),
+      ...(this.lastDeliveryError
+        ? [`Last delivery error: ${this.lastDeliveryError}`]
         : []),
     );
     // AUDITARIA_HIVE_FEATURE: always surface the current delivery posture first.

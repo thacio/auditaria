@@ -141,6 +141,26 @@ class ShimClient {
     }
   }
 
+  startCancellableWait(): () => void {
+    const id = this.nextId++;
+    this.child.stdin!.write(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id,
+        method: 'tools/call',
+        params: { name: 'hive_wait', arguments: { max_wait_sec: 30 } },
+      }) + '\n',
+    );
+    return () =>
+      this.child.stdin!.write(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'notifications/cancelled',
+          params: { requestId: id, reason: 'test cancellation' },
+        }) + '\n',
+      );
+  }
+
   closeInput(): Promise<number | null> {
     return new Promise((resolve) => {
       this.child.once('exit', resolve);
@@ -203,6 +223,87 @@ describe('hive-mcp shim e2e (real hub, real spawns)', () => {
     return c;
   };
 
+  it('wait ignores notices, refreshes presence and releases cancelled or disconnected listeners', async () => {
+    const a = spawnShim(
+      path.join(dir, 'wait-home-a'),
+      path.join(dir, 'wait-a'),
+      ['--instance', 'wait-a'],
+    );
+    const b = spawnShim(
+      path.join(dir, 'wait-home-b'),
+      path.join(dir, 'wait-b'),
+      ['--instance', 'wait-b'],
+    );
+    await a.initialize();
+    await b.initialize();
+    for (const [c, nickname] of [
+      [a, 'wait-alpha'],
+      [b, 'wait-bravo'],
+    ] as const) {
+      expect(
+        (
+          await c.call('hive_connect', {
+            invite: `${inviteUrl}#${PASSPHRASE}`,
+            nickname,
+          })
+        ).isError,
+      ).toBe(false);
+    }
+    await b.call('hive_check');
+    expect(
+      await pollUntil(
+        async () =>
+          !!hub.listRoster().find((e) => e.card.nickname === 'wait-bravo')?.card
+            .lastConsumedTs,
+      ),
+    ).toBe(true);
+    await a.call('hive_send', {
+      to: 'wait-bravo',
+      kind: 'status',
+      body: 'old delivery notice',
+    });
+    const timeout = await b.call('hive_wait', { max_wait_sec: 1 });
+    expect(timeout.text).toContain('No actionable messages');
+    expect((await b.call('hive_check')).text).toContain('old delivery notice');
+
+    let settled = false;
+    const wait = b.call('hive_wait', { max_wait_sec: 10 }).then((result) => {
+      settled = true;
+      return result;
+    });
+    await a.call('hive_send', {
+      to: 'wait-bravo',
+      kind: 'status',
+      body: 'new delivery notice',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(settled).toBe(false);
+    await a.call('hive_send', {
+      to: 'wait-bravo',
+      body: 'actionable question',
+    });
+    const received = await wait;
+    expect(received.text).toContain('actionable question');
+    expect(received.text).toContain('new delivery notice');
+
+    const cancel = b.startCancellableWait();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    cancel();
+    await a.call('hive_send', {
+      to: 'wait-bravo',
+      body: 'must survive cancellation',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect((await b.call('hive_check')).text).toContain(
+      'must survive cancellation',
+    );
+
+    const parked = b.call('hive_wait', { max_wait_sec: 30 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await b.call('hive_leave');
+    expect((await parked).text).toContain('listener stopped');
+  }, 30_000);
+
   it('two shims join at runtime, message each other, persist, and never collide', async () => {
     const homeA = path.join(dir, 'homeA');
     const homeB = path.join(dir, 'homeB');
@@ -215,6 +316,9 @@ describe('hive-mcp shim e2e (real hub, real spawns)', () => {
     // MCP instructions teach the agent to set up its own mail watcher.
     expect(a.serverInstructions).toContain('--watch --instance a');
     expect(a.serverInstructions).toContain('hive_connect');
+    expect(a.serverInstructions).toContain('hive_object');
+    expect(a.serverInstructions).toContain('proposalId');
+    expect(a.serverInstructions).toContain('assignee');
     const joinA = await a.call('hive_connect', {
       invite: `${inviteUrl}#${PASSPHRASE}`,
       nickname: 'alpha',
@@ -223,6 +327,7 @@ describe('hive-mcp shim e2e (real hub, real spawns)', () => {
     expect(joinA.isError).toBe(false);
     expect(joinA.text).toContain('Joined the hive as "alpha"');
     expect(joinA.text).toContain('trust: full'); // open policy
+    expect(joinA.text).toContain('Hive coordination guide:');
 
     const b = spawnShim(homeB, cwdB, ['--instance', 'b']);
     await b.initialize();
@@ -355,6 +460,66 @@ describe('hive-mcp shim e2e (real hub, real spawns)', () => {
     });
     return { child, done };
   };
+
+  it('--watch --loop notices replacement mail when the unread count stays the same', async () => {
+    const home = path.join(dir, 'watch-loop-home');
+    const paths = shimInstancePaths('loop', home);
+    fs.mkdirSync(paths.dir, { recursive: true });
+    const holder = spawn(
+      process.execPath,
+      ['-e', 'setTimeout(() => {}, 30000)'],
+      { stdio: 'ignore' },
+    );
+    fs.writeFileSync(paths.lockPath, JSON.stringify({ pid: holder.pid }));
+    const enqueue = (seq: number, body: string) =>
+      JSON.stringify({
+        op: 'enq',
+        seq,
+        v: {
+          env: {
+            id: `loop-${seq}`,
+            thread: 't_loop',
+            from: 'n_peer',
+            to: 'n_loop',
+            kind: 'chat',
+            body,
+            hops: 0,
+            ttlSec: 3600,
+            ts: Date.now(),
+          },
+          seq: 0,
+          receivedAt: Date.now(),
+          fromNickname: 'peer',
+          fromTrust: 'full',
+        },
+      }) + '\n';
+    fs.writeFileSync(paths.inboxPath, enqueue(1, 'first question'));
+    const watcher = runShim(home, ['--watch', '--loop', '--instance', 'loop']);
+    let output = '';
+    watcher.child.stdout!.on('data', (chunk: Buffer) => {
+      output += chunk.toString('utf8');
+    });
+    try {
+      expect(
+        await pollUntil(async () => output.includes('first question')),
+      ).toBe(true);
+      // Consume and receive between polls: the unread count never becomes zero.
+      fs.appendFileSync(
+        paths.inboxPath,
+        JSON.stringify({ op: 'ack', seq: 1 }) +
+          '\n' +
+          enqueue(2, 'second question'),
+      );
+      expect(
+        await pollUntil(async () => output.includes('second question')),
+      ).toBe(true);
+      expect(output.match(/HIVE: 1 unread/g)).toHaveLength(2);
+    } finally {
+      watcher.child.kill();
+      holder.kill();
+      await watcher.done;
+    }
+  }, 15_000);
 
   it('--watch exits with the unread summary the moment mail lands (incl. kind tag)', async () => {
     const home = path.join(dir, 'homeW');
