@@ -16,6 +16,7 @@ import {
   isToolGatedForConsult,
   urlTokenOf,
   hubInfoFallbackUrls,
+  preferLocalHiveUrl,
 } from './hivePolicy.js';
 import { hiveInstanceKey } from './hivePaths.js';
 
@@ -105,6 +106,14 @@ describe('hubInfoFallbackUrls (hub-address rotation)', () => {
     urlToken: 'AbCdEf',
   };
 
+  it('prefers loopback and never changes it back to the public tunnel', () => {
+    expect(preferLocalHiveUrl(savedUrl, info)).toBe(info.loopbackUrl);
+    expect(preferLocalHiveUrl(info.loopbackUrl, info)).toBe(info.loopbackUrl);
+    expect(preferLocalHiveUrl('https://other.example/other', info)).toBe(
+      'https://other.example/other',
+    );
+  });
+
   it('offers loopback first, then the new tunnel URL, on a token match', () => {
     expect(hubInfoFallbackUrls(savedUrl, info)).toEqual([
       'http://127.0.0.1:18800/AbCdEf',
@@ -113,9 +122,9 @@ describe('hubInfoFallbackUrls (hub-address rotation)', () => {
   });
 
   it('excludes candidates equal to the saved URL', () => {
-    expect(
-      hubInfoFallbackUrls('http://127.0.0.1:18800/AbCdEf', info),
-    ).toEqual(['https://new-name.trycloudflare.com/AbCdEf']);
+    expect(hubInfoFallbackUrls('http://127.0.0.1:18800/AbCdEf', info)).toEqual([
+      'https://new-name.trycloudflare.com/AbCdEf',
+    ]);
   });
 
   it('returns nothing on a token mismatch (different hive)', () => {

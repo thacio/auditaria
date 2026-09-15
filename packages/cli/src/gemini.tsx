@@ -917,13 +917,13 @@ export async function main() {
     }
     // AUDITARIA_TELEGRAM_END
 
-    // AUDITARIA_HIVE_FEATURE_START: Reconnect the saved hive (quiet best-effort)
-    if (config.isInteractive()) {
+    // AUDITARIA_HIVE_FEATURE_START: Tools can join before a service exists.
+    {
       try {
-        const { autoConnectHive, stopHiveIfRunning } = await import(
-          './ui/commands/hiveCommand.js'
-        );
-        void autoConnectHive(config);
+        const { initializeHiveConnector, autoConnectHive, stopHiveIfRunning } =
+          await import('./ui/commands/hiveCommand.js');
+        initializeHiveConnector(config);
+        if (config.isInteractive()) void autoConnectHive(config);
         registerCleanup(async () => {
           await stopHiveIfRunning();
         });

@@ -22,7 +22,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { hiveInstanceKey, checkPidLock, acquirePidLock } from './hivePaths.js';
 import { readJsonFile, writeJsonFile } from './HiveStore.js';
-import { urlTokenOf } from './hivePolicy.js';
+import { urlTokenOf, preferLocalHiveUrl } from './hivePolicy.js';
 import type { HubInfoFile } from './types.js';
 
 // -------------------------------------------------------------------
@@ -158,6 +158,8 @@ export interface ShimConnection {
   inviteToken?: string;
   /** True when the passphrase may be persisted (came from a literal source). */
   persistPassphrase: boolean;
+  /** Trusted local configuration can carry the existing relay pin. */
+  relayFingerprint?: string;
 }
 
 /**
@@ -174,7 +176,7 @@ export function resolveShimConnection(params: {
   argInvite?: string;
   cfg: ShimInstanceConfig;
   envPass?: string;
-  hubInfo?: { url?: string; loopbackUrl?: string };
+  hubInfo?: { url?: string; loopbackUrl?: string; urlToken?: string };
 }): ShimConnection | undefined {
   const { cfg } = params;
   const url =
@@ -186,7 +188,7 @@ export function resolveShimConnection(params: {
   if (!url || !passphrase) return undefined;
   const fromLiteralArg = !!params.argPassphrase && !params.argPassphraseFromEnv;
   return {
-    url: url.replace(/\/+$/, ''),
+    url: preferLocalHiveUrl(url, params.hubInfo).replace(/\/+$/, ''),
     passphrase,
     inviteToken: params.argInvite,
     // cfg.passphrase is already persisted; env-sourced must never be written.
@@ -223,6 +225,14 @@ export function discoverLocalHive(
     path.join(homedir, '.auditaria', 'hive', 'hub-info.json'),
   );
   const envPass = envPassphrase(env);
+  if (envPass && hubInfo?.loopbackUrl) {
+    return {
+      url: hubInfo.loopbackUrl.replace(/\/+$/, ''),
+      passphrase: envPass,
+      persistPassphrase: false,
+      source: 'local hub discovery + env passphrase',
+    };
+  }
 
   interface Candidate {
     url: string;
@@ -230,6 +240,7 @@ export function discoverLocalHive(
     isHub: boolean;
     mtime: number;
     source: string;
+    relayFingerprint?: string;
   }
   const candidates: Candidate[] = [];
   const pushCandidate = (configPath: string, source: string) => {
@@ -237,6 +248,7 @@ export function discoverLocalHive(
       url?: string;
       passphrase?: string;
       hub?: unknown;
+      relayFingerprint?: string;
     }>(configPath);
     if (!cfg?.url) return;
     if (!cfg.passphrase && !envPass) return;
@@ -249,9 +261,10 @@ export function discoverLocalHive(
     candidates.push({
       url: cfg.url,
       passphrase: cfg.passphrase,
-      isHub: !!cfg.hub,
+      isHub: !!hubInfo?.urlToken && urlTokenOf(cfg.url) === hubInfo.urlToken,
       mtime,
       source,
+      relayFingerprint: cfg.relayFingerprint,
     });
   };
 
@@ -272,14 +285,6 @@ export function discoverLocalHive(
   );
 
   if (candidates.length === 0) {
-    if (envPass && hubInfo?.loopbackUrl) {
-      return {
-        url: hubInfo.loopbackUrl.replace(/\/+$/, ''),
-        passphrase: envPass,
-        persistPassphrase: false,
-        source: 'local hub discovery + env passphrase',
-      };
-    }
     return undefined;
   }
 
@@ -287,17 +292,11 @@ export function discoverLocalHive(
     (a, b) => Number(b.isHub) - Number(a.isHub) || b.mtime - a.mtime,
   );
   const best = candidates[0];
-  let url = best.url;
-  if (
-    hubInfo?.loopbackUrl &&
-    hubInfo.urlToken &&
-    urlTokenOf(url) === hubInfo.urlToken
-  ) {
-    url = hubInfo.loopbackUrl;
-  }
+  const url = preferLocalHiveUrl(best.url, hubInfo);
   return {
     url: url.replace(/\/+$/, ''),
     passphrase: envPass ?? best.passphrase!,
+    relayFingerprint: best.relayFingerprint,
     persistPassphrase: !envPass,
     source: best.source,
   };

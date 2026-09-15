@@ -1466,7 +1466,6 @@ export class HiveService implements HiveTransport {
     if (!res.ok) throw new Error(res.error ?? 'object operation failed');
     const nickOf = (id: string) => this.nicknameOf(id) ?? id;
     return formatObjectOpResult(
-       
       params as HiveObjectOpParams,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       res as { record?: HiveObjectRecord; records?: HiveObjectRecord[] },
@@ -1755,13 +1754,14 @@ export class HiveService implements HiveTransport {
   // =====================================================================
 
   async connect(params: HiveConnectParams): Promise<string> {
+    await this.client.waitUntilOnline();
     // A live service means we are already joined — and these bridged tools
     // speak AS the node, so a caller trying to "re-join with its own name"
     // is usually a separate agent wanting its own identity. Route it well
     // instead of dead-ending it.
     const wantsOwnIdentity = !!(params.nickname || params.description);
     let text =
-      `Already connected to a hive as "${this.getNickname()}" — that is this Auditaria NODE's identity, ` +
+      `Connected to the hive as "${this.getNickname()}" — that is this Auditaria NODE's identity, ` +
       `and every agent using this node's hive tools shares it.`;
     if (wantsOwnIdentity) {
       text +=
@@ -1836,6 +1836,9 @@ export class HiveService implements HiveTransport {
     const lines: string[] = [];
     lines.push(
       `Hive connection: ${state === 'online' ? 'online' : state} | you are "${this.getNickname()}" (${this.client.getTrust() ?? '?'})`,
+      ...(!this.client.isOnline() && this.client.getLastError()
+        ? [`Last connection error: ${this.client.getLastError()}`]
+        : []),
     );
     // AUDITARIA_HIVE_FEATURE: always surface the current delivery posture first.
     lines.push(this.deliveryStateLine());

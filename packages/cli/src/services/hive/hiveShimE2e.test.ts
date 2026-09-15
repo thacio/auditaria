@@ -7,12 +7,12 @@
 // AUDITARIA_HIVE_FEATURE: This entire file is part of the Hive integration.
 //
 // End-to-end test of the hive-mcp shim as FOREIGN agents use it: two shim
-// processes (spawned from bundle/hive-mcp.js, isolated HOME) join a REAL
+// processes (bundled from current source, isolated HOME) join a REAL
 // hub at runtime via hive_connect, get distinct identities, exchange a
 // message with wait_for_reply_sec, survive a respawn on persisted
 // credentials, and a same-instance collision falls through to `<key>_2`.
 //
-// Skipped when bundle/hive-mcp.js has not been built (npm run bundle).
+// Build a temporary shim so stale production bundles cannot hide regressions.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs';
@@ -20,14 +20,15 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, type ChildProcess } from 'node:child_process';
+import { build } from 'esbuild';
 import { startHiveHub, type HiveHubHandle } from './HiveHub.js';
 import { shimInstancePaths } from './hiveShim.js';
 
-const bundlePath = path.resolve(
+const entryPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../../../../bundle/hive-mcp.js',
+  '../../hive-mcp/hiveMcpMain.ts',
 );
-const hasBundle = fs.existsSync(bundlePath);
+let bundlePath: string;
 
 const PASSPHRASE = 'pw-shim-e2e';
 
@@ -139,6 +140,13 @@ class ShimClient {
       /* already gone */
     }
   }
+
+  closeInput(): Promise<number | null> {
+    return new Promise((resolve) => {
+      this.child.once('exit', resolve);
+      this.child.stdin!.end();
+    });
+  }
 }
 
 async function pollUntil(
@@ -153,7 +161,7 @@ async function pollUntil(
   return false;
 }
 
-describe.skipIf(!hasBundle)('hive-mcp shim e2e (real hub, real spawns)', () => {
+describe('hive-mcp shim e2e (real hub, real spawns)', () => {
   let dir: string;
   let hub: HiveHubHandle;
   let inviteUrl: string;
@@ -161,6 +169,17 @@ describe.skipIf(!hasBundle)('hive-mcp shim e2e (real hub, real spawns)', () => {
 
   beforeAll(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hive-shim-e2e-'));
+    bundlePath = path.join(dir, 'hive-mcp.mjs');
+    await build({
+      entryPoints: [entryPath],
+      outfile: bundlePath,
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      banner: {
+        js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+      },
+    });
     hub = await startHiveHub({
       passphrase: PASSPHRASE,
       dataDir: path.join(dir, 'hub'),
@@ -418,7 +437,7 @@ describe.skipIf(!hasBundle)('hive-mcp shim e2e (real hub, real spawns)', () => {
     }
   }, 30_000);
 
-  it('hive_join_local joins with ZERO configuration from a local Auditaria connection', async () => {
+  it('hive_join_local replaces stale shim credentials with the local Auditaria connection', async () => {
     const home = path.join(dir, 'homeL');
     // A local Auditaria peer already joined this hive — its saved connection
     // is what hive_join_local discovers (no invite, no passphrase given).
@@ -436,6 +455,16 @@ describe.skipIf(!hasBundle)('hive-mcp shim e2e (real hub, real spawns)', () => {
       JSON.stringify({ url: inviteUrl, passphrase: PASSPHRASE }),
       'utf-8',
     );
+    const staleShim = shimInstancePaths('l', home);
+    fs.mkdirSync(staleShim.dir, { recursive: true });
+    fs.writeFileSync(
+      staleShim.configPath,
+      JSON.stringify({
+        url: 'http://127.0.0.1:1/stale',
+        passphrase: 'obsolete',
+        relayFingerprint: 'sha256:obsolete',
+      }),
+    );
 
     const g = spawnShim(home, path.join(dir, 'projL'), ['--instance', 'l']);
     await g.initialize();
@@ -443,7 +472,8 @@ describe.skipIf(!hasBundle)('hive-mcp shim e2e (real hub, real spawns)', () => {
     expect(joined.isError).toBe(false);
     expect(joined.text).toContain('Joined the hive as "ghost"');
     expect(joined.text).toContain('Credentials discovered from');
-    g.kill();
+    await expect(g.closeInput()).resolves.toBe(0);
+    expect(fs.existsSync(staleShim.lockPath)).toBe(false);
   }, 60_000);
 
   it('hive_join_local reports clearly when no local hive exists', async () => {

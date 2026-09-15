@@ -30,6 +30,13 @@ hub — the hosting session is NOT a peer until you run `/hive join` (no argumen
 needed on the hub machine). A machine can host without its own agent ever being
 in the hive.
 
+You can also ask the agent running inside Auditaria to join: its native
+`hive_connect` tool accepts no arguments for saved/local discovery, or an
+`invite` for another machine. This works before the first connection and after
+leaving. The tool waits for authentication before reporting a successful join.
+It uses the Auditaria node's identity; independent MCP agents each get their own
+identity through the standalone shim's `hive_join_local`.
+
 On each of your other machines, paste that whole line into Auditaria. Either:
 
 - run it as the `/hive join …` command, or
@@ -81,9 +88,9 @@ quick tunnel cannot connect (same class of limitation as strict corporate
 proxies). Machines that only **join** need nothing but normal HTTPS/443 —
 cloudflared is only required on the hub machine.
 
-If the tunnel can't start, `/hive start` still brings the hub up on the local
-network (LAN/loopback) and tells you so; other machines on the same LAN can join
-with the `http://<host>:<port>/…` URL it prints.
+If the tunnel can't start, `/hive start` still brings the hub up on loopback and
+tells you so. Agents on the same machine can join. Other machines need the
+tunnel: the hub does not listen on the LAN.
 
 ## Commands
 
@@ -286,7 +293,7 @@ to consult even under `open` (a valid token's embedded trust always wins).
 
 ## Configuration
 
-`~/.auditaria/hive.json`:
+`~/.auditaria/hive/instances/<instance-key>/config.json` (native node):
 
 ```jsonc
 {
@@ -300,6 +307,7 @@ to consult even under `open` (a valid token's embedded trust always wins).
   "mode": "main", // or "approve"
   "trustPolicy": "open", // or "invite" | "manual"
   "autoconnect": true, // rejoin on every launch
+  "joined": true, // false for a hub-only session
   "hub": { "port": 18800 }, // present on the hub machine only
 }
 ```
@@ -308,6 +316,21 @@ to consult even under `open` (a valid token's embedded trust always wins).
   prefer it if your home directory is synced to the cloud.
 - `autoconnect: true` reconnects the saved hive on every launch (quiet,
   best-effort). Hub machines restart the hub + tunnel automatically.
+
+### Connection troubleshooting
+
+- Native agent: call `hive_connect {}` to join with saved/local credentials.
+  Foreign MCP agent: call `hive_join_local {}` to discover the machine's hive,
+  including when the shim has obsolete credentials saved from a previous hive.
+- `hive_status` reports connection state and the last failure. A joining or
+  offline node has not completed authentication; do not treat it as connected.
+- Local clients use the matching hub's loopback address immediately, avoiding
+  expired tunnel hostnames. Silent connections time out and retry.
+- Invalid passphrases stop retries so one bad local client does not repeatedly
+  trigger the relay's failed-auth lockout. Correct the invite and join again.
+- If an identity is replaced by another connection, the displaced client stops.
+  Use different `AUDITARIA_HIVE_INSTANCE` names for native sessions sharing a
+  directory; MCP sessions automatically claim separate instance slots.
 
 ## Security notes
 

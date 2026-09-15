@@ -16,6 +16,7 @@ import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
 import {
   HIVE_PROTOCOL_VERSION,
+  AUTH_TIMEOUT_MS,
   PING_INTERVAL_MS,
   type AckMsg,
   type AdminMsg,
@@ -78,6 +79,8 @@ export interface HiveWireClientOptions {
   getFallbackUrls?: () => string[];
   /** Fired after a successful auth on a URL different from the configured one. */
   onUrlSwitched?: (url: string) => void;
+  /** Bounds both opening the socket and authenticating it. */
+  connectTimeoutMs?: number;
 }
 
 export type HiveClientState = 'connecting' | 'online' | 'offline' | 'stopped';
@@ -122,6 +125,8 @@ export class HiveWireClient extends EventEmitter {
   private nicknameFromHub: string | undefined;
   private trustFromHub: TrustLevel | undefined;
   private rosterCache: RosterEntry[] = [];
+  private lastError: string | undefined;
+  private generation = 0;
 
   constructor(private readonly options: HiveWireClientOptions) {
     super();
@@ -129,6 +134,46 @@ export class HiveWireClient extends EventEmitter {
 
   getState(): HiveClientState {
     return this.state;
+  }
+
+  getLastError(): string | undefined {
+    return this.lastError;
+  }
+
+  /** Wait for verified enrollment, with useful failures and listener cleanup. */
+  waitUntilOnline(timeoutMs = AUTH_TIMEOUT_MS): Promise<void> {
+    if (this.isOnline()) return Promise.resolve();
+    if (this.stopped) {
+      return Promise.reject(new Error(this.lastError ?? 'hive client stopped'));
+    }
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.off('welcome', onWelcome);
+        this.off('authfail', onFail);
+        this.off('state', onState);
+      };
+      const onWelcome = () => {
+        cleanup();
+        resolve();
+      };
+      const onFail = (reason: string) => {
+        cleanup();
+        reject(new Error(reason));
+      };
+      const onState = (state: HiveClientState) => {
+        if (state === 'stopped')
+          onFail(this.lastError ?? 'hive client stopped');
+      };
+      const timer = setTimeout(() => {
+        onFail(
+          `Hive is not connected after ${timeoutMs / 1000}s. ${this.lastError ?? 'The relay has not completed authentication.'} Check hive_status for connection state.`,
+        );
+      }, timeoutMs);
+      this.on('welcome', onWelcome);
+      this.on('authfail', onFail);
+      this.on('state', onState);
+    });
   }
 
   getRoster(): RosterEntry[] {
@@ -144,12 +189,16 @@ export class HiveWireClient extends EventEmitter {
   }
 
   start(): void {
+    if (this.ws || this.reconnectTimer) return;
     this.stopped = false;
+    this.lastError = undefined;
+    this.reconnectAttempt = 0;
     this.connect();
   }
 
   stop(): void {
     this.stopped = true;
+    this.generation++;
     this.setState('stopped');
     this.clearTimers();
     for (const [, p] of this.pendingRefs) {
@@ -174,6 +223,7 @@ export class HiveWireClient extends EventEmitter {
   }
 
   private log(text: string): void {
+    this.lastError = text.replace(/^hive:\s*/, '');
     this.options.onLog?.(text);
   }
 
@@ -223,11 +273,15 @@ export class HiveWireClient extends EventEmitter {
 
   private connect(): void {
     if (this.stopped) return;
+    const generation = ++this.generation;
     this.setState('connecting');
     this.currentUrl = this.pickUrlForAttempt();
     let ws: WebSocket;
     try {
-      ws = new WebSocket(toWsUrl(this.currentUrl));
+      ws = new WebSocket(toWsUrl(this.currentUrl), {
+        handshakeTimeout: this.options.connectTimeoutMs ?? AUTH_TIMEOUT_MS,
+        maxPayload: 1024 * 1024,
+      });
     } catch (e) {
       this.log(
         `hive: connect failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -236,7 +290,15 @@ export class HiveWireClient extends EventEmitter {
       return;
     }
     this.ws = ws;
+    const isCurrent = () =>
+      !this.stopped && this.ws === ws && this.generation === generation;
     let authed = false;
+    const authTimer = setTimeout(() => {
+      if (!isCurrent() || authed) return;
+      this.log('hive: connection timed out before authentication completed');
+      ws.terminate();
+    }, this.options.connectTimeoutMs ?? AUTH_TIMEOUT_MS);
+    authTimer.unref?.();
     const clientChallenge = randomBytes(CHALLENGE_LEN);
     // Process messages STRICTLY in arrival order. handleAuthOk awaits crypto,
     // and the hub replays queued 'deliver' frames in the same tick right after
@@ -255,14 +317,22 @@ export class HiveWireClient extends EventEmitter {
         return;
       }
       queue = queue.then(async () => {
+        if (!isCurrent()) return;
         try {
           if (!authed) {
             if (msg.t === 'hello') {
               await this.handleHello(ws, msg, clientChallenge);
             } else if (msg.t === 'authok') {
-              const ok = await this.handleAuthOk(msg, clientChallenge);
+              const ok = await this.handleAuthOk(
+                msg,
+                clientChallenge,
+                isCurrent,
+              );
+              if (!isCurrent()) return;
               if (ok) {
                 authed = true;
+                clearTimeout(authTimer);
+                this.lastError = undefined;
                 this.reconnectAttempt = 0;
                 // Fallback candidate authenticated (same passphrase + same
                 // pinned relay key) — adopt it as the primary and let the
@@ -277,7 +347,7 @@ export class HiveWireClient extends EventEmitter {
                   trust: this.trustFromHub,
                 });
               } else {
-                this.log('hive: relay verification failed — disconnecting');
+                this.handleAuthFail('relay verification failed');
                 ws.close();
               }
             } else if (msg.t === 'authfail') {
@@ -299,12 +369,15 @@ export class HiveWireClient extends EventEmitter {
       this.lastTraffic = Date.now();
     });
     ws.on('close', () => {
-      if (this.ws === ws) this.ws = undefined;
+      clearTimeout(authTimer);
+      if (this.ws !== ws) return;
+      this.ws = undefined;
       this.clearPingOnly();
       this.failPendingRefs(new Error('hive connection closed'));
       this.scheduleReconnect();
     });
     ws.on('error', (e: Error) => {
+      if (!isCurrent()) return;
       this.log(`hive: socket error: ${e.message}`);
       try {
         ws.close();
@@ -354,19 +427,23 @@ export class HiveWireClient extends EventEmitter {
         fromB64(hello.salt),
         hello.iterations,
       );
+      if (this.stopped || this.ws !== ws || ws.readyState !== WebSocket.OPEN)
+        return;
       this.cachedMaster = { saltB64: hello.salt, master };
     }
     const hkdfSalt = fromB64(hello.hkdfSalt);
-    this.pendingAuthKey = await deriveAuthKey(
-      this.cachedMaster.master,
-      hkdfSalt,
-    );
+    const authKey = await deriveAuthKey(this.cachedMaster.master, hkdfSalt);
+    if (this.stopped || this.ws !== ws || ws.readyState !== WebSocket.OPEN)
+      return;
+    this.pendingAuthKey = authKey;
     this.pendingHubChallenge = fromB64(hello.challenge);
 
     const response = await makeAuthResponse(
       this.pendingAuthKey,
       this.pendingHubChallenge,
     );
+    if (this.stopped || this.ws !== ws || ws.readyState !== WebSocket.OPEN)
+      return;
     const nodeSig = signChallenge(
       this.options.identity.privateKeyPem,
       this.pendingHubChallenge,
@@ -399,6 +476,7 @@ export class HiveWireClient extends EventEmitter {
       roster: RosterEntry[];
     },
     clientChallenge: Uint8Array,
+    isCurrent: () => boolean,
   ): Promise<boolean> {
     if (!this.pendingAuthKey || !this.pendingHubChallenge) return false;
     // Mutual passphrase proof.
@@ -407,7 +485,7 @@ export class HiveWireClient extends EventEmitter {
       msg.proof,
       this.pendingHubChallenge,
     );
-    if (!proofOk) return false;
+    if (!proofOk || !isCurrent()) return false;
     // Relay identity proof over OUR fresh challenge.
     if (!this.pendingHubKeyPem) return false;
     if (
@@ -435,9 +513,10 @@ export class HiveWireClient extends EventEmitter {
   }
 
   private handleAuthFail(reason: string): void {
+    this.lastError = reason;
     this.emit('authfail', reason);
     const terminal =
-      /removed from the hive|bound to a different key|pinned fingerprint|invite token/i.test(
+      /removed from the hive|bound to a different key|pinned fingerprint|invite token|enrolls new nodes by invite|invalid passphrase|relay verification failed|replaced by another connection/i.test(
         reason,
       );
     if (terminal) {

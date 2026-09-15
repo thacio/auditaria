@@ -84,6 +84,21 @@ export function hubInfoFallbackUrls(
   return out;
 }
 
+/** Keep local clients on loopback, including clients already using loopback. */
+export function preferLocalHiveUrl(
+  savedUrl: string,
+  info: { url?: string; loopbackUrl?: string; urlToken?: string } | undefined,
+): string {
+  if (
+    info?.loopbackUrl &&
+    info.urlToken &&
+    urlTokenOf(savedUrl) === info.urlToken
+  ) {
+    return info.loopbackUrl;
+  }
+  return savedUrl;
+}
+
 // ---------------------------------------------------------------
 // Hard tool gate (§6.1 / §7.3)
 // ---------------------------------------------------------------

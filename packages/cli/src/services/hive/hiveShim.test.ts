@@ -251,6 +251,56 @@ describe('discoverLocalHive', () => {
     expect(discoverLocalHive(dir, {})).toBeUndefined();
   });
 
+  it('uses the advertised local hub with env credentials ahead of unrelated saved hives', () => {
+    writeJson(instCfg('old'), {
+      url: 'https://old.example/old',
+      passphrase: 'old',
+      hub: {},
+    });
+    writeJson(hubInfoPath(), {
+      loopbackUrl: 'http://127.0.0.1:18800/current',
+      urlToken: 'current',
+    });
+    expect(
+      discoverLocalHive(dir, { HIVE_PASS: 'current-secret' }),
+    ).toMatchObject({
+      url: 'http://127.0.0.1:18800/current',
+      passphrase: 'current-secret',
+      persistPassphrase: false,
+    });
+  });
+
+  it('prefers credentials matching the current hub over a stale hub config and carries its pin', () => {
+    writeJson(instCfg('stale-host'), {
+      url: 'https://old.example/old',
+      passphrase: 'old',
+      hub: {},
+    });
+    writeJson(instCfg('current'), {
+      url: 'https://new.example/current',
+      passphrase: 'new',
+      relayFingerprint: 'sha256:known',
+    });
+    writeJson(hubInfoPath(), {
+      loopbackUrl: 'http://127.0.0.1:18800/current',
+      urlToken: 'current',
+    });
+    expect(discoverLocalHive(dir, {})).toMatchObject({
+      url: 'http://127.0.0.1:18800/current',
+      passphrase: 'new',
+      relayFingerprint: 'sha256:known',
+    });
+  });
+
+  it('uses loopback immediately when reconnecting a saved local tunnel URL', () => {
+    expect(
+      resolveShimConnection({
+        cfg: { url: 'https://dead.example/tok', passphrase: 'secret' },
+        hubInfo: { loopbackUrl: 'http://127.0.0.1:18800/tok', urlToken: 'tok' },
+      })?.url,
+    ).toBe('http://127.0.0.1:18800/tok');
+  });
+
   it('uses env passphrase + hub discovery when no configs exist', () => {
     writeJson(hubInfoPath(), {
       url: 'https://tun.example/tok1',

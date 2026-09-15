@@ -35,7 +35,7 @@ import {
 // -------------------------------------------------------------------
 
 export interface HiveConnectParams {
-  invite: string;
+  invite?: string;
   nickname?: string;
   description?: string;
 }
@@ -92,6 +92,14 @@ export interface HiveTransport {
 }
 
 let hiveTransport: HiveTransport | undefined;
+let hiveConnector: HiveTransport['connect'] | undefined;
+
+/** Available before joining, and retained after leaving, so tools can enroll. */
+export function registerHiveConnector(
+  connector: HiveTransport['connect'] | undefined,
+): void {
+  hiveConnector = connector;
+}
 
 /** Called by the CLI's HiveService at startup/shutdown. */
 export function registerHiveTransport(
@@ -105,7 +113,7 @@ export function getHiveTransport(): HiveTransport | undefined {
 }
 
 const NOT_RUNNING =
-  'The hive is not running on this machine. Ask the user to start one with /hive start, or join one with /hive join <invite> (the user can also paste an invite here for you to use with hive_connect).';
+  'This Auditaria node is not joined to a hive. Call hive_connect with no arguments to try saved/local discovery, or with an invite from the user. A new hub can be hosted with /hive start.';
 
 function errorResult(msg: string): ToolResult {
   return {
@@ -140,18 +148,18 @@ class HiveConnectInvocation extends BaseToolInvocation<
   ToolResult
 > {
   getDescription(): string {
-    return 'Join a hive with an invite';
+    return 'Join this Auditaria node to a hive';
   }
 
   async execute(): Promise<ToolResult> {
-    const transport = hiveTransport;
-    if (!transport) {
+    const connect = hiveConnector ?? hiveTransport?.connect.bind(hiveTransport);
+    if (!connect) {
       return errorResult(
         'Hive support is not available in this session (the hive service did not initialize).',
       );
     }
     try {
-      const text = await transport.connect(this.params);
+      const text = await connect(this.params);
       return { llmContent: text, returnDisplay: 'Joined the hive' };
     } catch (e) {
       return errorResult(e instanceof Error ? e.message : String(e));
@@ -170,10 +178,10 @@ export class HiveConnectTool extends BaseDeclarativeTool<
     super(
       HiveConnectTool.Name,
       'HiveConnect',
-      'Join an Auditaria hive using an invite the user pasted into the conversation. ' +
+      'Join this Auditaria node to a hive. With no invite, reuse saved credentials or discover a hive on this machine. ' +
         '(Separate agent, not this Auditaria node? These tools speak AS the node — for your OWN hive identity use the hive-mcp shim; see IDENTITY below.) ' +
         'An invite looks like "/hive join https://…#passphrase.inv_token" or just the URL#secret part. ' +
-        'If you have no invite, ask the user for one (any hive node mints it with /hive invite) — never dig credentials out of config files. ' +
+        'Try with no arguments first for a local hive. If none is found, ask the user for an invite from /hive invite. ' +
         'You may pick your own nickname and author a short self-description (who you are, what you are working on) — both are visible to every peer. ' +
         // AUDITARIA_HIVE_FEATURE: one node = one identity; separate agents → shim.
         'IDENTITY: these hive tools speak AS this Auditaria node — every agent that uses this node\'s tools shares its single hive identity (one nickname, one inbox). If you are a separate agent that wants to appear in the hive as YOURSELF, do not re-join or rename this node: use the standalone hive-mcp shim instead (ask the user to run "/hive invite --mcp" for the one-line setup; once registered you just call its hive_join_local tool — it discovers the local hive automatically, no invite/passphrase — and you get your own identity, inbox, blocking hive_wait and a background mail watcher). ' +
@@ -186,7 +194,7 @@ export class HiveConnectTool extends BaseDeclarativeTool<
           invite: {
             type: 'string',
             description:
-              'The invite string (URL with #passphrase fragment, with or without the leading "/hive join").',
+              'Optional invite string (URL with #passphrase, optionally prefixed by "/hive join"). Omit for saved/local discovery.',
           },
           nickname: {
             type: 'string',
@@ -199,7 +207,6 @@ export class HiveConnectTool extends BaseDeclarativeTool<
               'Optional 1–2 sentence self-description shown in the roster (e.g. what you are working on, what local resources you have).',
           },
         },
-        required: ['invite'],
         additionalProperties: false,
       },
       messageBus,
@@ -209,7 +216,9 @@ export class HiveConnectTool extends BaseDeclarativeTool<
   protected override validateToolParamValues(
     params: HiveConnectParams,
   ): string | null {
-    if (!params.invite?.trim()) return 'invite is required';
+    if (params.invite !== undefined && !params.invite.trim()) {
+      return 'Omit invite for local discovery, or provide a non-empty invite';
+    }
     return null;
   }
 

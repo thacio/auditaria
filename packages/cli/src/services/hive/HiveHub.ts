@@ -805,7 +805,7 @@ export async function startHiveHub(
           msg.response,
           challenge,
         );
-        if (authed) return; // concurrent auth already completed
+        if (authed || ws.readyState !== WebSocket.OPEN) return;
         if (!passOk) {
           failAuth('invalid passphrase');
           return;
@@ -842,7 +842,14 @@ export async function startHiveHub(
         let nickname: string;
         if (existing) {
           trust = existing.trust;
-          nickname = existing.nickname;
+          const requested = sanitizeInline(
+            String(msg.card?.nickname ?? ''),
+            60,
+          );
+          nickname = requested
+            ? resolveNicknameCollision(requested, nodeId)
+            : existing.nickname;
+          existing.nickname = nickname;
         } else {
           // New enrollment — trust assignment per policy (§6.1).
           const invite = msg.inviteToken
@@ -892,12 +899,18 @@ export async function startHiveHub(
         ws.off('message', onMessage as never);
 
         const proof = await makeAuthProof(authKey, challenge);
+        if (ws.readyState !== WebSocket.OPEN) return;
         const clientChallenge = fromB64(String(msg.clientChallenge ?? ''));
         const hubSig = signChallenge(state!.hubPrivateKeyPem, clientChallenge);
 
         // Displace any previous connection for this node (reconnect).
         const prev = conns.get(nodeId);
         if (prev) {
+          send(prev.ws, {
+            t: 'authfail',
+            reason:
+              'identity replaced by another connection — use a separate Hive instance for each agent',
+          });
           try {
             prev.ws.close();
           } catch {

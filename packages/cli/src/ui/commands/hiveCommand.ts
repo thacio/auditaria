@@ -19,7 +19,7 @@ import {
   type SlashCommandActionReturn,
   CommandKind,
 } from './types.js';
-import type { Config } from '@google/gemini-cli-core';
+import { type Config, registerHiveConnector } from '@google/gemini-cli-core';
 import {
   loadHiveConfig,
   saveHiveConfig,
@@ -37,7 +37,7 @@ import {
   acquirePidLock,
   releasePidLock,
 } from '../../services/hive/hivePaths.js';
-import { hubInfoFallbackUrls } from '../../services/hive/hivePolicy.js';
+import { preferLocalHiveUrl } from '../../services/hive/hivePolicy.js';
 import { pushHiveToCliDisplay } from '../../services/hive/HiveBridge.js';
 import { readJsonFile, writeJsonFile } from '../../services/hive/HiveStore.js';
 import type { HiveHubHandle } from '../../services/hive/HiveHub.js';
@@ -45,6 +45,7 @@ import type { TunnelHandle } from '../../services/hive/HiveTunnel.js';
 import type { TrustLevel, HubInfoFile } from '../../services/hive/types.js';
 import { HIVE_HUB_BASE_PORT } from '../../services/hive/types.js';
 import { makeStrongPassphrase } from '../../services/hive/HiveCrypto.js';
+import { discoverLocalHive } from '../../services/hive/hiveShim.js';
 
 // -------------------------------------------------------------------
 // Module state + single-instance lock
@@ -134,7 +135,7 @@ async function startHubOnly(
     activeTunnel = undefined;
     baseUrl = `http://127.0.0.1:${hub.port}/${hub.urlToken}`;
     onProgress?.(
-      `Tunnel unavailable — hive reachable on this machine/LAN only.\n${e instanceof Error ? e.message : String(e)}`,
+      `Tunnel unavailable — hive reachable on this machine only (loopback).\n${e instanceof Error ? e.message : String(e)}`,
     );
   }
   activeBaseUrl = baseUrl;
@@ -177,22 +178,28 @@ async function startHubOnly(
  * quick-tunnel rotation. Any other URL passes through unchanged.
  */
 function preferLocalUrl(url: string): string {
-  const candidates = hubInfoFallbackUrls(
-    url,
-    readJsonFile<HubInfoFile>(getHubInfoPath()),
-  );
-  return candidates[0] ?? url;
+  return preferLocalHiveUrl(url, readJsonFile<HubInfoFile>(getHubInfoPath()));
 }
 
 async function joinHive(
   config: Config,
-  invite: { url: string; passphrase: string; inviteToken?: string },
+  invite: {
+    url: string;
+    passphrase: string;
+    inviteToken?: string;
+    persistPassphrase?: boolean;
+  },
   extras?: { nickname?: string; description?: string },
 ): Promise<HiveService> {
   const saved = loadHiveConfig();
   saved.url = invite.url;
-  if (!process.env['AUDITARIA_HIVE_PASSPHRASE']) {
+  if (
+    !process.env['AUDITARIA_HIVE_PASSPHRASE'] &&
+    invite.persistPassphrase !== false
+  ) {
     saved.passphrase = invite.passphrase;
+  } else {
+    delete saved.passphrase;
   }
   if (extras?.nickname) saved.nickname = extras.nickname;
   if (extras?.description) saved.selfDescription = extras.description;
@@ -303,9 +310,22 @@ async function joinAction(
 ): Promise<void | SlashCommandActionReturn> {
   const config = getConfig(context);
   if (!config) return msg('error', 'Config not available yet.');
+  return joinWithConfig(config, args);
+}
+
+async function joinWithConfig(
+  config: Config,
+  args: string,
+  extras?: { nickname?: string; description?: string },
+): Promise<SlashCommandActionReturn> {
   const saved = loadHiveConfig();
   const savedPass = effectivePassphrase(saved);
-  let invite = parseInvite(args);
+  let invite:
+    | (NonNullable<ReturnType<typeof parseInvite>> & {
+        persistPassphrase?: boolean;
+        relayFingerprint?: string;
+      })
+    | undefined = parseInvite(args);
   // No-argument form: join the saved/local hive — the natural follow-up to
   // /hive start on this machine (start hosts, join participates). Prefers
   // the loopback address when the URL points at this machine's own hub.
@@ -313,11 +333,13 @@ async function joinAction(
     if (saved.url && savedPass) {
       invite = { url: preferLocalUrl(saved.url), passphrase: savedPass };
     } else {
-      return msg(
-        'error',
-        'No saved hive on this machine. Usage: /hive join <url>#<passphrase>[.<token>]\n' +
-          '(On the hub machine, /hive start first — then a bare /hive join works.)',
-      );
+      invite = discoverLocalHive();
+      if (!invite)
+        return msg(
+          'error',
+          'No saved hive on this machine. Usage: /hive join <url>#<passphrase>[.<token>]\n' +
+            '(On the hub machine, /hive start first — then a bare /hive join works.)',
+        );
     }
   }
   // URL-only form: an enrolled peer can re-point at the hive's NEW address
@@ -342,20 +364,31 @@ async function joinAction(
     );
   }
   const samePass = !!savedPass && invite.passphrase === savedPass;
-  const active = getActiveHiveService();
+  let active = getActiveHiveService();
+  // A failed first enrollment has no pinned membership to preserve. Let the
+  // agent correct its invite without requiring a manual /hive leave.
+  if (
+    active &&
+    !activeHub &&
+    !saved.relayFingerprint &&
+    active.getConnectionState() !== 'online'
+  ) {
+    await active.stop();
+    setActiveHiveService(undefined);
+    active = undefined;
+  }
   if (active) {
+    if (!samePass) {
+      return msg(
+        'error',
+        'This node is already connected to a different hive. Use /hive leave before switching hives.',
+      );
+    }
     if (activeHub) {
       return msg(
         'info',
         `Already hosting AND joined — peers join this hive at ${activeBaseUrl ?? '(unknown)'}. ` +
           'Use /hive invite to mint invites, or /hive leave first to join a different hive.',
-      );
-    }
-    if (!samePass) {
-      return msg(
-        'info',
-        'Already connected to a hive, and this invite carries a DIFFERENT passphrase (another hive). ' +
-          'Use /hive leave first to switch hives.',
       );
     }
     // Same passphrase → same hive at a new address (hub restart rotated the
@@ -365,7 +398,7 @@ async function joinAction(
     await active.stop().catch(() => {});
     setActiveHiveService(undefined);
     try {
-      const service = await joinHive(config, invite);
+      const service = await joinHive(config, invite, extras);
       activeBaseUrl = invite.url;
       return msg(
         'info',
@@ -383,7 +416,7 @@ async function joinAction(
   if (!acquireFileLock()) {
     return msg(
       'error',
-      `Another Auditaria instance (PID ${checkLock()}) is already running the hive on this machine.`,
+      `Another Auditaria session (PID ${checkLock()}) is using this Hive identity. Start from a different directory or set a distinct AUDITARIA_HIVE_INSTANCE for each session.`,
     );
   }
   try {
@@ -394,14 +427,15 @@ async function joinAction(
     // The SAME passphrase means the same hive at a possibly-new address —
     // KEEP the pin so the relay key is verified. Autoconnect reconnects
     // always verify the pin to catch a mid-session relay swap.
-    if (!samePass) {
+    if (!samePass || invite.relayFingerprint) {
       const cfg = loadHiveConfig();
-      if (cfg.relayFingerprint) {
-        delete cfg.relayFingerprint;
-        saveHiveConfig(cfg);
-      }
+      delete cfg.relayFingerprint;
+      if (invite.relayFingerprint)
+        cfg.relayFingerprint = invite.relayFingerprint;
+      saveHiveConfig(cfg);
     }
-    const service = await joinHive(config, invite);
+    invite.url = preferLocalUrl(invite.url);
+    const service = await joinHive(config, invite, extras);
     activeBaseUrl = invite.url;
     return msg(
       'info',
@@ -903,6 +937,38 @@ async function defaultAction(
 // Autoconnect + cleanup (wired in gemini.tsx)
 // -------------------------------------------------------------------
 
+/** Register before joining so the agent can enroll its own Auditaria node. */
+export function initializeHiveConnector(config: Config): void {
+  let connecting = false;
+  registerHiveConnector(async (params) => {
+    if (connecting)
+      throw new Error(
+        'A Hive join is already in progress. Check hive_status shortly.',
+      );
+    connecting = true;
+    try {
+      const active = getActiveHiveService();
+      if (
+        active &&
+        !params.invite &&
+        active.getConnectionState() !== 'stopped'
+      ) {
+        return await active.connect(params);
+      }
+      const result = await joinWithConfig(config, params.invite ?? '', params);
+      if (result.type === 'message' && result.messageType === 'error') {
+        throw new Error(result.content);
+      }
+      const service = getActiveHiveService();
+      if (!service)
+        throw new Error('Hive join did not start. Check /hive status.');
+      return await service.connect({});
+    } finally {
+      connecting = false;
+    }
+  });
+}
+
 /**
  * Reconnects the saved hive on launch (quiet best-effort, like Telegram
  * autostart). Hub machines restart the hub + tunnel; peers just reconnect.
@@ -947,6 +1013,7 @@ export async function autoConnectHive(config: Config): Promise<void> {
 
 /** Stops hive components if running. Called during app cleanup. */
 export async function stopHiveIfRunning(): Promise<void> {
+  registerHiveConnector(undefined);
   await teardown();
   releaseFileLock();
 }

@@ -359,6 +359,12 @@ async function main(): Promise<void> {
 
   let lastConsumedTs = 0;
   let client: HiveWireClient | undefined;
+  // The MCP SDK does not close on stdin EOF. A surviving hub socket would
+  // otherwise keep a departed agent's shim, identity lock and roster entry alive.
+  process.stdin.once('end', () => {
+    client?.stop();
+    process.exit(0);
+  });
   /** Last connection-level failure, surfaced in tool results (not just stderr). */
   let lastConnError = '';
 
@@ -470,7 +476,11 @@ async function main(): Promise<void> {
       },
       getCard: buildCard,
       onLog: (text) => {
-        if (/socket error|auth failed|connect failed/i.test(text)) {
+        if (
+          /socket error|auth failed|connect failed|timed out|protocol error/i.test(
+            text,
+          )
+        ) {
           lastConnError = text.replace(/^hive:\s*/, '');
         }
         process.stderr.write(`${text}\n`);
@@ -506,6 +516,7 @@ async function main(): Promise<void> {
         clearTimeout(timer);
         c.off('welcome', onWelcome);
         c.off('authfail', onFail);
+        c.off('state', onState);
       };
       const onWelcome = () => {
         cleanup();
@@ -515,6 +526,12 @@ async function main(): Promise<void> {
         cleanup();
         resolve({ ok: false, reason });
       };
+      const onState = (state: string) => {
+        if (state === 'stopped')
+          onFail(
+            c.getLastError() ?? 'Connection attempt was stopped or replaced.',
+          );
+      };
       const timer = setTimeout(() => {
         cleanup();
         resolve({ ok: false, timedOut: true });
@@ -522,6 +539,7 @@ async function main(): Promise<void> {
       timer.unref?.();
       c.on('welcome', onWelcome);
       c.on('authfail', onFail);
+      c.on('state', onState);
     });
   };
 
@@ -541,6 +559,7 @@ async function main(): Promise<void> {
   if (startupConn && (cfg.autojoin !== false || !!args.url)) {
     cfg.url = startupConn.url;
     if (startupConn.persistPassphrase) cfg.passphrase = startupConn.passphrase;
+    else delete cfg.passphrase;
     cfg.autojoin = true;
     saveShimConfig(inst, cfg);
     startClient(startupConn);
@@ -1021,11 +1040,14 @@ async function main(): Promise<void> {
     if (conn.passphrase !== prevEffectivePass) {
       delete cfg.relayFingerprint;
     }
+    if (opts.local && conn.relayFingerprint) {
+      cfg.relayFingerprint = conn.relayFingerprint;
+    }
     cfg.url = conn.url;
     if (conn.persistPassphrase) {
       cfg.passphrase = conn.passphrase;
-    } else if (cfg.passphrase && cfg.passphrase !== conn.passphrase) {
-      delete cfg.passphrase; // stale on-disk secret
+    } else {
+      delete cfg.passphrase;
     }
     cfg.autojoin = true;
     saveShimConfig(inst, cfg);
@@ -1098,7 +1120,7 @@ async function main(): Promise<void> {
     try {
       switch (name) {
         case 'hive_join_local': {
-          const conn = resolveLocalConnection();
+          const conn = discoverLocalHive() ?? resolveLocalConnection();
           if (!conn) {
             return text(
               'No hive found on this machine — no running hub and no locally saved hive connection. ' +

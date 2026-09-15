@@ -147,6 +147,30 @@ const waitFor = async (cond: () => boolean, ms = 10_000): Promise<void> => {
 };
 
 describe('HiveHub', () => {
+  it('stops a displaced identity instead of fighting its replacement', async () => {
+    const h = await startHub();
+    const identity = { ...generateIdentityKeyPair(), nodeId: makeNodeId() };
+    const first = await connectClient(h, 'original', { identity });
+    const second = await connectClient(h, 'renamed', { identity });
+    await waitFor(() => first.client.getState() === 'stopped');
+    expect(first.client.getLastError()).toContain(
+      'replaced by another connection',
+    );
+    expect(second.client.isOnline()).toBe(true);
+    expect(second.client.getNickname()).toBe('renamed');
+    expect(h.listRoster().filter((peer) => peer.online)).toHaveLength(1);
+  });
+
+  it('keeps a replacement socket online across an immediate stop/start', async () => {
+    const h = await startHub();
+    const { client } = await connectClient(h, 'restart');
+    client.stop();
+    client.start();
+    await client.waitUntilOnline();
+    expect(client.isOnline()).toBe(true);
+    expect(client.listenerCount('authfail')).toBe(1); // helper's original listener
+  });
+
   it('authenticates with the right passphrase and rejects the wrong one', async () => {
     const h = await startHub();
     const a = await connectClient(h, 'alpha');
@@ -351,6 +375,7 @@ describe('HiveHub', () => {
       setTimeout(() => resolve('no authfail'), 20_000);
     });
     expect(reason).toContain('invite');
+    expect(noToken.getState()).toBe('stopped');
 
     // Consult token → enrolled at consult level.
     const token = h.mintInvite('consult');

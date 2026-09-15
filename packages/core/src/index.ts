@@ -392,7 +392,11 @@ export {
 // "Live screen" mode (duplication-immune snapshots of the provider TUI)
 export { ProviderScreenMirror } from './providers/terminal/screenMirror.js';
 // AUDITARIA_HIVE_FEATURE: core→cli transport seam for the hive tools
-export { registerHiveTransport, getHiveTransport } from './tools/hive.js';
+export {
+  registerHiveTransport,
+  getHiveTransport,
+  registerHiveConnector,
+} from './tools/hive.js';
 export type {
   HiveTransport,
   HiveConnectParams,
