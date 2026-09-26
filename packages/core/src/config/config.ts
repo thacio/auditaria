@@ -106,7 +106,7 @@ import {
 } from './models.js';
 import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
-import { ideContextStore } from '../ide/ideContext.js';
+import { checkPathTrust } from '../utils/trust.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
 import { ContextManagementTool } from '../tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
 import { CollaborativeWritingTool } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
@@ -3761,16 +3761,24 @@ export class Config implements McpContext, AgentLoopContext {
    * 'false' for untrusted.
    */
   isTrustedFolder(): boolean {
+    const { isTrusted, source } = checkPathTrust({
+      path: this.targetDir,
+      isFolderTrustEnabled: this.folderTrust,
+    });
+
+    if (isTrusted === false) {
+      return false;
+    }
+
+    if (source === 'env') {
+      return isTrusted;
+    }
+
     if (this.trustedFolder !== undefined) {
       return this.trustedFolder;
     }
 
-    const context = ideContextStore.get();
-    if (context?.workspaceState?.isTrusted !== undefined) {
-      return context.workspaceState.isTrusted;
-    }
-
-    return this.folderTrust ? false : true;
+    return isTrusted ?? false;
   }
 
   setIdeMode(value: boolean): void {
