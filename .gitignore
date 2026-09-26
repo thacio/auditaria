@@ -6,7 +6,6 @@ test_files/
 .env
 .env~
 .claude
-CLAUDE.md
 AGENTS.md
 
 test-html/
