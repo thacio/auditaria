@@ -124,7 +124,7 @@ export class Storage {
     if (process.env['SANDBOX'] === 'sandbox-exec') {
       const homeDir = homedir();
       if (homeDir) {
-        return path.join(homeDir, '.cache', GEMINI_DIR);
+        return path.join(homeDir, '.cache', AUDITARIA_DIR); // AUDITARIA_FEATURE
       }
     }
 
