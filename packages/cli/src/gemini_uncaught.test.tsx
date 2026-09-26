@@ -19,7 +19,7 @@ vi.mock('./utils/cleanup.js', async (importOriginal) => {
 describe('setupUnhandledRejectionHandler - uncaughtException', () => {
   let initialUncaughtExceptionListeners: readonly unknown[] = [];
   let initialUnhandledRejectionListeners: readonly unknown[] = [];
-  let originalExitCode: number | undefined;
+  let originalExitCode: typeof process.exitCode; // AUDITARIA: @types/node 20.19 types exitCode as number | string
 
   beforeEach(() => {
     initialUncaughtExceptionListeners = process.listeners('uncaughtException');
