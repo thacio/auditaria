@@ -3449,17 +3449,22 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   const maxLength = terminalWidth - estimatedStatusLength - 5;
 
-  const { elapsedTime, currentLoadingPhrase, currentTip, currentWittyPhrase } =
-    useLoadingIndicator({
-      streamingState,
-      shouldShowFocusHint,
-      retryStatus,
-      showTips: showStatusTips,
-      showWit: showStatusWit,
-      customWittyPhrases: settings.merged.ui.customWittyPhrases,
-      errorVerbosity: settings.merged.ui.errorVerbosity,
-      maxLength,
-    });
+  const {
+    elapsedTime,
+    currentLoadingPhrase,
+    statusPhrase,
+    currentTip,
+    currentWittyPhrase,
+  } = useLoadingIndicator({
+    streamingState,
+    shouldShowFocusHint,
+    retryStatus,
+    showTips: showStatusTips,
+    showWit: showStatusWit,
+    customWittyPhrases: settings.merged.ui.customWittyPhrases,
+    errorVerbosity: settings.merged.ui.errorVerbosity,
+    maxLength,
+  });
 
   // WEB_INTERFACE_START: Broadcast loading state to web interface
   useEffect(() => {
@@ -3765,6 +3770,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isFocused,
       elapsedTime,
       currentLoadingPhrase,
+      statusPhrase,
       currentTip,
       currentWittyPhrase,
       historyRemountKey,
@@ -3880,6 +3886,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isFocused,
       elapsedTime,
       currentLoadingPhrase,
+      statusPhrase,
       currentTip,
       currentWittyPhrase,
       historyRemountKey,
