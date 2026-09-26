@@ -100,6 +100,14 @@ const baseConfig = {
 
 const commonAliases = {
   punycode: 'punycode/',
+  'https-proxy-agent': path.resolve(
+    __dirname,
+    'packages/cli/src/patches/https-proxy-agent.ts',
+  ),
+  'http-proxy-agent': path.resolve(
+    __dirname,
+    'packages/cli/src/patches/http-proxy-agent.ts',
+  ),
 };
 
 const cliConfig = {
@@ -129,14 +137,6 @@ const cliConfig = {
   ],
   alias: {
     'is-in-ci': path.resolve(__dirname, 'packages/cli/src/patches/is-in-ci.ts'),
-    'https-proxy-agent': path.resolve(
-      __dirname,
-      'packages/cli/src/patches/https-proxy-agent.ts',
-    ),
-    'http-proxy-agent': path.resolve(
-      __dirname,
-      'packages/cli/src/patches/http-proxy-agent.ts',
-    ),
     '@google/gemini-cli-devtools': path.resolve(
       __dirname,
       'packages/devtools/src/index.ts',
