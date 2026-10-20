@@ -4,17 +4,108 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: `state.json` (Claude Code's `wf_<runId>.json`) plus the
-// progress-folding rules the live task record uses (research 02 §8.4).
+// AUDITARIA_WORKFLOW: `state.json` persistence and progress-folding rules for
+// the live task record.
 
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { WorkflowProgressEvent, WorkflowRunState } from './types.js';
-import { isRecord, stringField } from './guards.js';
+import { isRecord, numberField, stringField } from './guards.js';
 
 function isRunState(value: unknown): value is WorkflowRunState {
-  return isRecord(value) && stringField(value, 'runId') !== undefined;
+  if (!isRecord(value)) return false;
+  return (
+    [
+      'runId',
+      'taskId',
+      'scriptPath',
+      'workflowName',
+      'summary',
+      'defaultModel',
+      'timestamp',
+    ].every((key) => typeof value[key] === 'string') &&
+    ['running', 'completed', 'failed', 'killed', 'paused'].includes(
+      String(value['status']),
+    ) &&
+    [
+      'startTime',
+      'durationMs',
+      'agentCount',
+      'totalTokens',
+      'totalToolCalls',
+    ].every(
+      (key) =>
+        typeof value[key] === 'number' &&
+        Number.isFinite(value[key]) &&
+        value[key] >= 0,
+    ) &&
+    Array.isArray(value['logs']) &&
+    value['logs'].every((line) => typeof line === 'string') &&
+    Array.isArray(value['phases']) &&
+    value['phases'].every(
+      (phase) => isRecord(phase) && stringField(phase, 'title') !== undefined,
+    ) &&
+    Array.isArray(value['workflowProgress']) &&
+    value['workflowProgress'].every(validProgress) &&
+    (value['providerAtLaunch'] === undefined ||
+      (isRecord(value['providerAtLaunch']) &&
+        ['gemini', 'claude', 'codex', 'copilot', 'agy'].includes(
+          String(value['providerAtLaunch']['family']),
+        ) &&
+        (value['providerAtLaunch']['model'] === undefined ||
+          stringField(value['providerAtLaunch'], 'model') !== undefined)))
+  );
+}
+
+function validProgress(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value['type'] === 'workflow_log')
+    return (
+      stringField(value, 'message') !== undefined &&
+      numberField(value, 'at') !== undefined
+    );
+  if (!Number.isInteger(value['index']) || Number(value['index']) < 0)
+    return false;
+  if (value['type'] === 'workflow_phase')
+    return stringField(value, 'title') !== undefined;
+  if (value['type'] !== 'workflow_agent') return false;
+  return (
+    ['start', 'progress', 'done', 'error'].includes(String(value['state'])) &&
+    Number.isInteger(value['phaseIndex']) &&
+    Number(value['phaseIndex']) >= 0 &&
+    ['label', 'phaseTitle', 'promptPreview'].every(
+      (key) => typeof value[key] === 'string',
+    ) &&
+    [
+      'agentId',
+      'agentType',
+      'model',
+      'lastToolName',
+      'lastToolSummary',
+      'resultPreview',
+      'error',
+    ].every(
+      (key) => value[key] === undefined || typeof value[key] === 'string',
+    ) &&
+    [
+      'index',
+      'phaseIndex',
+      'lastProgressAt',
+      'tokens',
+      'toolCalls',
+      'durationMs',
+      'startedAt',
+      'queuedAt',
+      'attempt',
+    ].every(
+      (key) =>
+        value[key] === undefined ||
+        (typeof value[key] === 'number' &&
+          Number.isFinite(value[key]) &&
+          value[key] >= 0),
+    )
+  );
 }
 
 /** Retained progress rows; oldest `workflow_log` rows are evicted first past this. */

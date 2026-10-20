@@ -14,6 +14,7 @@ import type {
   WorkflowProgressEvent,
   WorkflowRunRecord,
   WorkflowService,
+  WorkflowAgentDetail,
 } from '@google/gemini-cli-core';
 import { WebFeature } from '../core/webFeature.js';
 import type { WebFeatureContext } from '../core/types.js';
@@ -24,6 +25,7 @@ export interface WorkflowListRow {
   runId: string;
   taskId: string;
   name: string;
+  title?: string;
   description: string;
   status: string;
   startTime: number;
@@ -69,9 +71,9 @@ export class WorkflowFeature extends WebFeature {
     ctx.inbound.on('workflow_list_request', (_message, ws) => {
       this.send(ws, 'workflow_list', { runs: this.rows() });
     });
-    ctx.inbound.on('workflow_update_request', (message) => {
-      this.handleUpdate(message);
-    });
+    ctx.inbound.on('workflow_update_request', (message, ws) =>
+      this.handleUpdate(message, ws),
+    );
   }
 
   protected onDetach(): void {
@@ -109,6 +111,7 @@ export class WorkflowFeature extends WebFeature {
       runId: run.runId,
       taskId: run.taskId,
       name: summary.name,
+      ...(run.meta.title ? { title: run.meta.title } : {}),
       description: summary.description,
       status: summary.status,
       startTime: summary.startTime,
@@ -129,27 +132,84 @@ export class WorkflowFeature extends WebFeature {
     };
   }
 
-  private handleUpdate(message: ClientMessage): void {
+  private async handleUpdate(
+    message: ClientMessage,
+    ws: WebSocket,
+  ): Promise<void> {
     const op = readString(message, 'op');
     const id = readString(message, 'id');
-    if (!op || !id) return;
-    switch (op) {
-      case 'stop':
-        this.service.stop(id);
-        break;
-      case 'skip_agent': {
-        const index = readNumber(message, 'index');
-        if (index !== undefined) this.service.skipAgent(id, index);
-        break;
+    const requestId = readString(message, 'requestId');
+    let text = '';
+    let ok = true;
+    let detail: WorkflowAgentDetail | undefined;
+    try {
+      if (!op || !id) throw new Error('Choose a workflow and an action.');
+      switch (op) {
+        case 'agent_detail': {
+          const index = readNumber(message, 'index');
+          if (index === undefined || !Number.isInteger(index))
+            throw new Error('Choose an agent.');
+          detail = await this.service.agentDetail(id, index);
+          if (!detail)
+            throw new Error('The agent transcript is not available yet.');
+          break;
+        }
+        case 'stop': {
+          const result = this.service.stop(id);
+          if (!result.ok) throw new Error(result.message);
+          text = 'Stopping workflow…';
+          break;
+        }
+        case 'pause':
+          if (!this.service.pause(id))
+            throw new Error('This workflow is no longer running.');
+          text = 'Pausing workflow…';
+          break;
+        case 'resume':
+          await this.service.resume(id);
+          text = 'Workflow resumed.';
+          break;
+        case 'save':
+          text = `Saved to ${this.service.save(id, readString(message, 'scope') === 'user' ? 'user' : 'project')}`;
+          break;
+        case 'skip_agent': {
+          const index = readNumber(message, 'index');
+          if (
+            index === undefined ||
+            !Number.isInteger(index) ||
+            !this.service.skipAgent(id, index)
+          )
+            throw new Error('This agent is no longer running.');
+          text = 'Stopping agent…';
+          break;
+        }
+        case 'retry_agent': {
+          const index = readNumber(message, 'index');
+          if (
+            index === undefined ||
+            !Number.isInteger(index) ||
+            !this.service.retryAgent(id, index)
+          )
+            throw new Error('Only an active agent can restart.');
+          text = 'Restarting agent…';
+          break;
+        }
+        default:
+          throw new Error('Unknown workflow action.');
       }
-      case 'retry_agent': {
-        const index = readNumber(message, 'index');
-        if (index !== undefined) this.service.retryAgent(id, index);
-        break;
-      }
-      default:
-        break;
+    } catch (error) {
+      ok = false;
+      text = error instanceof Error ? error.message : String(error);
     }
-    this.scheduleBroadcast();
+    this.send(ws, 'workflow_event', {
+      event: 'action_result',
+      requestId,
+      id,
+      op,
+      ok,
+      message: text,
+      ...(detail ? { detail } : {}),
+    });
+    if (op !== 'agent_detail') this.scheduleBroadcast();
   }
 }

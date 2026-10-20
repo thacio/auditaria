@@ -5,8 +5,7 @@
  */
 
 // AUDITARIA_WORKFLOW: The completion payload — the `<task-notification>` block
-// the orchestrating model receives, in Claude Code's exact shape (research 10
-// §9, 03 §1.7), plus the `.output` JSON file it points at.
+// the orchestrating model receives, plus the `.output` JSON file it points at.
 
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
@@ -166,7 +165,7 @@ export async function writeOutputFile(
   await fsp.mkdir(path.dirname(outputPath), { recursive: true });
   const body = {
     ...content,
-    // Claude's .output omits narrator log rows from workflowProgress.
+    // Narrator logs are stored separately from phase and agent progress.
     workflowProgress: content.workflowProgress.filter(
       (e) => e.type !== 'workflow_log',
     ),

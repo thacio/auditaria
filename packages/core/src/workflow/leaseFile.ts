@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: A run's liveness lease — the cross-process guard behind
-// "Workflow <id> is still running ... Stop it first" (research 11 §7.5,
-// refute-resume.md): acquired ATOMICALLY (`wx` create) before a launch or
-// resume is accepted, refreshed every 10 s, judged stale after 30 s.
+// AUDITARIA_WORKFLOW: Short locks serialize lease metadata operations.
+// Ownership tokens keep an old heartbeat/release from changing a new owner.
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { lock, lockSync } from 'proper-lockfile';
 import { errnoCode, isRecord, numberField, stringField } from './guards.js';
 
 export interface Lease {
@@ -18,6 +18,7 @@ export interface Lease {
   taskId: string;
   startedAtMs: number;
   heartbeatAtMs: number;
+  ownerToken?: string;
 }
 
 export const LEASE_HEARTBEAT_MS = 10_000;
@@ -33,12 +34,18 @@ export function readLease(leasePath: string): Lease | undefined {
     if (!isRecord(parsed)) return undefined;
     const pid = numberField(parsed, 'pid');
     const heartbeatAtMs = numberField(parsed, 'heartbeatAtMs');
-    if (pid !== undefined && heartbeatAtMs !== undefined) {
+    if (
+      pid !== undefined &&
+      Number.isInteger(pid) &&
+      pid > 0 &&
+      heartbeatAtMs !== undefined
+    ) {
       return {
         pid,
         taskId: stringField(parsed, 'taskId') ?? '',
         startedAtMs: numberField(parsed, 'startedAtMs') ?? 0,
         heartbeatAtMs,
+        ownerToken: stringField(parsed, 'ownerToken'),
       };
     }
   } catch {
@@ -57,96 +64,114 @@ function processExists(pid: number): boolean {
   }
 }
 
-/**
- * A lease is live only when its heartbeat is fresh AND its process exists.
- * (The 30 s staleness window bounds the PID-reuse exposure; a start-time
- * cross-check can be layered on later without changing callers.)
- */
-export function isLeaseLive(
-  lease: Lease | undefined,
-  now = Date.now(),
-): boolean {
-  if (!lease) return false;
-  if (now - lease.heartbeatAtMs > leaseStalenessMs()) return false;
-  return processExists(lease.pid);
+/** A delayed heartbeat never permits stealing work from a live process. */
+export function isLeaseLive(lease: Lease | undefined): boolean {
+  return lease !== undefined && processExists(lease.pid);
 }
 
 export interface AcquiredLease {
-  release: () => void;
+  release: () => Promise<void>;
 }
 
 export type AcquireResult =
   | { ok: true; lease: AcquiredLease }
   | { ok: false; existing: Lease };
 
-/**
- * Atomically claim `leasePath`. On EEXIST the existing lease is judged: a
- * dead one is replaced (one retry), a live one is reported to the caller.
- */
+function mutexOptions(leasePath: string) {
+  return {
+    realpath: false,
+    lockfilePath: `${leasePath}.mutex`,
+    stale: 30_000,
+    retries: 0,
+  };
+}
+
+function unknownOwner(): Lease {
+  return { pid: -1, taskId: '', startedAtMs: 0, heartbeatAtMs: Date.now() };
+}
+
+function writeLease(leasePath: string, lease: Lease): void {
+  const temporary = `${leasePath}.${randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(temporary, JSON.stringify(lease), {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    fs.renameSync(temporary, leasePath);
+  } finally {
+    fs.rmSync(temporary, { force: true });
+  }
+}
+
 export function acquireLease(leasePath: string, taskId: string): AcquireResult {
   fs.mkdirSync(path.dirname(leasePath), { recursive: true });
-  const write = (): boolean => {
+  let unlock: () => void;
+  try {
+    unlock = lockSync(leasePath, mutexOptions(leasePath));
+  } catch (error) {
+    if (errnoCode(error) === 'ELOCKED')
+      return { ok: false, existing: readLease(leasePath) ?? unknownOwner() };
+    throw error;
+  }
+  try {
+    const existing = readLease(leasePath);
+    if (existing && isLeaseLive(existing)) return { ok: false, existing };
+    // A legacy writer may still be publishing its first record.
+    if (
+      !existing &&
+      fs.existsSync(leasePath) &&
+      Date.now() - fs.statSync(leasePath).mtimeMs < leaseStalenessMs()
+    )
+      return { ok: false, existing: unknownOwner() };
     const lease: Lease = {
       pid: process.pid,
       taskId,
       startedAtMs: Date.now(),
       heartbeatAtMs: Date.now(),
+      ownerToken: randomUUID(),
     };
-    try {
-      fs.writeFileSync(leasePath, JSON.stringify(lease), { flag: 'wx' });
-      return true;
-    } catch (e) {
-      if (errnoCode(e) === 'EEXIST') return false;
-      throw e;
-    }
-  };
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (write()) return { ok: true, lease: startHeartbeat(leasePath, taskId) };
-    const existing = readLease(leasePath);
-    if (existing && isLeaseLive(existing)) return { ok: false, existing };
-    try {
-      fs.unlinkSync(leasePath);
-    } catch {
-      /* raced with another acquirer; the retry decides */
-    }
+    writeLease(leasePath, lease);
+    return { ok: true, lease: startHeartbeat(leasePath, lease) };
+  } finally {
+    unlock();
   }
-  const existing = readLease(leasePath);
-  return {
-    ok: false,
-    existing: existing ?? {
-      pid: -1,
-      taskId: '',
-      startedAtMs: 0,
-      heartbeatAtMs: Date.now(),
-    },
-  };
 }
 
-function startHeartbeat(leasePath: string, taskId: string): AcquiredLease {
-  const startedAtMs = Date.now();
+function startHeartbeat(leasePath: string, owner: Lease): AcquiredLease {
+  const owns = () => readLease(leasePath)?.ownerToken === owner.ownerToken;
   const beat = () => {
-    const lease: Lease = {
-      pid: process.pid,
-      taskId,
-      startedAtMs,
-      heartbeatAtMs: Date.now(),
-    };
+    let unlock: (() => void) | undefined;
     try {
-      fs.writeFileSync(leasePath, JSON.stringify(lease));
+      unlock = lockSync(leasePath, mutexOptions(leasePath));
+      if (!owns()) {
+        clearInterval(timer);
+        return;
+      }
+      writeLease(leasePath, { ...owner, heartbeatAtMs: Date.now() });
     } catch {
-      /* the run keeps going; a missing heartbeat only makes the lease stale */
+      // A missed heartbeat cannot make a live owner reclaimable.
+    } finally {
+      unlock?.();
     }
   };
   const timer = setInterval(beat, LEASE_HEARTBEAT_MS);
   timer.unref();
+  let releasing: Promise<void> | undefined;
   return {
     release: () => {
       clearInterval(timer);
-      try {
-        fs.unlinkSync(leasePath);
-      } catch {
-        /* already gone */
-      }
+      releasing ??= (async () => {
+        const unlock = await lock(leasePath, {
+          ...mutexOptions(leasePath),
+          retries: { retries: 50, minTimeout: 20, maxTimeout: 200 },
+        });
+        try {
+          if (owns()) fs.rmSync(leasePath, { force: true });
+        } finally {
+          await unlock();
+        }
+      })();
+      return releasing;
     },
   };
 }

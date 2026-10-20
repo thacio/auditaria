@@ -12,7 +12,8 @@
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { EventEmitter } from 'node:events';
+import { EventEmitter, setMaxListeners } from 'node:events';
+import { debugLogger } from '../utils/debugLogger.js';
 import type { Config } from '../config/config.js';
 import type {
   WorkflowMeta,
@@ -31,12 +32,17 @@ import {
   type SubagentResult,
 } from './hostApi.js';
 import { WorkflowJournal } from './journal.js';
-import { acquireLease, type AcquiredLease } from './leaseFile.js';
+import {
+  acquireLease,
+  readLease,
+  isLeaseLive,
+  type AcquiredLease,
+} from './leaseFile.js';
 import {
   WorkflowTaskRegistry,
   type WorkflowRunRecord,
 } from './taskRegistry.js';
-import { totalsOf, writeRunState } from './stateFile.js';
+import { readRunState, totalsOf, writeRunState } from './stateFile.js';
 import {
   buildTaskNotification,
   usageFromProgress,
@@ -47,10 +53,16 @@ import {
   newRunId,
   newTaskId,
   workflowPathsFor,
+  RUN_ID_PATTERN,
   type WorkflowPaths,
 } from './workflowPaths.js';
 import { WORKFLOW_ABORTED, stillRunning } from './errors.js';
 import { isRecord, stringField } from './guards.js';
+import { WorkflowStallWatchdog } from './stallWatchdog.js';
+import {
+  readAgentTranscript,
+  type WorkflowAgentDetail,
+} from './agentTranscript.js';
 import {
   runSubagent,
   validateAgentCall,
@@ -60,6 +72,7 @@ import {
   resolveNamedWorkflow,
   listNamedWorkflows,
   type NamedWorkflow,
+  savedWorkflowDir,
 } from './namedWorkflows.js';
 
 export interface LaunchRequest {
@@ -112,13 +125,9 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
     text: string;
   }> = [];
   private holdCount = 0;
-  /** Output tokens counted this process (main loop + every workflow leaf). */
+  /** Reported workflow leaf output tokens; main-chat usage is not wired here. */
   private outputTokenCounter = 0;
   private turnBaseline = 0;
-  /** Session override for ultracode mode (undefined = follow settings/effort). */
-  ultracodeOverride: boolean | undefined = undefined;
-  /** True once the full "ultracode is on" reminder was delivered this session. */
-  ultracodeAnnounced = false;
   /** Output-token target from the user's "+Nk" directive (next launch consumes it). */
   private turnBudgetTokens: number | undefined = undefined;
 
@@ -126,10 +135,59 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
     super();
     this.paths = workflowPathsFor(config.storage.getProjectTempWorkflowsDir());
     this.registry.on('change', (runId) => this.emit('change', runId));
+    this.restoreRuns();
+  }
+
+  /** Recover finished/interrupted runs without claiming another process's work. */
+  private restoreRuns(): void {
+    let names: string[];
+    try {
+      names = fs.readdirSync(this.paths.runsDir);
+    } catch {
+      return;
+    }
+    for (const runId of names) {
+      if (!RUN_ID_PATTERN.test(runId) || this.registry.get(runId)) continue;
+      if (isLeaseLive(readLease(this.paths.leasePath(runId)))) continue;
+      const state = readRunState(this.paths.statePath(runId));
+      if (!state || state.runId !== runId) continue;
+      const meta: WorkflowMeta = {
+        name: state.workflowName,
+        description: state.summary,
+        phases: state.phases,
+        ...(typeof state.meta?.title === 'string'
+          ? { title: state.meta.title }
+          : {}),
+      };
+      this.registry.register({
+        runId,
+        taskId: state.taskId,
+        meta,
+        scriptPath: state.scriptPath,
+        args: state.args,
+        status: state.status === 'running' ? 'paused' : state.status,
+        startTime: state.startTime,
+        endTime: state.startTime + state.durationMs,
+        providerAtLaunch: state.providerAtLaunch ?? {
+          family: 'gemini',
+          model: state.defaultModel,
+        },
+        defaultModel: state.defaultModel,
+        workflowProgress: state.workflowProgress,
+        logs: state.logs,
+        failures: [],
+        result: state.result,
+        error: state.error,
+        leafSessionIds: new Set(),
+        abortController: new AbortController(),
+        agentControllers: new Map(),
+        notified: true,
+      });
+    }
   }
 
   // ---------------------------------------------------------------------
-  // Budget accounting (shared pool, turn-relative — Claude's Uc()-z)
+  // Budget accounting (shared pool, relative to the turn's starting usage)
   // ---------------------------------------------------------------------
 
   /** Called when a user turn starts so `budget.spent()` is turn-relative. */
@@ -181,7 +239,10 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
     const taskId = newTaskId();
 
     const existing = this.registry.get(runId);
-    if (existing && existing.status === 'running') {
+    if (
+      existing &&
+      (existing.status === 'running' || this.runPromises.has(runId))
+    ) {
       throw new WorkflowLaunchError(stillRunning(runId, existing.taskId));
     }
     const lease = acquireLease(this.paths.leasePath(runId), taskId);
@@ -212,15 +273,30 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
       agentControllers: new Map(),
       notified: false,
     };
+    // A run deliberately fans its cancellation signal out to many leaves.
+    setMaxListeners(0, record.abortController.signal);
     this.registry.register(record);
 
-    const promise = this.run(record, request).catch((e: unknown) => {
-      // run() settles every path itself; this only guards against a bug.
-      this.registry.settle(runId, {
-        status: 'failed',
-        error: e instanceof Error ? e.message : String(e),
+    const promise = this.run(record, request)
+      .catch((e: unknown) => {
+        // run() settles every path itself; this only guards against a bug.
+        this.registry.settle(runId, {
+          status: 'failed',
+          error: e instanceof Error ? e.message : String(e),
+        });
+      })
+      .finally(async () => {
+        try {
+          await this.leases.get(runId)?.release();
+        } catch (error) {
+          debugLogger.warn(
+            `Workflow ${runId} lease cleanup failed: ${String(error)}`,
+          );
+        } finally {
+          this.leases.delete(runId);
+          this.runPromises.delete(runId);
+        }
       });
-    });
     this.runPromises.set(runId, promise);
 
     return {
@@ -286,46 +362,65 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
         ? Math.floor(requestedBudget)
         : null;
 
-    const journal = await WorkflowJournal.open(this.paths.journalPath(runId));
-    await fsp.mkdir(this.paths.agentsDir(runId), { recursive: true });
-
-    const runnerContext: SubagentRunnerContext = {
-      config: this.config,
-      service: this,
-      record,
-      agentsDir: this.paths.agentsDir(runId),
-      childrenPath: this.paths.childrenPath(runId),
-      createDriver: request.createDriver,
+    let journal: WorkflowJournal | undefined;
+    let host: WorkflowHostApi | undefined;
+    let sandbox: ReturnType<typeof createWorkflowSandbox> | undefined;
+    let onAbort: (() => void) | undefined;
+    let checkpointTimer: ReturnType<typeof setTimeout> | undefined;
+    let checkpointWrite = Promise.resolve();
+    const scheduleCheckpoint = (id: string) => {
+      if (id !== runId || checkpointTimer) return;
+      checkpointTimer = setTimeout(() => {
+        checkpointTimer = undefined;
+        checkpointWrite = checkpointWrite
+          .then(() =>
+            this.persistState(record, request, Date.now() - startedAt),
+          )
+          .catch(() => undefined);
+      }, 1000);
+      checkpointTimer.unref();
     };
-
-    const host = new WorkflowHostApi({
-      meta: request.parsed.meta,
-      args: request.args,
-      journal,
-      budget: {
-        total: budgetTotal,
-        spent: () => this.spentThisTurn(budgetBaseline),
-      },
-      signal,
-      runAgent: (call: AgentCall): Promise<SubagentResult> =>
-        this.runLeaf(runnerContext, call),
-      validateCall: (prompt, opts) =>
-        validateAgentCall(runnerContext, prompt, opts),
-      resolveChildWorkflow: async (ref) => this.resolveChild(ref),
-      onProgress: (event: WorkflowProgressEvent) =>
-        this.registry.applyProgress(runId, event),
-      onLog: (message) => this.registry.addLog(runId, message),
-      onFailure: (message) => this.registry.addFailure(runId, message),
-    });
-    const sandbox = createWorkflowSandbox(host.hooks, { signal });
-    host.attachSandbox(sandbox);
-
     let status: WorkflowRunRecord['status'] = 'completed';
     let result: unknown;
     let error: string | undefined;
     try {
+      journal = await WorkflowJournal.open(this.paths.journalPath(runId));
+      await fsp.mkdir(this.paths.agentsDir(runId), { recursive: true });
+
+      const runnerContext: SubagentRunnerContext = {
+        config: this.config,
+        service: this,
+        record,
+        agentsDir: this.paths.agentsDir(runId),
+        childrenPath: this.paths.childrenPath(runId),
+        createDriver: request.createDriver,
+      };
+
+      host = new WorkflowHostApi({
+        meta: request.parsed.meta,
+        args: request.args,
+        journal,
+        budget: {
+          total: budgetTotal,
+          spent: () => this.spentThisTurn(budgetBaseline),
+        },
+        signal,
+        runAgent: (call: AgentCall): Promise<SubagentResult> =>
+          this.runLeaf(runnerContext, call),
+        validateCall: (prompt, opts) =>
+          validateAgentCall(runnerContext, prompt, opts),
+        resolveChildWorkflow: async (ref) => this.resolveChild(ref),
+        onProgress: (event: WorkflowProgressEvent) =>
+          this.registry.applyProgress(runId, event),
+        onLog: (message) => this.registry.addLog(runId, message),
+        onFailure: (message) => this.registry.addFailure(runId, message),
+      });
+      sandbox = createWorkflowSandbox(host.hooks, { signal });
+      host.attachSandbox(sandbox);
+      await this.persistState(record, request, 0);
+      this.on('change', scheduleCheckpoint);
       const abortPromise = new Promise<never>((_, reject) => {
-        const onAbort = () => reject(new Error(WORKFLOW_ABORTED));
+        onAbort = () => reject(new Error(WORKFLOW_ABORTED));
         if (signal.aborted) onAbort();
         else signal.addEventListener('abort', onAbort, { once: true });
       });
@@ -343,42 +438,113 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
         error = formatScriptError(e);
       }
     } finally {
-      sandbox.dispose();
-      await journal.flush();
-      this.leases.get(runId)?.release();
-      this.leases.delete(runId);
+      this.off('change', scheduleCheckpoint);
+      if (checkpointTimer) clearTimeout(checkpointTimer);
+      await checkpointWrite;
+      if (onAbort) signal.removeEventListener('abort', onAbort);
+      // A script can throw or return with unawaited agent calls. Cancel and
+      // drain them before publishing final state or making the lease reusable.
+      record.abortController.abort(new Error('Workflow finished'));
+      await host?.waitForAgents();
+      sandbox?.dispose();
+      try {
+        await journal?.flush();
+      } catch (e) {
+        status = 'failed';
+        error = formatScriptError(e);
+      }
     }
 
     this.registry.settle(runId, { status, result, error });
     const durationMs = Date.now() - startedAt;
     await this.persistState(record, request, durationMs).catch(() => undefined);
     await this.notify(record, durationMs).catch(() => undefined);
-    this.runPromises.delete(runId);
   }
 
   private async runLeaf(
     ctx: SubagentRunnerContext,
     call: AgentCall,
   ): Promise<SubagentResult> {
-    const controller = new AbortController();
-    const entry = {
-      controller,
-      reason: undefined as 'user-skip' | 'user-retry' | undefined,
-    };
-    ctx.record.agentControllers.set(call.index, entry);
-    const onRunAbort = () => controller.abort(call.signal.reason);
-    call.signal.addEventListener('abort', onRunAbort, { once: true });
-    try {
-      const result = await runSubagent(
-        ctx,
-        { ...call, signal: controller.signal },
-        () => entry.reason,
+    let attempt = 0;
+    let tokens = 0;
+    let toolCalls = 0;
+    const startedAt = Date.now();
+    for (;;) {
+      call.signal.throwIfAborted();
+      const controller = new AbortController();
+      const entry = {
+        controller,
+        reason: undefined as 'user-skip' | 'user-retry' | undefined,
+      };
+      attempt++;
+      ctx.record.agentControllers.set(call.index, entry);
+      const onRunAbort = () => controller.abort(call.signal.reason);
+      call.signal.addEventListener('abort', onRunAbort, { once: true });
+      let stalled = false;
+      const watchdog = new WorkflowStallWatchdog(
+        call.opts.stallMs ?? 180_000,
+        () => {
+          stalled = true;
+          controller.abort(new Error('Agent stopped making progress'));
+        },
       );
-      if (result.kind === 'ok') this.addOutputTokens(result.outcome.tokens);
-      return result;
-    } finally {
-      call.signal.removeEventListener('abort', onRunAbort);
-      ctx.record.agentControllers.delete(call.index);
+      try {
+        const result = await runSubagent(
+          ctx,
+          {
+            ...call,
+            signal: controller.signal,
+            activity: (kind, id) => watchdog.activity(kind, id),
+            progress: (patch) =>
+              call.progress({
+                ...patch,
+                attempt,
+                ...(patch.tokens === undefined
+                  ? {}
+                  : { tokens: tokens + patch.tokens }),
+                ...(patch.toolCalls === undefined
+                  ? {}
+                  : { toolCalls: toolCalls + patch.toolCalls }),
+              }),
+          },
+          () => entry.reason,
+        );
+        this.addOutputTokens(result.outcome?.tokens ?? 0);
+        tokens += result.outcome?.tokens ?? 0;
+        toolCalls += result.outcome?.toolCalls ?? 0;
+        if (
+          (entry.reason === 'user-retry' || stalled) &&
+          !call.signal.aborted
+        ) {
+          if (attempt > 5) {
+            throw new Error('Agent could not finish after six attempts.');
+          }
+          this.registry.addLog(
+            ctx.record.runId,
+            `${stalled ? 'No model progress; restarting' : 'Restarting'} ${call.label} (attempt ${attempt + 1} of 6).`,
+          );
+          continue;
+        }
+        const totals = {
+          tokens,
+          toolCalls,
+          durationMs: Date.now() - startedAt,
+        };
+        if (result.kind === 'ok') {
+          await fsp
+            .appendFile(
+              path.join(ctx.agentsDir, `${call.agentId}.jsonl`),
+              `${JSON.stringify({ type: 'workflow_result', value: result.outcome.value })}\n`,
+            )
+            .catch(() => undefined);
+          return { ...result, outcome: { ...result.outcome, ...totals } };
+        }
+        return { ...result, outcome: { ...result.outcome, ...totals } };
+      } finally {
+        watchdog.dispose();
+        call.signal.removeEventListener('abort', onRunAbort);
+        ctx.record.agentControllers.delete(call.index);
+      }
     }
   }
 
@@ -426,9 +592,11 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
     const totals = totalsOf(record.workflowProgress);
     const state: WorkflowRunState = {
       runId: record.runId,
+      meta: record.meta,
       timestamp: new Date().toISOString(),
       taskId: record.taskId,
       script: request.parsed.body,
+      source: request.parsed.source,
       scriptPath: record.scriptPath,
       ...(record.args !== undefined ? { args: record.args } : {}),
       result: record.result ?? null,
@@ -459,7 +627,7 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
     const summaryBits = `${totals.agentCount} agent(s) · ${totals.totalTokens.toLocaleString()} tokens · ${Math.round(durationMs / 1000)}s`;
 
     if (record.status === 'killed' || record.status === 'paused') {
-      // Parity: a stopped run is not delivered to the model as a notification.
+      // User-stopped runs do not send completion notifications to the model.
       this.emit('notice', {
         runId: record.runId,
         taskId: record.taskId,
@@ -594,6 +762,83 @@ export class WorkflowService extends EventEmitter<WorkflowServiceEvents> {
 
   retryAgent(id: string, index: number): boolean {
     return this.registry.retryAgent(id, index);
+  }
+
+  async agentDetail(
+    id: string,
+    index: number,
+  ): Promise<WorkflowAgentDetail | undefined> {
+    const run = this.registry.get(id);
+    const agent = run?.workflowProgress.find(
+      (row) => row.type === 'workflow_agent' && row.index === index,
+    );
+    if (
+      !run ||
+      agent?.type !== 'workflow_agent' ||
+      !agent.agentId ||
+      !/^[a-zA-Z0-9_-]+$/.test(agent.agentId)
+    )
+      return undefined;
+    return readAgentTranscript(
+      path.join(this.paths.agentsDir(run.runId), `${agent.agentId}.jsonl`),
+    ).catch(() => undefined);
+  }
+
+  /** Pause preserves the journal; a later resume replays completed calls. */
+  pause(id: string): boolean {
+    return this.registry.stop(id, 'pause') !== undefined;
+  }
+
+  async resume(id: string): Promise<LaunchResult> {
+    const run = this.registry.get(id);
+    if (!run) throw new WorkflowLaunchError(`No workflow with id ${id}.`);
+    if (run.status === 'running') {
+      throw new WorkflowLaunchError(stillRunning(run.runId, run.taskId));
+    }
+    // Stop changes the display state immediately, but the previous leaves
+    // still own their lease until they have finished shutting down.
+    await this.runPromises.get(run.runId);
+    const source = this.readScript(run);
+    return this.launch({
+      parsed: parseWorkflowScript(source),
+      scriptPath: run.scriptPath,
+      args: run.args,
+      resumeFromRunId: run.runId,
+    });
+  }
+
+  save(id: string, scope: 'project' | 'user' = 'project'): string {
+    const run = this.registry.get(id);
+    if (!run) throw new Error(`No workflow with id ${id}.`);
+    const source = this.readScript(run);
+    const { meta } = parseWorkflowScript(source);
+    const dir = savedWorkflowDir(this.config, scope);
+    fs.mkdirSync(dir, { recursive: true });
+    const target = path.join(
+      dir,
+      `${meta.name.replace(/[^a-z0-9_-]+/gi, '-')}.js`,
+    );
+    // Saving from either interface must not silently replace another script.
+    try {
+      fs.writeFileSync(target, source, { encoding: 'utf8', flag: 'wx' });
+    } catch (error) {
+      if (isRecord(error) && error['code'] === 'EEXIST')
+        throw new Error(
+          `A saved workflow already exists at ${target}. Change meta.name in the script to save another workflow.`,
+        );
+      throw error;
+    }
+    return target;
+  }
+
+  private readScript(run: WorkflowRunRecord): string {
+    try {
+      return fs.readFileSync(run.scriptPath, 'utf8');
+    } catch (error) {
+      const saved = readRunState(this.paths.statePath(run.runId))?.source;
+      if (typeof saved === 'string') return saved;
+      throw error;
+    }
   }
 
   /** Session exit: quietly pause every running workflow. */

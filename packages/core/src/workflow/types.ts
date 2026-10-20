@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: Shared types for the Workflow tool (a clone of Claude
-// Code's Workflow tool — see .auditaria/workflow-research/12-final-plan.md).
+// AUDITARIA_WORKFLOW: Shared types for portable workflow orchestration.
+// Architecture and limits are documented in docs/workflow-architecture.md.
 
 /** `export const meta = {...}` — the pure-literal header every script starts with. */
 export interface WorkflowMeta {
@@ -45,7 +45,7 @@ export type WorkflowProviderFamily =
   | 'copilot'
   | 'agy';
 
-/** One line of `journal.jsonl`. Shapes are identical to Claude Code's. */
+/** One line of the local replay journal. */
 export type JournalLine =
   | { type: 'started'; key: string; agentId: string }
   | { type: 'result'; key: string; agentId: string; result: unknown }
@@ -60,7 +60,7 @@ export type WorkflowRunStatus =
 
 export type WorkflowAgentState = 'start' | 'progress' | 'done' | 'error';
 
-/** Progress events folded into the run record (same vocabulary as Claude Code). */
+/** Progress events folded into the run record. */
 export type WorkflowProgressEvent =
   | { type: 'workflow_phase'; index: number; title: string; kind?: 'child' }
   | {
@@ -91,12 +91,15 @@ export type WorkflowProgressEvent =
     }
   | { type: 'workflow_log'; message: string; at: number };
 
-/** The persisted `state.json` (Claude Code's `wf_<runId>.json`). */
+/** Auditaria's project-scoped recovery and display snapshot. */
 export interface WorkflowRunState {
   runId: string;
   timestamp: string;
   taskId: string;
   script?: string;
+  source?: string;
+  /** Complete original metadata, used when loading runs from earlier sessions. */
+  meta?: WorkflowMeta;
   scriptPath: string;
   args?: unknown;
   result: unknown;
@@ -144,7 +147,5 @@ export interface SubagentOutcome {
 export interface WorkflowSettings {
   enabled?: boolean;
   sizeGuideline?: string;
-  keywordTriggerEnabled?: boolean;
-  ultracode?: boolean;
   skipUsageWarning?: boolean;
 }

@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: The model-facing description of the `workflow` tool —
-// Claude Code's structure and rules, rephrased (research 03 §4.1), with the
-// live "workflow size guideline" sentence appended (research 03 §3.4).
+// AUDITARIA_WORKFLOW: Model-facing workflow instructions with the configured
+// workflow size guideline appended.
 
 import type { Config } from '../config/config.js';
 
@@ -80,8 +79,6 @@ export function resolveSizeGuideline(config: Config): {
 const DESCRIPTION_BODY = `Execute a workflow script that orchestrates multiple sub-agents deterministically. Workflows run in the background — this tool returns immediately with a task ID, and a <task-notification> arrives when the workflow completes. Use /workflows to watch live progress.
 
 ONLY call this tool when the user has explicitly opted into multi-agent orchestration. Workflows can spawn dozens of agents and consume a large amount of tokens; the user must request that scale, not have it inferred. Explicit opt-in means one of:
-- The user included the keyword "ultracode" in their prompt (you'll see a system-reminder confirming it).
-- Ultracode is on for the session (a system-reminder confirms it) — see **Ultracode** in the workflow authoring reference.
 - The user directly asked you to run a workflow or use multi-agent orchestration in their own words ("use a workflow", "run a workflow", "fan out agents", "orchestrate this with subagents"). The ask must be in the user's words — a task that would merely benefit from a workflow does not count.
 - The user invoked a skill or slash command whose instructions tell you to call this tool.
 - The user asked you to run a specific named or saved workflow.
@@ -109,7 +106,7 @@ The canonical multi-stage pattern — pipeline by default, each dimension verifi
   return { confirmed }
   // Dimension 'bugs' findings verify while dimension 'perf' is still reviewing. No wasted wall-clock.
 
-Before writing a script, load the \`workflow-authoring\` skill — the workflow authoring reference: script API and gotchas, resume, the **Ultracode** section, quality patterns, worked examples.`;
+Before writing a script, load the \`workflow-authoring\` skill — the workflow authoring reference: script API and gotchas, resume, quality patterns, worked examples.`;
 
 export function buildWorkflowToolDescription(config: Config): string {
   const { size, isDefault } = resolveSizeGuideline(config);

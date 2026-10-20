@@ -15,6 +15,10 @@ import {
 } from '../utils/formatters.js';
 import { processMarkdown } from '../utils/markdown.js'; // AUDITARIA: For rendering tool output as markdown
 import { createEmbeddedStreamViewer } from './BrowserStreamViewer.js';
+import {
+  workflowRunUsage,
+  workflowUsageLabel,
+} from '../workflows/workflowDisplay.js';
 
 // AUDITARIA: Track active stream viewers for cleanup
 const activeStreamViewers = new Map();
@@ -940,12 +944,12 @@ function tryParseWorkflowDisplay(input) {
 }
 
 function workflowStatusLabel(run) {
-  if (!run) return 'Running in background · /workflows to monitor';
+  if (!run) return 'Waiting for workflow status…';
   if (run.status === 'running') {
-    return `Running in background · ${run.agentsDone}/${run.agentCount} agents · ${run.totalTokens.toLocaleString()} tokens`;
+    return `Running in background · ${run.agentsDone}/${run.agentCount} agents · ${workflowRunUsage(run)}`;
   }
   const secs = Math.round(((run.endTime || Date.now()) - run.startTime) / 1000);
-  return `${run.status[0].toUpperCase()}${run.status.slice(1)} in ${secs}s · ${run.agentsDone}/${run.agentCount} agents · ${run.totalTokens.toLocaleString()} tokens`;
+  return `${run.status[0].toUpperCase()}${run.status.slice(1)} in ${secs}s · ${run.agentsDone}/${run.agentCount} agents · ${workflowRunUsage(run)}`;
 }
 
 function renderWorkflowCardBody(body, workflow, run) {
@@ -967,9 +971,13 @@ function renderWorkflowCardBody(body, workflow, run) {
   }
   if (run) {
     const agents = run.progress.filter((e) => e.type === 'workflow_agent');
-    for (const phase of run.progress.filter(
-      (e) => e.type === 'workflow_phase',
-    )) {
+    const phases = run.progress.filter((e) => e.type === 'workflow_phase');
+    for (const a of agents) {
+      if (!phases.some((p) => p.index === a.phaseIndex)) {
+        phases.push({ index: a.phaseIndex, title: a.phaseTitle || 'Agents' });
+      }
+    }
+    for (const phase of phases) {
       const ph = document.createElement('div');
       ph.className = 'workflow-tool-card-phase';
       ph.textContent = (phase.kind === 'child' ? '' : '▸ ') + phase.title;
@@ -991,7 +999,7 @@ function renderWorkflowCardBody(body, workflow, run) {
                 : '○';
         const bits = [
           a.model,
-          a.tokens ? `${a.tokens.toLocaleString()} tok` : '',
+          workflowUsageLabel(a.tokens, a.usageUnavailable),
           a.state === 'progress' && a.lastToolName
             ? `${a.lastToolName}${a.lastToolSummary ? ': ' + a.lastToolSummary : ''}`
             : '',
@@ -1037,6 +1045,17 @@ function renderWorkflowCardBody(body, workflow, run) {
       body.appendChild(actions);
     }
   }
+  const open = document.createElement('button');
+  open.className = 'workflow-tool-card-btn';
+  open.textContent = 'View workflow';
+  open.addEventListener('click', () => {
+    document.dispatchEvent(
+      new CustomEvent('auditaria-workflow-open', {
+        detail: { id: workflow.runId },
+      }),
+    );
+  });
+  body.appendChild(open);
 }
 
 function renderWorkflowCard(workflow) {
@@ -1048,13 +1067,13 @@ function renderWorkflowCard(workflow) {
     : undefined;
   renderWorkflowCardBody(card, workflow, known);
   const onList = (event) => {
+    if (!card.isConnected) {
+      document.removeEventListener('auditaria-workflow-list', onList);
+      return;
+    }
     const runs = Array.isArray(event.detail) ? event.detail : [];
-    window.auditariaWorkflowRuns = runs;
     const run = runs.find((r) => r.runId === workflow.runId);
     if (run) renderWorkflowCardBody(card, workflow, run);
-    if (!card.isConnected && run && run.status !== 'running') {
-      document.removeEventListener('auditaria-workflow-list', onList);
-    }
   };
   document.addEventListener('auditaria-workflow-list', onList);
   return card;

@@ -2954,26 +2954,6 @@ const SETTINGS_SCHEMA = {
         ],
         showInDialog: true,
       },
-      keywordTriggerEnabled: {
-        type: 'boolean',
-        label: 'Ultracode Keyword Trigger',
-        category: 'Workflows',
-        requiresRestart: false,
-        default: true,
-        description:
-          'Typing the word "ultracode" in a prompt opts that turn into multi-agent orchestration.',
-        showInDialog: true,
-      },
-      ultracode: {
-        type: 'boolean',
-        label: 'Ultracode Mode',
-        category: 'Workflows',
-        requiresRestart: false,
-        default: false,
-        description:
-          'Standing opt-in: the model orchestrates every substantive task with a workflow (also toggled per session with /workflows ultracode on|off).',
-        showInDialog: true,
-      },
       skipUsageWarning: {
         type: 'boolean',
         label: 'Skip Workflow Usage Warning',

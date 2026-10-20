@@ -5,9 +5,8 @@
  */
 
 // AUDITARIA_WORKFLOW: The `StructuredOutput` tool — how a schema-mode agent()
-// hands its answer back, exactly like Claude Code's internal mechanism (a
-// forced tool call, validated at the tool layer so the model retries on a
-// mismatch). One call = one schema:
+// hands its answer back through a schema-validated tool call. Validation
+// errors let the model correct a mismatch. One call = one schema:
 //   - external leaves reach it over the MCP bridge; the bridge is spawned with
 //     `--call-id <id>` and the executor serves THIS call's schema for the
 //     tool (and omits the tool entirely when no schema is registered);

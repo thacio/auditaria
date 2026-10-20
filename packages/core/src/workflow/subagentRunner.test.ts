@@ -4,11 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Config } from '../config/config.js';
+import { LocalAgentExecutor } from '../agents/local-executor.js';
+import {
+  AgentTerminateMode,
+  type LocalAgentDefinition,
+} from '../agents/types.js';
+import { Kind } from '../tools/tools.js';
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../tools/tool-names.js';
 import {
   ProviderEventType,
   type ProviderDriver,
@@ -79,6 +86,10 @@ function makeContext(
     }),
     buildExternalProviderContext: () => 'BASE CONTEXT',
     getWorkingDir: () => agentsDir,
+    getAgentRegistry: () => ({
+      getDefinition: () => undefined,
+      getAllDefinitions: () => [],
+    }),
   };
   const ctx: SubagentRunnerContext = {
     // The runner only touches the three members above for external leaves.
@@ -116,6 +127,27 @@ function makeCall(
 }
 
 describe('runSubagent — external leaves', () => {
+  it('does not treat partial text followed by a provider error as success', async () => {
+    const { ctx } = makeContext(
+      'claude',
+      [
+        { type: ProviderEventType.Content, text: 'Investigating...' },
+        {
+          type: ProviderEventType.Error,
+          message: 'Rate limit reached',
+          status: 429,
+        },
+      ],
+      {},
+    );
+    await expect(
+      runSubagent(ctx, makeCall('task'), () => undefined),
+    ).resolves.toMatchObject({
+      kind: 'failed',
+      error: 'Rate limit reached',
+    });
+  });
+
   it('spawns a headless driver, returns the final text, counts tools and tokens', async () => {
     const captured: { prompt?: string; system?: string; spec?: DriverSpec } =
       {};
@@ -163,7 +195,7 @@ describe('runSubagent — external leaves', () => {
       expect.arrayContaining(['workflow', 'external_agent_session', 'Write']),
     );
     expect(captured.system).toContain(
-      'You are a subagent spawned by a workflow orchestration script',
+      'You are executing one step of an Auditaria workflow',
     );
     expect(captured.system).toContain('BASE CONTEXT');
     expect(
@@ -275,6 +307,79 @@ describe('runSubagent — external leaves', () => {
 });
 
 describe('runSubagent — StructuredOutput over the bridge', () => {
+  it('keeps StructuredOutput available for a custom external agent with a restricted tool list', async () => {
+    const captured: { spec?: DriverSpec } = {};
+    const { ctx } = makeContext('claude', [], captured);
+    const custom: LocalAgentDefinition = {
+      kind: 'local',
+      name: 'evidence-reader',
+      description: 'Read project evidence.',
+      inputConfig: {
+        inputSchema: {
+          type: 'object',
+          properties: { task: { type: 'string' } },
+          required: ['task'],
+        },
+      },
+      promptConfig: {},
+      modelConfig: {},
+      runConfig: {},
+      toolConfig: { tools: ['read_file'] },
+    };
+    const originalConfig = ctx.config;
+    ctx.config = {
+      getAgentSessionManager: () => originalConfig.getAgentSessionManager(),
+      buildExternalProviderContext: () =>
+        originalConfig.buildExternalProviderContext(),
+      getWorkingDir: () => originalConfig.getWorkingDir(),
+      getAgentRegistry: () => ({ getDefinition: () => custom }),
+      getToolRegistry: () => ({
+        getAllTools: () => [
+          { name: 'read_file', kind: Kind.Read },
+          { name: 'write_file', kind: Kind.Edit },
+          { name: STRUCTURED_OUTPUT_TOOL_NAME, kind: Kind.Other },
+        ],
+      }),
+    } as unknown as Config;
+    ctx.createDriver = async (spec) => {
+      captured.spec = spec;
+      return {
+        ...fakeDriver([], {}),
+        async *sendMessage() {
+          if (!spec.toolBridgeExclude?.includes(STRUCTURED_OUTPUT_TOOL_NAME)) {
+            submitStructuredOutput(spec.toolBridgeCallId!, { count: 3 });
+          }
+          yield { type: ProviderEventType.Finished };
+        },
+      };
+    };
+    const call = makeCall('Count the evidence items', {
+      agentType: custom.name,
+      schema: {
+        type: 'object',
+        properties: { count: { type: 'integer' } },
+        required: ['count'],
+      },
+    });
+    try {
+      validateAgentCall(ctx, call.prompt, call.opts);
+      await expect(
+        runSubagent(ctx, call, () => undefined),
+      ).resolves.toMatchObject({
+        kind: 'ok',
+        outcome: { value: { count: 3 } },
+      });
+      expect(captured.spec?.toolBridgeCallId).toBe(call.agentId);
+      expect(captured.spec?.toolBridgeExclude).toContain('write_file');
+      expect(captured.spec?.toolBridgeExclude).not.toContain('read_file');
+      expect(captured.spec?.toolBridgeExclude).not.toContain(
+        STRUCTURED_OUTPUT_TOOL_NAME,
+      );
+    } finally {
+      fs.rmSync(ctx.agentsDir, { recursive: true, force: true });
+    }
+  });
+
   it('captures a StructuredOutput submission mid-stream, interrupts the leaf and returns the object', async () => {
     const captured: { spec?: DriverSpec } = {};
     let interrupted = false;
@@ -318,7 +423,7 @@ describe('runSubagent — StructuredOutput over the bridge', () => {
 });
 
 describe('pre-spawn validation', () => {
-  it('lints schemas like Claude Code', () => {
+  it('rejects invalid structured-output schemas', () => {
     expect(lintSchema({ type: 'string' })).toContain(
       "the root schema must declare type: 'object'",
     );
@@ -342,11 +447,233 @@ describe('pre-spawn validation', () => {
     ).toContain('invalid JSON Schema');
   });
 
-  it('rejects isolation:remote and unknown Gemini agent types', () => {
+  it('rejects unsupported isolation, command clamps and unknown agent types before launch', () => {
     const { ctx } = makeContext('claude', [], {});
     expect(() => validateAgentCall(ctx, 'p', { isolation: 'remote' })).toThrow(
-      "agent({isolation:'remote'}) is not available in this build",
+      "agent({isolation:'remote'}) is not supported",
     );
-    expect(() => validateAgentCall(ctx, 'p', { agentType: 'x' })).not.toThrow(); // external family: folded into context
+    expect(() =>
+      validateAgentCall(ctx, 'p', { isolation: 'worktree' }),
+    ).toThrow('not supported');
+    expect(() =>
+      validateAgentCall(ctx, 'p', { bashCommandClamp: ['git status'] }),
+    ).toThrow('not supported');
+    expect(() => validateAgentCall(ctx, 'p', { agentType: 'x' })).toThrow(
+      'not found',
+    );
+    expect(() => validateAgentCall(ctx, 'p', { stallMs: -1 })).toThrow(
+      'nonnegative',
+    );
+    expect(() =>
+      validateAgentCall(ctx, 'p', {
+        schema: { type: 'object' },
+        disallowedTools: ['StructuredOutput'],
+      }),
+    ).toThrow('requires StructuredOutput');
   });
+});
+
+describe('runSubagent — Gemini structured results', () => {
+  it('preserves a registered custom Gemini definition while selecting permitted leaf tools', async () => {
+    const rawTool = {
+      name: 'summarize_evidence',
+      description: 'Summarize collected evidence.',
+      parametersJsonSchema: { type: 'object' },
+    };
+    const custom: LocalAgentDefinition = {
+      kind: 'local',
+      name: 'custom-auditor',
+      description: 'Audit project evidence.',
+      inputConfig: {
+        inputSchema: {
+          type: 'object',
+          properties: { task: { type: 'string' } },
+          required: ['task'],
+        },
+      },
+      promptConfig: {
+        systemPrompt: 'Cite the evidence supporting each finding.',
+        query: 'Original query: ${task}',
+        initialMessages: [
+          { role: 'user', parts: [{ text: 'Use the audit rubric.' }] },
+          { role: 'model', parts: [{ text: 'I will apply the rubric.' }] },
+        ],
+      },
+      modelConfig: {
+        model: 'gemini-2.5-flash',
+        generateContentConfig: {
+          temperature: 0.25,
+          maxOutputTokens: 4096,
+          topP: 0.8,
+          thinkingConfig: { thinkingBudget: 1024 },
+        },
+      },
+      runConfig: { maxTurns: 7, maxTimeMinutes: 2 },
+      toolConfig: {
+        tools: ['read_file', 'mcp_evidence_*', 'workflow', rawTool],
+      },
+      mcpServers: {
+        audit: {
+          command: 'node',
+          args: ['audit-server.js'],
+          includeTools: ['lookup'],
+          excludeTools: ['erase'],
+        },
+      },
+    };
+    const { ctx } = makeContext('claude', [], {});
+    ctx.record.providerAtLaunch.family = 'gemini';
+    const registerRuntimeModelConfig = vi.fn();
+    const getDefinition = vi.fn((name: string) =>
+      name === custom.name ? custom : undefined,
+    );
+    ctx.config = {
+      getModel: () => 'gemini-default',
+      getAgentRegistry: () => ({ getDefinition }),
+      getToolRegistry: () => ({
+        getAllTools: () => [
+          { name: 'read_file', kind: Kind.Read },
+          { name: 'write_file', kind: Kind.Edit },
+          { name: 'mcp_evidence_lookup', kind: Kind.Read },
+          { name: 'mcp_other_lookup', kind: Kind.Read },
+          { name: 'workflow', kind: Kind.Other },
+        ],
+      }),
+      getSessionId: () => 'test-session',
+      getGeminiClient: () => undefined,
+      modelConfigService: { registerRuntimeModelConfig },
+    } as unknown as Config;
+    const call = makeCall('Audit the collected evidence', {
+      agentType: custom.name,
+    });
+    const executor = {
+      run: vi.fn().mockResolvedValue({
+        result: 'Evidence audited.',
+        terminate_reason: AgentTerminateMode.GOAL,
+      }),
+    };
+    const create = vi
+      .spyOn(LocalAgentExecutor, 'create')
+      .mockResolvedValue(
+        executor as unknown as Awaited<
+          ReturnType<typeof LocalAgentExecutor.create>
+        >,
+      );
+    try {
+      expect(() =>
+        validateAgentCall(ctx, call.prompt, {
+          ...call.opts,
+          disallowedTools: ['mcp_audit_lookup'],
+        }),
+      ).toThrow('cannot yet be filtered by disallowedTools');
+      expect(create).not.toHaveBeenCalled();
+      validateAgentCall(ctx, call.prompt, call.opts);
+      await expect(
+        runSubagent(ctx, call, () => undefined),
+      ).resolves.toMatchObject({
+        kind: 'ok',
+        outcome: { value: 'Evidence audited.' },
+      });
+      expect(getDefinition).toHaveBeenCalledWith(custom.name);
+      expect(create).toHaveBeenCalledOnce();
+      const [definition] = create.mock.calls[0];
+      expect(definition.modelConfig).toEqual(custom.modelConfig);
+      expect(definition.mcpServers).toEqual(custom.mcpServers);
+      expect(definition.promptConfig).toEqual({
+        ...custom.promptConfig,
+        systemPrompt: expect.stringContaining(
+          custom.promptConfig.systemPrompt!,
+        ),
+        query: '${task}',
+      });
+      expect(definition.promptConfig.systemPrompt).toContain(
+        'You are executing one step of an Auditaria workflow',
+      );
+      expect(definition.toolConfig?.tools).toEqual([
+        'read_file',
+        'mcp_evidence_lookup',
+        rawTool,
+      ]);
+      expect(definition.runConfig).toEqual(custom.runConfig);
+      expect(registerRuntimeModelConfig).toHaveBeenCalledWith(
+        `${definition.name}-config`,
+        { modelConfig: custom.modelConfig },
+      );
+      expect(executor.run).toHaveBeenCalledWith(
+        { task: call.prompt },
+        call.signal,
+      );
+      await runSubagent(
+        { ...ctx, record: { ...ctx.record, runId: 'wf_another_run' } },
+        call,
+        () => undefined,
+      );
+      expect(create).toHaveBeenCalledTimes(2);
+      const [otherDefinition] = create.mock.calls[1];
+      expect(otherDefinition.name).not.toBe(definition.name);
+      expect(registerRuntimeModelConfig).toHaveBeenNthCalledWith(
+        2,
+        `${otherDefinition.name}-config`,
+        { modelConfig: custom.modelConfig },
+      );
+    } finally {
+      create.mockRestore();
+      fs.rmSync(ctx.agentsDir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([true, false])(
+    'returns the captured object or rejects a missing submission (submitted=%s)',
+    async (submit) => {
+      const { ctx } = makeContext('claude', [], {});
+      ctx.record.providerAtLaunch.family = 'gemini';
+      ctx.config = {
+        getModel: () => 'gemini-test',
+        getMessageBus: () => ({}),
+        getToolRegistry: () => ({ getAllTools: () => [] }),
+        getSessionId: () => 'test-session',
+        getGeminiClient: () => undefined,
+        modelConfigService: { registerRuntimeModelConfig: () => {} },
+      } as unknown as Config;
+      const call = makeCall('Return a count', {
+        schema: {
+          type: 'object',
+          properties: { count: { type: 'number' } },
+          required: ['count'],
+        },
+      });
+      const executor = {
+        run: async () => {
+          if (submit) submitStructuredOutput(call.agentId, { count: 42 });
+          return {
+            result: 'Finished the task.',
+            terminate_reason: AgentTerminateMode.GOAL,
+          };
+        },
+      };
+      const create = vi
+        .spyOn(LocalAgentExecutor, 'create')
+        .mockResolvedValue(
+          executor as unknown as Awaited<
+            ReturnType<typeof LocalAgentExecutor.create>
+          >,
+        );
+      try {
+        if (submit) {
+          await expect(
+            runSubagent(ctx, call, () => undefined),
+          ).resolves.toMatchObject({
+            kind: 'ok',
+            outcome: { value: { count: 42 } },
+          });
+        } else {
+          await expect(runSubagent(ctx, call, () => undefined)).rejects.toThrow(
+            'without calling StructuredOutput',
+          );
+        }
+      } finally {
+        create.mockRestore();
+      }
+    },
+  );
 });

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: Port of Claude Code's only built-in workflow,
-// `deep-research` (research 03 §6.1): Scope → Search → Fetch+Extract → 3-vote
+// AUDITARIA_WORKFLOW: Built-in web research workflow:
+// Scope → Search → Fetch+Extract → 3-vote
 // Verify → Synthesize, using Auditaria's google_web_search / web_fetch tools.
 // Invoke as workflow({name: 'deep-research', args: '<question>'}).
 
@@ -154,7 +154,7 @@ const verified = await pipeline(toVerify, (c, _item, i) =>
   )).then((votes) => {
     const valid = votes.filter(Boolean)
     const refutes = valid.filter((x) => x.refuted).length
-    return { ...c, votes: valid, refutes, survives: valid.length > 0 && refutes < REFUTATIONS_REQUIRED }
+    return { ...c, votes: valid, refutes, survives: valid.length >= 2 && refutes < REFUTATIONS_REQUIRED, unverified: valid.length < 2 }
   }),
 )
 const surviving = verified.filter((v) => v && v.survives)
@@ -163,9 +163,9 @@ log(surviving.length + '/' + toVerify.length + ' claims survived verification')
 phase('Synthesize')
 const report = await agent(
   'Write the research report for: ' + QUESTION + '\n\nVerified claims (JSON):\n' + JSON.stringify(surviving.map((s) => ({ claim: s.claim, url: s.url, sourceQuality: s.sourceQuality, refutes: s.refutes + '/' + s.votes.length, evidence: s.votes.map((x) => x.evidence).join(' | ') }))) +
-  '\n\nRefuted claims (for the caveats section):\n' + JSON.stringify(verified.filter((v) => v && !v.survives).map((s) => ({ claim: s.claim, url: s.url }))) +
+  '\n\nClaims not verified (for the caveats section):\n' + JSON.stringify(verified.filter((v) => v && !v.survives).map((s) => ({ claim: s.claim, url: s.url, reason: s.unverified ? 'insufficient verification votes' : 'refuted' }))) +
   '\n\nMerge semantic duplicates, rank findings by confidence, cite sources by URL, state caveats and open questions plainly. Do not add claims that are not in the verified list.',
   { label: 'synthesize', schema: REPORT_SCHEMA },
 )
-return { question: QUESTION, angles: scope.angles, sourcesFetched: sources.length, claimsExtracted: claims.length, claimsVerified: surviving.length, report }
+return { question: QUESTION, angles: scope.angles, sourcesFetched: sources.length, claimsExtracted: claims.length, claimsVerified: surviving.length, report, ...(!report ? { verifiedClaims: surviving, error: 'Synthesis did not finish; verified evidence is preserved below.' } : {}) }
 `;

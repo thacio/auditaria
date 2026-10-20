@@ -7,14 +7,17 @@
 // AUDITARIA_WORKFLOW: Saved / named workflows. Precedence (highest wins):
 //   project  <closest .auditaria/workflows/ ancestor of cwd>/*.js
 //   user     ~/.auditaria/workflows/*.js
+//   extension <active-extension>/workflows/*.js
 //   built-in registered in-process (deep-research)
-// Only `.js` files are considered; discovery parses the meta header only and
-// an override wins only if its own script parses.
+// Only `.js` files are considered. Discovery validates the complete script,
+// so an invalid override never hides a valid lower-precedence definition.
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Config } from '../config/config.js';
 import { Storage } from '../config/storage.js';
+import { findGitRoot } from '../utils/gitUtils.js';
+import { getConfigDirFallbacks, normalizePath } from '../utils/paths.js';
 import { parseWorkflowMeta, SCRIPT_MAX_BYTES } from './scriptParser.js';
 import type { WorkflowMeta } from './types.js';
 import { BUILTIN_WORKFLOWS } from './builtin/index.js';
@@ -54,15 +57,15 @@ function readDir(dir: string, source: string): NamedWorkflow[] {
   return out;
 }
 
-/** Walk from cwd to the filesystem root collecting `.auditaria/workflows` dirs (closest first). */
+/** Search closest first, bounded by this checkout (or cwd outside Git). */
 function projectWorkflowDirs(config: Config): string[] {
   const dirs: string[] = [];
-  const geminiDirName = path.basename(config.storage.getGeminiDir());
   let current = path.resolve(config.getTargetDir());
-  const root = path.resolve(config.getProjectRoot());
+  const root = normalizePath(findGitRoot(current) ?? current);
   for (;;) {
-    dirs.push(path.join(current, geminiDirName, WORKFLOWS_DIR_NAME));
-    if (current === root) break;
+    for (const configDir of getConfigDirFallbacks())
+      dirs.push(path.join(current, configDir, WORKFLOWS_DIR_NAME));
+    if (normalizePath(current) === root) break;
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
@@ -83,6 +86,12 @@ export function listNamedWorkflows(config: Config): NamedWorkflow[] {
       'user',
     ),
   );
+  for (const extension of config.getExtensions?.() ?? []) {
+    if (extension.isActive)
+      add(
+        readDir(path.join(extension.path, WORKFLOWS_DIR_NAME), extension.name),
+      );
+  }
   add(
     BUILTIN_WORKFLOWS.map((b) => ({
       name: b.meta.name,

@@ -5,12 +5,12 @@
  */
 
 // AUDITARIA_WORKFLOW: On-disk layout of a project's workflow runs. Deliberately
-// NOT session-scoped (research 11 §2.3): a run launched in one CLI session can
+// NOT session-scoped: a run launched in one CLI session can
 // be resumed from another, so every session resolves the same directories.
 //
 //   <projectTempDir>/workflows/
 //     runs/<runId>/journal.jsonl        append-only resume journal
-//     runs/<runId>/state.json           Claude's wf_<runId>.json shape
+//     runs/<runId>/state.json           recoverable run snapshot
 //     runs/<runId>/lease.json           liveness lease of the owning process
 //     runs/<runId>/agents/<agentId>.jsonl (+ .meta.json)
 //     runs/<runId>/children.jsonl       spawned external CLI processes
@@ -55,14 +55,14 @@ export function workflowPathsFor(rootDir: string): WorkflowPaths {
   };
 }
 
-/** Claude's run id shape: `wf_` + the first 12 characters of a uuid. */
+/** Run id: `wf_` + the first 12 characters of a uuid. */
 export function newRunId(): string {
   return `wf_${randomUUID().slice(0, 12)}`;
 }
 
 export const RUN_ID_PATTERN = /^wf_[a-z0-9-]{6,}$/;
 
-/** Task ids start with `w` (Claude uses `b` for background shells). */
+/** Workflow task ids start with `w`. */
 export function newTaskId(): string {
   const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
   const bytes = randomBytes(8);

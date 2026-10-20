@@ -70,6 +70,8 @@ export class WorkflowTaskRegistry extends EventEmitter<WorkflowRegistryEvents> {
   private readonly taskToRun = new Map<string, string>();
 
   register(record: WorkflowRunRecord): void {
+    const previous = this.runs.get(record.runId);
+    if (previous) this.taskToRun.delete(previous.taskId);
     this.runs.set(record.runId, record);
     this.taskToRun.set(record.taskId, record.runId);
     this.emit('change', record.runId);
@@ -149,7 +151,13 @@ export class WorkflowTaskRegistry extends EventEmitter<WorkflowRegistryEvents> {
   ): boolean {
     const run = this.get(id);
     const entry = run?.agentControllers.get(agentIndex);
-    if (!run || !entry || entry.controller.signal.aborted) return false;
+    if (
+      !run ||
+      run.status !== 'running' ||
+      !entry ||
+      entry.controller.signal.aborted
+    )
+      return false;
     entry.reason = reason;
     entry.controller.abort(new Error(reason));
     this.emit('change', run.runId);

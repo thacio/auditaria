@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: Every model-facing string of the Workflow tool in one
-// place. Wording follows Claude Code's verbatim where the research recovered
-// it (10-empirical-probes.md), lightly adapted elsewhere.
+// AUDITARIA_WORKFLOW: Shared model-facing messages for workflow validation,
+// launch, and recovery.
 
 export const SKILL_TRAILER =
   'Load the `workflow-authoring` skill for the script reference if you have not, fix the script, and retry.';
@@ -53,7 +52,7 @@ export interface LaunchTextInput {
   resumed: boolean;
 }
 
-/** The tool result of a successful launch (research 10 §2). */
+/** The tool result of a successful launch. */
 export function launchText(input: LaunchTextInput): string {
   return [
     `Workflow launched in background. Task ID: ${input.taskId}`,

@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: The `workflow` tool — Auditaria's clone of Claude Code's
-// Workflow tool. Runs a model-authored orchestration script in the background
-// (see packages/core/src/workflow/ and .auditaria/workflow-research/12-final-plan.md).
+// AUDITARIA_WORKFLOW: Runs a model-authored orchestration script in the
+// background. Execution and persistence live in packages/core/src/workflow/.
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -54,7 +53,7 @@ export interface WorkflowToolParams {
   resumeFromRunId?: string;
   description?: string;
   title?: string;
-  /** Auditaria additions — absent from Claude Code's schema, optional here. */
+  /** Optional lifecycle controls and output-token target. */
   action?: WorkflowAction;
   taskId?: string;
   budgetTokens?: number;

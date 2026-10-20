@@ -39,6 +39,7 @@ import { KnowledgeBaseManager } from './knowledge-base/KnowledgeBaseManager.js';
 import { ArtifactsManager } from './artifacts/ArtifactsManager.js';
 import { ArtifactsPanel } from './artifacts/ArtifactsPanel.js';
 import { WorkflowsManager } from './workflows/WorkflowsManager.js';
+import { WorkflowsPanel } from './workflows/WorkflowsPanel.js';
 
 // Arcade Mini-Games
 import { GamesPanel } from './components/GamesPanel.js';
@@ -73,6 +74,7 @@ class AuditariaWebClient {
     this.artifactsManager = new ArtifactsManager(this.wsManager);
     this.artifactsPanel = new ArtifactsPanel(this.artifactsManager);
     this.workflowsManager = new WorkflowsManager(this.wsManager);
+    this.workflowsPanel = new WorkflowsPanel(this.workflowsManager);
 
     // Initialize Arcade mini-games
     this.gamesPanel = new GamesPanel();
@@ -153,6 +155,9 @@ class AuditariaWebClient {
 
     // Knowledge Base button
     this.artifactsButton = document.getElementById('artifacts-button');
+    document
+      .getElementById('workflows-button')
+      ?.addEventListener('click', () => this.workflowsPanel.toggle());
     if (this.artifactsButton) {
       this.artifactsButton.addEventListener('click', () =>
         this.artifactsPanel.toggle(),
@@ -491,6 +496,13 @@ class AuditariaWebClient {
 
   sendMessage() {
     const message = this.messageInput.value.trim();
+    if (/^\/workflows?$/.test(message)) {
+      this.workflowsPanel.open();
+      this.inputHistory.addInput(message);
+      this.messageInput.value = '';
+      this.autoResizeTextarea();
+      return;
+    }
     if (
       (!message && this.attachments.length === 0) ||
       !this.wsManager.getState().isConnected

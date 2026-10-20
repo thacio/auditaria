@@ -10,13 +10,16 @@
 // in the background (phases, agents, narrator logs, final status).
 
 import type React from 'react';
-import { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import type {
   WorkflowDisplayData,
   WorkflowProgressEvent,
-  WorkflowRunRecord,
 } from '@google/gemini-cli-core';
+import {
+  workflowPhaseGroups,
+  workflowUsageLabel,
+} from '@google/gemini-cli-core';
+import { useWorkflowRuns } from '../../hooks/useWorkflowRuns.js';
 import { useConfig } from '../../contexts/ConfigContext.js';
 import { theme } from '../../semantic-colors.js';
 
@@ -43,26 +46,13 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-function useRun(runId: string): WorkflowRunRecord | undefined {
-  const config = useConfig();
-  const [, setTick] = useState(0);
-  const service = config.getWorkflowService();
-  useEffect(() => {
-    const onChange = (changed: string) => {
-      if (changed === runId) setTick((t) => t + 1);
-    };
-    service.on('change', onChange);
-    return () => {
-      service.off('change', onChange);
-    };
-  }, [service, runId]);
-  return service.registry.get(runId);
-}
-
 export const WorkflowCardDisplay: React.FC<{ data: WorkflowDisplayData }> = ({
   data,
 }) => {
-  const run = useRun(data.workflow.runId);
+  const service = useConfig().getWorkflowService();
+  const run = useWorkflowRuns(service).find(
+    (r) => r.runId === data.workflow.runId,
+  );
   const { workflow } = data;
   const status = run?.status ?? 'running';
   const progress: WorkflowProgressEvent[] = run?.workflowProgress ?? [];
@@ -90,8 +80,12 @@ export const WorkflowCardDisplay: React.FC<{ data: WorkflowDisplayData }> = ({
         ? theme.status.error
         : theme.text.secondary;
 
-  const phases = progress.filter((e) => e.type === 'workflow_phase');
-  const visibleAgents = agents.slice(-MAX_AGENT_ROWS);
+  const phases = workflowPhaseGroups(progress);
+  const priorityAgents = [
+    ...agents.filter((a) => a.state !== 'done'),
+    ...agents.filter((a) => a.state === 'done').reverse(),
+  ];
+  const visibleAgents = priorityAgents.slice(0, MAX_AGENT_ROWS);
 
   return (
     <Box flexDirection="column">
@@ -99,56 +93,62 @@ export const WorkflowCardDisplay: React.FC<{ data: WorkflowDisplayData }> = ({
         <Text color={theme.text.accent}>{'⧉  '}</Text>
         <Text color={theme.text.primary}>{workflow.name}</Text>
         <Text color={theme.text.secondary}>
-          {` · ${workflow.resumed ? 'resumed ' : ''}task ${workflow.taskId} · ${done}/${agents.length} agents · ${formatTokens(tokens)} tokens`}
+          {` · ${workflow.resumed ? 'resumed ' : ''}task ${workflow.taskId} · ${done}/${agents.length} agents · ${workflowUsageLabel(
+            tokens,
+            agents.some((a) => a.usageUnavailable),
+          )}`}
         </Text>
       </Box>
       <Text color={headerColor}>{header}</Text>
-      {phases.map((phase) =>
-        phase.type === 'workflow_phase' ? (
-          <Box key={`p${phase.index}`} flexDirection="column">
-            <Text color={theme.text.secondary}>
-              {phase.kind === 'child' ? '' : '▸ '}
-              {phase.title}
-            </Text>
-            {visibleAgents
-              .filter(
-                (a) =>
-                  a.type === 'workflow_agent' && a.phaseIndex === phase.index,
-              )
-              .map((a) =>
-                a.type === 'workflow_agent' ? (
-                  <Box key={`a${a.index}`} paddingLeft={2}>
-                    <Text
-                      color={
-                        a.state === 'error'
-                          ? theme.status.error
-                          : a.state === 'done'
-                            ? theme.status.success
-                            : theme.text.secondary
-                      }
-                    >
-                      {stateGlyph(a.state, a.cached)}{' '}
-                    </Text>
-                    <Text color={theme.text.primary}>
-                      {a.label || a.promptPreview}
-                    </Text>
-                    <Text color={theme.text.secondary}>
-                      {a.model ? ` · ${a.model}` : ''}
-                      {a.tokens ? ` · ${formatTokens(a.tokens)}` : ''}
-                      {a.lastToolName && a.state === 'progress'
-                        ? ` · ${a.lastToolName}${a.lastToolSummary ? `: ${a.lastToolSummary}` : ''}`
+      {phases.map((phase) => (
+        <Box key={`p${phase.index}`} flexDirection="column">
+          <Text color={theme.text.secondary}>
+            {'▸ '}
+            {phase.title}
+          </Text>
+          {visibleAgents
+            .filter(
+              (a) =>
+                a.type === 'workflow_agent' && a.phaseIndex === phase.index,
+            )
+            .map((a) =>
+              a.type === 'workflow_agent' ? (
+                <Box key={`a${a.index}`} paddingLeft={2}>
+                  <Text
+                    color={
+                      a.state === 'error'
+                        ? theme.status.error
+                        : a.state === 'done'
+                          ? theme.status.success
+                          : theme.text.secondary
+                    }
+                  >
+                    {stateGlyph(a.state, a.cached)}{' '}
+                  </Text>
+                  <Text color={theme.text.primary}>
+                    {a.label || a.promptPreview}
+                  </Text>
+                  <Text color={theme.text.secondary}>
+                    {a.model ? ` · ${a.model}` : ''}
+                    {a.usageUnavailable
+                      ? ' · usage unavailable'
+                      : a.tokens
+                        ? ` · ${formatTokens(a.tokens)}`
                         : ''}
-                      {a.error ? ` · ${a.error.slice(0, 80)}` : ''}
-                    </Text>
-                  </Box>
-                ) : null,
-              )}
-          </Box>
-        ) : null,
-      )}
+                    {a.lastToolName && a.state === 'progress'
+                      ? ` · ${a.lastToolName}${a.lastToolSummary ? `: ${a.lastToolSummary}` : ''}`
+                      : ''}
+                    {a.error ? ` · ${a.error.slice(0, 80)}` : ''}
+                  </Text>
+                </Box>
+              ) : null,
+            )}
+        </Box>
+      ))}
       {agents.length > MAX_AGENT_ROWS ? (
         <Text color={theme.text.secondary}>
-          … {agents.length - MAX_AGENT_ROWS} earlier agent(s) not shown
+          … {agents.length - MAX_AGENT_ROWS} other agent(s) · /workflows to view
+          all
         </Text>
       ) : null}
       {logs.map((l, i) =>

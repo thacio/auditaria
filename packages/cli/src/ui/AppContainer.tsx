@@ -12,6 +12,7 @@ import {
   useRef,
   useLayoutEffect,
   useContext,
+  isValidElement,
 } from 'react';
 import {
   type DOMElement,
@@ -23,6 +24,7 @@ import {
   AppContext as InkAppContext,
 } from 'ink';
 import { App } from './App.js';
+import { WorkflowsDialog } from './components/WorkflowsDialog.js'; // AUDITARIA_WORKFLOW
 import { AppContext } from './contexts/AppContext.js';
 import { UIStateContext, type UIState } from './contexts/UIStateContext.js';
 import { QuotaContext } from './contexts/QuotaContext.js';
@@ -2318,7 +2320,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       ? 'Authenticating to Vertex AI in Cloud Shell requires a restart to apply project settings.'
       : undefined;
 
-  const dialogsVisible =
+  const otherDialogsVisible =
     hasToolConfirmation || // AUDITARIA: Enables terminal capture for tool confirmations
     shouldShowIdePrompt ||
     isFolderTrustDialogOpen ||
@@ -2327,7 +2329,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
     !!commandConfirmationRequest ||
     !!authConsentRequest ||
     !!permissionConfirmationRequest ||
-    !!customDialog ||
     confirmUpdateExtensionRequests.length > 0 ||
     !!loopDetectionConfirmationRequest ||
     isThemeDialogOpen ||
@@ -2350,6 +2351,14 @@ Logging in with Google... Restarting Gemini CLI to continue.
     authState === AuthState.AwaitingApiKeyInput ||
     isAwaitingLoginRestart ||
     !!newAgents;
+
+  // AUDITARIA_WORKFLOW: The web has its own workflow manager; keep the generic
+  // terminal mirror for dialogs that need it, including concurrent confirmations.
+  const dialogsVisible = otherDialogsVisible || !!customDialog;
+  const terminalDialogsVisible =
+    otherDialogsVisible ||
+    (!!customDialog &&
+      !(isValidElement(customDialog) && customDialog.type === WorkflowsDialog));
 
   const hasPendingToolConfirmation = useMemo(
     () => isToolAwaitingConfirmation(pendingHistoryItems),
@@ -2959,11 +2968,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
   useKeypressContext(); // Required for keypress context initialization
 
   // Start/stop terminal capture broadcasting when interactive screens change
-  // Uses dialogsVisible as the single source of truth for detecting any open dialog
-  // This ensures terminal capture works for ALL dialogs automatically (DRY principle)
+  // Native web workflow controls don't need an overlaid terminal capture.
   // Note: No prewarming needed - the hook captures output before this effect runs
   useEffect(() => {
-    if (dialogsVisible) {
+    if (terminalDialogsVisible) {
       terminalCapture.setInteractiveScreenActive(true);
     } else {
       const timer = setTimeout(() => {
@@ -2971,7 +2979,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [dialogsVisible, terminalCapture]);
+  }, [terminalDialogsVisible, terminalCapture]);
 
   // Handle keyboard input from web interface
   useEffect(() => {
@@ -2986,7 +2994,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       alt?: boolean;
     }) => {
       // Only emit when interactive screens are open (terminal capture is active)
-      if (dialogsVisible && keyData.sequence) {
+      if (terminalDialogsVisible && keyData.sequence) {
         // Emit as 'data' event - Ink's KeypressProvider in PassThrough mode listens for 'data', not 'keypress'
         process.stdin.emit('data', keyData.sequence);
       }
@@ -2998,7 +3006,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     return () => {
       webInterface?.service?.off('terminal_input', handleTerminalInput);
     };
-  }, [webInterface?.service, dialogsVisible]);
+  }, [webInterface?.service, terminalDialogsVisible]);
 
   // Web interface broadcasting - footer, loading state, commands, MCP servers, console messages, CLI action required, startup message, and tool confirmations
   useEffect(() => {

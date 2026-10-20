@@ -5,8 +5,7 @@
  */
 
 // AUDITARIA_WORKFLOW: The script-facing hooks — agent / parallel / pipeline /
-// phase / log / workflow / budget — with Claude Code's exact semantics
-// (research 02 §1, §4-§8; 10 §4-§6):
+// phase / log / workflow / budget — shared across Auditaria's providers:
 //   - agent() computes its journal key synchronously at the call site, serves
 //     cache hits on resume, journals started/result/failed, resolves null on
 //     a terminal provider error or user skip, throws on schema failures;
@@ -32,12 +31,7 @@ import {
   newAgentId,
   type WorkflowJournal,
 } from './journal.js';
-import {
-  isFunction,
-  isRecord,
-  stringField,
-  stringArrayField,
-} from './guards.js';
+import { isFunction, isRecord, stringField } from './guards.js';
 import {
   assertBoundaryArray,
   createWorkflowSandbox,
@@ -65,7 +59,7 @@ export function budgetExceededMessage(spent: number, total: number): string {
   return `Workflow token budget exceeded (${spent.toLocaleString()} / ${total.toLocaleString()} output tokens). Stopping further agent() calls. In-flight agents will complete; their results are preserved.`;
 }
 
-/** Concurrency for local sub-agents: min(16, max(2, cpus - 2)) — Claude's formula. */
+/** Concurrency for local sub-agents: min(16, max(2, cpus - 2)). */
 export function defaultConcurrency(): number {
   return Math.min(16, Math.max(2, availableParallelism() - 2));
 }
@@ -83,6 +77,11 @@ export interface AgentCall {
   signal: AbortSignal;
   /** Update the live progress row (model, lastTool, tokens, ...). */
   progress: (patch: Partial<WorkflowAgentPatch>) => void;
+  /** Liveness without forcing a UI redraw for every streamed token. */
+  activity?: (
+    kind: 'progress' | 'tool-start' | 'tool-end',
+    id?: string,
+  ) => void;
 }
 
 export type WorkflowAgentPatch = Pick<
@@ -160,6 +159,7 @@ export class WorkflowHostApi {
   private readonly concurrency: number;
   private budgetTripped = false;
   private capTripped = false;
+  private readonly pendingAgents = new Set<Promise<unknown>>();
 
   constructor(private readonly deps: HostApiDeps) {
     this.concurrency = deps.concurrency ?? defaultConcurrency();
@@ -181,6 +181,13 @@ export class WorkflowHostApi {
     return this.agentCount;
   }
 
+  /** Drain cancelled leaves before the service releases the run's lease. */
+  async waitForAgents(): Promise<void> {
+    while (this.pendingAgents.size) {
+      await Promise.allSettled([...this.pendingAgents]);
+    }
+  }
+
   // ---------------------------------------------------------------------
   // Error helpers
   // ---------------------------------------------------------------------
@@ -198,6 +205,10 @@ export class WorkflowHostApi {
       this.capTripped = true;
       throw this.err('Error', AGENT_CAP_ERROR, 'WorkflowAgentCapError');
     }
+    this.checkBudget();
+  }
+
+  private checkBudget(): void {
     const total = this.deps.budget.total;
     if (total != null && total > 0) {
       const spent = this.deps.budget.spent();
@@ -221,15 +232,24 @@ export class WorkflowHostApi {
   // ---------------------------------------------------------------------
 
   private acquireSlot(): Promise<void> {
+    this.deps.signal.throwIfAborted();
     if (this.inflight < this.concurrency) {
       this.inflight++;
       return Promise.resolve();
     }
-    return new Promise((resolve) => {
-      this.slotQueue.push(() => {
+    return new Promise((resolve, reject) => {
+      const grant = () => {
+        this.deps.signal.removeEventListener('abort', cancel);
         this.inflight++;
         resolve();
-      });
+      };
+      const cancel = () => {
+        const index = this.slotQueue.indexOf(grant);
+        if (index >= 0) this.slotQueue.splice(index, 1);
+        reject(this.deps.signal.reason);
+      };
+      this.slotQueue.push(grant);
+      this.deps.signal.addEventListener('abort', cancel, { once: true });
     });
   }
 
@@ -260,8 +280,9 @@ export class WorkflowHostApi {
     opts: AgentOpts,
     ctxPhase: PhaseRecord | undefined,
   ): PhaseRecord {
+    if (ctxPhase) return ctxPhase;
     if (opts.phase !== undefined) return this.registerPhase(String(opts.phase));
-    return ctxPhase ?? this.currentPhase ?? { index: 0, title: '' };
+    return this.currentPhase ?? { index: 0, title: '' };
   }
 
   private log(message: string): void {
@@ -290,7 +311,15 @@ export class WorkflowHostApi {
     });
 
     return {
-      agent: (prompt, opts) => this.agent(prompt, opts, scope.childPhase),
+      agent: (prompt, opts) => {
+        const pending = this.agent(prompt, opts, scope.childPhase);
+        this.pendingAgents.add(pending);
+        void pending.then(
+          () => this.pendingAgents.delete(pending),
+          () => this.pendingAgents.delete(pending),
+        );
+        return pending;
+      },
       parallel: (thunks) => this.parallel(thunks),
       pipeline: (items, ...stages) => this.pipeline(items, stages),
       phase: (title) => {
@@ -311,6 +340,7 @@ export class WorkflowHostApi {
     rawOpts: unknown,
     ctxPhase: PhaseRecord | undefined,
   ): Promise<unknown> {
+    this.deps.signal.throwIfAborted();
     this.checkCaps();
     const prompt = coercePrompt(rawPrompt);
     const opts = normalizeOpts(rawOpts);
@@ -363,7 +393,11 @@ export class WorkflowHostApi {
         lastProgressAt: Date.now(),
         error: message,
       });
-      throw this.err('Error', message);
+      throw this.err(
+        'Error',
+        message,
+        isRecord(e) ? stringField(e, 'name') : undefined,
+      );
     }
 
     const agentId = newAgentId();
@@ -393,6 +427,9 @@ export class WorkflowHostApi {
       this.deps.onProgress(progressRow);
     };
     try {
+      // A queued call may receive its slot after the run has stopped.
+      this.deps.signal.throwIfAborted();
+      this.checkBudget();
       const result = await this.deps.runAgent({
         index,
         key,
@@ -471,18 +508,22 @@ export class WorkflowHostApi {
         durationMs: Date.now() - startedAt,
         error: message,
       });
-      throw this.err('Error', message);
+      throw this.err(
+        'Error',
+        message,
+        isRecord(e) ? stringField(e, 'name') : undefined,
+      );
     } finally {
       this.releaseSlot();
     }
   }
 
   private async parallel(rawThunks: unknown): Promise<unknown[]> {
-    this.checkCaps();
     if (!Array.isArray(rawThunks))
       throw this.err('TypeError', PARALLEL_NOT_ARRAY_ERROR);
     assertBoundaryArray(rawThunks, (c, m) => this.err(c, m));
     if (rawThunks.length === 0) return [];
+    this.checkCaps();
     if (!rawThunks.every(isFunction)) {
       throw this.err('TypeError', PARALLEL_NOT_FUNCTIONS_ERROR);
     }
@@ -502,7 +543,6 @@ export class WorkflowHostApi {
     rawItems: unknown,
     rawStages: unknown[],
   ): Promise<unknown[]> {
-    this.checkCaps();
     if (!Array.isArray(rawItems))
       throw this.err('TypeError', PIPELINE_NOT_ARRAY_ERROR);
     assertBoundaryArray(rawItems, (c, m) => this.err(c, m));
@@ -512,6 +552,7 @@ export class WorkflowHostApi {
       throw this.err('TypeError', PIPELINE_STAGES_ERROR);
     }
     if (rawItems.length === 0) return [];
+    this.checkCaps();
     const stages = rawStages;
     const chain = this.branch.getStore() ?? this.rootChain;
     const forkKey = chain.prev;
@@ -521,8 +562,8 @@ export class WorkflowHostApi {
         this.branch.run({ prev: forkChain(forkKey, i) }, async () => {
           let acc: unknown = await item;
           for (const stage of stages) {
-            acc = await stage(acc, item, i);
             if (acc === null) break;
+            acc = await stage(acc, item, i);
           }
           return acc;
         }),
@@ -594,21 +635,20 @@ export class WorkflowHostApi {
       this.deps.createSandbox ??
       ((h, s) => createWorkflowSandbox(h, { signal: s }))
     )(hooks, this.deps.signal);
-    const previousSandbox = this.sandbox;
     try {
-      this.sandbox = sandbox; // errors thrown while the child runs belong to its realm
+      // The boundary bridge rebuilds errors in each receiving realm. Concurrent
+      // children must never replace the root's shared sandbox reference.
       const result = await sandbox.run(resolved.wrapped);
       this.log(`▸ ${name} done`);
       return result;
     } finally {
-      this.sandbox = previousSandbox;
       sandbox.dispose();
     }
   }
 }
 
 // -------------------------------------------------------------------------
-// Coercions (match Claude Code's lenient handling)
+// Script input coercions
 // -------------------------------------------------------------------------
 
 export function coercePrompt(prompt: unknown): string {
@@ -660,26 +700,63 @@ export function normalizeOpts(raw: unknown): AgentOpts {
   const phase = raw['phase'];
   if (phase !== undefined) opts.phase = String(phase);
   const schema = raw['schema'];
+  if (schema !== undefined && !isRecord(schema))
+    throw new TypeError('agent({schema}) requires a schema object.');
   if (isRecord(schema)) opts.schema = schema;
   const model = stringField(raw, 'model');
   if (model !== undefined) opts.model = model;
   const provider = stringField(raw, 'provider');
+  if (
+    raw['provider'] !== undefined &&
+    (!provider || !PROVIDER_FAMILIES.has(provider))
+  )
+    throw new TypeError(
+      'agent({provider}) requires a supported provider family.',
+    );
   if (provider !== undefined && PROVIDER_FAMILIES.has(provider))
     opts.provider = providerFamily(provider);
   const effort = stringField(raw, 'effort');
   if (effort !== undefined) opts.effort = effort;
   const isolation = isolationMode(stringField(raw, 'isolation'));
+  if (raw['isolation'] !== undefined && isolation === undefined)
+    throw new TypeError('agent({isolation}) must be worktree or remote.');
   if (isolation !== undefined) opts.isolation = isolation;
   const agentType = stringField(raw, 'agentType');
   if (agentType !== undefined) opts.agentType = agentType;
-  const disallowedTools = stringArrayField(raw, 'disallowedTools');
+  const disallowedTools = restrictionList(raw, 'disallowedTools');
   if (disallowedTools) opts.disallowedTools = [...disallowedTools].sort();
-  const bashCommandClamp = stringArrayField(raw, 'bashCommandClamp');
+  const bashCommandClamp = restrictionList(raw, 'bashCommandClamp');
   if (bashCommandClamp) opts.bashCommandClamp = [...bashCommandClamp].sort();
   const stallMs = raw['stallMs'];
+  if (
+    stallMs !== undefined &&
+    (typeof stallMs !== 'number' || !Number.isFinite(stallMs) || stallMs < 0)
+  )
+    throw new TypeError(
+      'agent({stallMs}) requires a finite nonnegative number.',
+    );
   if (typeof stallMs === 'number' && Number.isFinite(stallMs))
     opts.stallMs = stallMs;
   return opts;
+}
+
+function restrictionList(
+  raw: Record<string, unknown>,
+  key: string,
+): string[] | undefined {
+  const value = raw[key];
+  if (value === undefined) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (item): item is string =>
+        typeof item === 'string' && item.length > 0 && item.trim() === item,
+    )
+  )
+    throw new TypeError(
+      `agent({${key}}) requires an array of nonempty strings without surrounding whitespace.`,
+    );
+  return value;
 }
 
 export function previewOf(text: string, max: number): string {

@@ -65,7 +65,7 @@ import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import { getCurrentLanguage } from '../i18n/index.js'; // AUDITARIA_LANGUAGE - Auditaria Custom Feature
 import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 import { preflightActiveProvider } from '../providers/providerPreflight.js'; // AUDITARIA_PROVIDER_ONLY
-import { applyUltracodeReminders } from '../workflow/ultracode.js'; // AUDITARIA_WORKFLOW
+import { recordWorkflowBudget } from '../workflow/workflowBudget.js'; // AUDITARIA_WORKFLOW
 import {
   applyModelSelection,
   createAvailabilityContextProvider,
@@ -977,9 +977,8 @@ export class GeminiClient {
     }
     // AUDITARIA_PROVIDER_ONLY_END
 
-    // AUDITARIA_WORKFLOW_START: ultracode reminders + "+Nk" budget directive
-    // ride the user turn for every provider (before the interception below).
-    request = applyUltracodeReminders(this.config, request);
+    // AUDITARIA_WORKFLOW_START: record explicit token targets for every provider.
+    recordWorkflowBudget(this.config, request);
     // AUDITARIA_WORKFLOW_END
 
     if (providerManager?.isExternalProviderActive()) {

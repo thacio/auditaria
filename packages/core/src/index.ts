@@ -621,7 +621,12 @@ export type {
   WorkflowRunState,
 } from './workflow/types.js';
 export { readJournalLines } from './workflow/journal.js';
-export { tryParseWorkflowDisplay } from './workflow/display.js';
+export {
+  tryParseWorkflowDisplay,
+  workflowPhaseGroups,
+  workflowUsageLabel,
+} from './workflow/display.js';
+export type { WorkflowAgentRow } from './workflow/display.js';
 export { parseWorkflowMeta } from './workflow/scriptParser.js';
 export { savedWorkflowDir } from './workflow/namedWorkflows.js';
 export type { WorkflowDisplayData } from './workflow/display.js';
@@ -638,3 +643,5 @@ export {
   validateCodexSessionId,
 } from './providers/codex/codexSessionBrowser.js';
 export { loadCodexSessionAsContent } from './providers/codex/codexSessionLoader.js';
+// AUDITARIA_WORKFLOW: Detail shared by the terminal picker and web panel.
+export type { WorkflowAgentDetail } from './workflow/agentTranscript.js';

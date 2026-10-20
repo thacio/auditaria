@@ -8,12 +8,11 @@
 // `/workflows`: the human's view of background workflow runs (list, status,
 // stop, resume, save as a named workflow, open a run's details).
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { createElement } from 'react';
+import { WorkflowsDialog } from '../components/WorkflowsDialog.js';
 import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import type { WorkflowRunRecord } from '@google/gemini-cli-core';
-import { parseWorkflowMeta, savedWorkflowDir } from '@google/gemini-cli-core';
 
 type Message = {
   type: 'message';
@@ -132,21 +131,19 @@ const stopSubCommand: SlashCommand = {
 
 const resumeSubCommand: SlashCommand = {
   name: 'resume',
-  description:
-    'Ask the model to resume a stopped or failed run from its journal',
+  description: 'Resume a stopped or failed run from its journal',
   kind: CommandKind.BUILT_IN,
-  action: (context, args) => {
+  action: async (context, args) => {
     const found = requireRun(context, args.trim());
     if ('type' in found) return found;
-    const { run } = found;
-    if (run.status === 'running')
-      return fail(`Workflow ${run.runId} is still running.`);
-    const argsPart =
-      run.args !== undefined ? `, args: ${JSON.stringify(run.args)}` : '';
-    return {
-      type: 'submit_prompt',
-      content: `Resume the workflow by calling: workflow({scriptPath: '${run.scriptPath}', resumeFromRunId: '${run.runId}'${argsPart}}) — completed agents return cached results.`,
-    };
+    try {
+      await serviceOf(context)!.resume(found.run.runId);
+      return info(
+        `Resumed workflow ${found.run.runId}. Completed agents reuse their journal results.`,
+      );
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : String(error));
+    }
   },
 };
 
@@ -203,61 +200,15 @@ const saveSubCommand: SlashCommand = {
     const [id, scopeArg] = args.trim().split(/\s+/);
     const found = requireRun(context, id);
     if ('type' in found) return found;
-    const config = context.services.agentContext?.config;
-    if (!config) return fail('Config unavailable.');
-    const { run } = found;
-    let source: string;
-    try {
-      source = fs.readFileSync(run.scriptPath, 'utf8');
-    } catch {
-      return fail(`Cannot read the run's script at ${run.scriptPath}.`);
-    }
-    let meta;
-    try {
-      meta = parseWorkflowMeta(source);
-    } catch (e) {
-      return fail(
-        `The run's script no longer parses: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
+    if (scopeArg && scopeArg !== 'user' && scopeArg !== 'project')
+      return fail('Usage: /workflows save <id> [project|user]');
     const scope = scopeArg === 'user' ? 'user' : 'project';
-    const dir = savedWorkflowDir(config, scope);
-    fs.mkdirSync(dir, { recursive: true });
-    const target = path.join(
-      dir,
-      `${meta.name.replace(/[^a-z0-9_-]+/gi, '-')}.js`,
-    );
-    fs.writeFileSync(target, source, 'utf8');
-    return info(
-      `Saved "${meta.name}" to ${target} (${scope}). Run it with workflow({name: '${meta.name}'}).`,
-    );
-  },
-};
-
-const ultracodeSubCommand: SlashCommand = {
-  name: 'ultracode',
-  description:
-    'Turn the standing multi-agent opt-in on or off for this session (on | off | auto | status)',
-  kind: CommandKind.BUILT_IN,
-  action: (context, args) => {
-    const service = serviceOf(context);
-    if (!service) return fail('Workflow service unavailable.');
-    const mode = args.trim().toLowerCase();
-    if (mode === 'on') service.ultracodeOverride = true;
-    else if (mode === 'off') service.ultracodeOverride = false;
-    else if (mode === 'auto') service.ultracodeOverride = undefined;
-    else if (mode && mode !== 'status')
-      return fail('Usage: /workflows ultracode on | off | auto | status');
-    const override = service.ultracodeOverride;
-    const state =
-      override === undefined
-        ? 'auto (follows the Workflows settings and a provider effort of ultra)'
-        : override
-          ? 'on'
-          : 'off';
-    return info(
-      `Ultracode: ${state}. The model is reminded at its next turn.${override === true ? ' Every substantive task now runs as a workflow.' : ''}`,
-    );
+    try {
+      const target = serviceOf(context)!.save(found.run.runId, scope);
+      return info(`Saved "${found.run.meta.name}" to ${target} (${scope}).`);
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : String(error));
+    }
   },
 };
 
@@ -268,12 +219,27 @@ export const workflowsCommand: SlashCommand = {
     'List and manage background workflow runs (status, stop, resume, open, save)',
   kind: CommandKind.BUILT_IN,
   subCommands: [
+    {
+      name: 'list',
+      description: 'Print a summary of workflow runs',
+      kind: CommandKind.BUILT_IN,
+      action: (context) => listRuns(context),
+    },
     statusSubCommand,
     stopSubCommand,
     resumeSubCommand,
     openSubCommand,
     saveSubCommand,
-    ultracodeSubCommand,
   ],
-  action: (context) => listRuns(context),
+  action: (context) => {
+    const service = serviceOf(context);
+    if (!service) return fail('Workflow service unavailable.');
+    return {
+      type: 'custom_dialog',
+      component: createElement(WorkflowsDialog, {
+        service,
+        onClose: () => context.ui.removeComponent(),
+      }),
+    };
+  },
 };

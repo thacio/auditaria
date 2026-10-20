@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -70,6 +70,184 @@ const [b, c] = await parallel([() => agent('two'), () => agent('three')])
 return { a, b, c, spent: budget.spent() }`;
 
 describe('WorkflowService', () => {
+  it('loads prior runs and resumes from the saved source when the script was removed', async () => {
+    const { config } = makeConfig(tempRoot());
+    const first = new WorkflowService(config);
+    const launched = first.launch({
+      parsed: parseWorkflowScript(
+        `export const meta = { name: 'saved', description: 'persist' }; return args.count;`,
+      ),
+      scriptPath: 'missing-saved-script.js',
+      args: { count: 42 },
+    });
+    await first.waitFor(launched.runId);
+    const restored = new WorkflowService(config);
+    expect(restored.registry.get(launched.runId)).toMatchObject({
+      status: 'completed',
+      result: 42,
+    });
+    await restored.resume(launched.runId);
+    expect((await restored.waitFor(launched.runId))?.result).toBe(42);
+  });
+
+  it('retries a silent agent with a fresh driver', async () => {
+    const { config } = makeConfig(tempRoot());
+    const service = new WorkflowService(config);
+    let attempts = 0;
+    const launched = service.launch({
+      parsed:
+        parseWorkflowScript(`export const meta = { name: 'stall', description: 'stall' };
+return await agent('work', {stallMs: 20});`),
+      scriptPath: 'stall.js',
+      createDriver: async () => {
+        const attempt = ++attempts;
+        return {
+          ...scriptedDriver(() => 'unused'),
+          async *sendMessage(_prompt, signal) {
+            if (attempt === 1) {
+              await new Promise<void>((resolve) => {
+                if (signal.aborted) resolve();
+                else
+                  signal.addEventListener('abort', () => resolve(), {
+                    once: true,
+                  });
+              });
+            } else yield { type: ProviderEventType.Content, text: 'recovered' };
+          },
+        };
+      },
+    });
+    const run = await service.waitFor(launched.runId);
+    expect(run?.result).toBe('recovered');
+    expect(attempts).toBe(2);
+  });
+
+  it('restarts a selected agent and counts usage across attempts', async () => {
+    const { config } = makeConfig(tempRoot());
+    const service = new WorkflowService(config);
+    let attempts = 0;
+    const launched = service.launch({
+      parsed:
+        parseWorkflowScript(`export const meta = { name: 'retry', description: 'retry' }
+return await agent('work')`),
+      scriptPath: 'retry.js',
+      createDriver: async () => {
+        const current = ++attempts;
+        return {
+          ...scriptedDriver(() => 'unused'),
+          async *sendMessage(_prompt, signal) {
+            if (current === 1) {
+              yield {
+                type: ProviderEventType.Finished,
+                usage: { outputTokens: 3, inputTokens: 0 },
+              };
+              await new Promise<void>((resolve) => {
+                if (signal.aborted) resolve();
+                else
+                  signal.addEventListener('abort', () => resolve(), {
+                    once: true,
+                  });
+              });
+              return;
+            }
+            yield { type: ProviderEventType.Content, text: 'restarted' };
+            yield {
+              type: ProviderEventType.Finished,
+              usage: { outputTokens: 7, inputTokens: 0 },
+            };
+          },
+        };
+      },
+    });
+    await vi.waitFor(() => expect(attempts).toBe(1));
+    expect(service.retryAgent(launched.runId, 1)).toBe(true);
+    const run = await service.waitFor(launched.runId);
+    expect(attempts).toBe(2);
+    expect(run?.result).toBe('restarted');
+    expect(
+      run?.workflowProgress.find((e) => e.type === 'workflow_agent'),
+    ).toMatchObject({
+      state: 'done',
+      attempt: 2,
+      tokens: 10,
+    });
+    expect(
+      readJournalLines(service.paths.journalPath(launched.runId)).filter(
+        (e) => e.type === 'result',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('cancels queued agents and retains the lease until active leaves exit', async () => {
+    const { config } = makeConfig(tempRoot());
+    const service = new WorkflowService(config);
+    let started = 0;
+    let finishCleanup: () => void = () => {};
+    const cleanup = new Promise<void>((resolve) => {
+      finishCleanup = resolve;
+    });
+    const launched = service.launch({
+      parsed:
+        parseWorkflowScript(`export const meta = { name: 'stop', description: 'stop' }
+return await parallel(Array.from({length: 24}, (_, i) => () => agent('work ' + i)))`),
+      scriptPath: 'stop.js',
+      createDriver: async () => ({
+        ...scriptedDriver(() => 'unused'),
+        async *sendMessage(_prompt, signal) {
+          started++;
+          await new Promise<void>((resolve) => {
+            if (signal.aborted) resolve();
+            else
+              signal.addEventListener('abort', () => resolve(), { once: true });
+          });
+          await cleanup;
+          yield {
+            type: ProviderEventType.Finished,
+            usage: { inputTokens: 0, outputTokens: 0 },
+          };
+        },
+      }),
+    });
+    await vi.waitFor(() => expect(started).toBeGreaterThan(0));
+    service.stop(launched.runId);
+    const atStop = started;
+    let settled = false;
+    const waiting = service.waitFor(launched.runId).then((run) => {
+      settled = true;
+      return run;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(settled).toBe(false);
+    expect(fs.existsSync(service.paths.leasePath(launched.runId))).toBe(true);
+    finishCleanup();
+    const run = await waiting;
+    expect(run?.status).toBe('killed');
+    expect(started).toBe(atStop);
+    expect(started).toBeLessThan(24);
+    expect(fs.existsSync(service.paths.leasePath(launched.runId))).toBe(false);
+  });
+
+  it('releases ownership after initialization fails', async () => {
+    const { config } = makeConfig(tempRoot());
+    const service = new WorkflowService(config);
+    const runId = 'wf_startup-failure';
+    fs.mkdirSync(service.paths.runDir(runId), { recursive: true });
+    fs.writeFileSync(service.paths.agentsDir(runId), 'blocks mkdir');
+    const request = {
+      parsed: parseWorkflowScript(
+        `export const meta = { name: 'init', description: 'init' }; return 1;`,
+      ),
+      scriptPath: 'init.js',
+      resumeFromRunId: runId,
+    };
+    service.launch(request);
+    expect((await service.waitFor(runId))?.status).toBe('failed');
+    expect(fs.existsSync(service.paths.leasePath(runId))).toBe(false);
+    fs.unlinkSync(service.paths.agentsDir(runId));
+    expect(() => service.launch(request)).not.toThrow();
+    expect((await service.waitFor(runId))?.result).toBe(1);
+  });
+
   it('launches in the background, journals, writes state.json/.output and queues a notification', async () => {
     const root = tempRoot();
     const { config, injectionService } = makeConfig(root);

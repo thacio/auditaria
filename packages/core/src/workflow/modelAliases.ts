@@ -4,11 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: Cross-provider model aliases. A script written for
-// Claude Code says `model: 'haiku'` for its cheap bulk workers and
-// `model: 'opus'` for its verifier; run under a Gemini, Codex, Copilot or
-// agy orchestrator that string must still mean something. Each provider's
-// own ids pass through verbatim; a KNOWN alias of another family maps to the
+// AUDITARIA_WORKFLOW: Cross-provider model aliases preserve a script's model
+// tier when it runs with another provider. Each provider's own ids pass through
+// unchanged; a known alias of another family maps to the
 // nearest tier (small / medium / large) of the pinned provider; unknown ids
 // are handed to the provider unchanged (a bad id then fails that one agent).
 

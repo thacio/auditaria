@@ -372,10 +372,8 @@ export function getSupportedCodexReasoningEfforts(
 // (High)"), so it is deliberately absent from the table below.
 //
 // One ordered scale spans every provider (lowest → highest); each provider
-// exposes the contiguous slice its CLI accepts. The `ultra` slot is the
-// "top level plus orchestration" tier both frontier CLIs converged on:
-// Codex's `ultra` ("maximum reasoning with automatic task delegation") and
-// Claude Code's `ultracode` ("xhigh + dynamic workflow orchestration").
+// exposes the contiguous slice its CLI accepts. The `ultra` slot combines
+// the highest supported reasoning effort with workflow orchestration.
 export const PROVIDER_REASONING_EFFORTS = [
   'none',
   'low',
@@ -389,12 +387,10 @@ export type ProviderReasoningEffort =
   (typeof PROVIDER_REASONING_EFFORTS)[number];
 
 /**
- * Claude Code levels: `claude --effort <low|medium|high|xhigh|max>` (verified
- * against 2.1.231 — anything else warns and falls back to the default).
+ * Claude Code levels: `claude --effort <low|medium|high|xhigh|max>`.
  * `ultra` maps to Claude's session-scoped `ultracode` mode, which the flag
  * does NOT accept: the driver translates it to `--effort xhigh` plus
- * `"ultracode": true` in the `--settings` JSON (the delivery path Claude
- * Code's own settings schema documents for it).
+ * `"ultracode": true` in the `--settings` JSON.
  */
 export const CLAUDE_REASONING_EFFORTS = [
   'low',
@@ -406,9 +402,7 @@ export const CLAUDE_REASONING_EFFORTS = [
 ] as const satisfies readonly ProviderReasoningEffort[];
 
 /**
- * Copilot levels (CLI 1.0.79). `--help` also advertises a `minimal` choice,
- * but it appears nowhere in the app bundle — no level list, label, or
- * description includes it — so we mirror the TUI's canonical set.
+ * Supported Copilot reasoning levels.
  */
 export const COPILOT_REASONING_EFFORTS = [
   'none',
@@ -443,16 +437,9 @@ export const DEFAULT_REASONING_EFFORT_BY_PROVIDER: Readonly<
 };
 
 // AUDITARIA_PROVIDER_EFFORT: per-provider display vocabulary. `label` is the
-// exact word the provider's own CLI shows for the level, so users can
+// word the provider's CLI shows for the level, so users can
 // correlate what they pick here with what they see in that CLI;
-// `description` is the provider's own explanation where it publishes one.
-// Sources (all extracted from the installed CLIs, not invented):
-// - Claude Code 2.1.231: bare tokens (`/effort low|medium|high|xhigh|max`);
-//   `ultracode` wording from its /effort help and settings schema.
-// - Codex CLI 0.146.0: tokens + per-level descriptions from the CLI's own
-//   `~/.codex/models_cache.json` `supported_reasoning_levels`.
-// - Copilot CLI 1.0.79: label map {none:"None"…xhigh:"Extra High",max:"Max"}
-//   and the "Select Effort Level" descriptions, both from its app bundle.
+// `description` explains how the selected level affects reasoning.
 export interface ReasoningEffortDisplay {
   label: string;
   description?: string;

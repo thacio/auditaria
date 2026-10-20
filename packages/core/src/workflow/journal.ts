@@ -6,16 +6,16 @@
 
 // AUDITARIA_WORKFLOW: The resume journal.
 //
-// Line shapes are identical to Claude Code's `journal.jsonl` (research 10 §7):
+// Local replay records:
 //   {"type":"started","key":"aw1:<hex>","agentId":"a<hex>"}
 //   {"type":"result","key":"aw1:<hex>","agentId":"a<hex>","result":<json>}
 //   {"type":"failed","key":"aw1:<hex>","agentId"?:"a<hex>"}
 //
-// Keys are hash-chained (research 02 §2.3): key_n = sha256(key_{n-1} \0 prompt
+// Keys are hash-chained: key_n = sha256(key_{n-1} \0 prompt
 // \0 canonicalOpts). An edit to any earlier call therefore changes every later
 // key ("longest unchanged prefix" replay falls out of the chain). Auditaria
 // additionally forks a deterministic sub-chain per parallel()/pipeline()
-// branch so keys never depend on async completion order (refute-resume.md).
+// branch so keys never depend on async completion order.
 
 import { createHash, randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
@@ -88,7 +88,7 @@ export function joinChain(prev: string, count: number): string {
   return digest(prev, 'join', String(count));
 }
 
-/** Generate a Claude-shaped agent id: 'a' + 16 hex characters. */
+/** Generate an agent id: 'a' + 16 hex characters. */
 export function newAgentId(): string {
   return 'a' + randomBytes(8).toString('hex');
 }
@@ -137,6 +137,9 @@ export class WorkflowJournal {
       }
       journal.index(parsed);
     }
+    // A crashed writer may leave an unterminated line. Keep it separate from
+    // the next result so later resumes do not lose a newly completed call.
+    if (text && !text.endsWith('\n')) await fsp.appendFile(path, '\n');
     return journal;
   }
 
@@ -171,10 +174,9 @@ export class WorkflowJournal {
   }
 
   /**
-   * Resume decision for a key (Claude Code's `c` flag semantics, research 02
-   * §2.4): a hit serves the cached result; a key that was started but never
-   * settled is re-run without breaking the chain; anything else breaks the
-   * chain so no later call can hit a stale entry.
+   * Resume decision for a key: a hit serves the cached result; a key that was
+   * started but never settled is re-run without breaking the chain. Anything
+   * else breaks the chain so no later call can hit a stale entry.
    */
   lookup(key: string): JournalLookup {
     if (this.chainBroken) return { kind: 'miss' };

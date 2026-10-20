@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// AUDITARIA_WORKFLOW: The script host — a `node:vm` context shaped like
-// Claude Code's (research 10 §3, §13):
+// AUDITARIA_WORKFLOW: The script host uses a restricted `node:vm` context:
 //   - `codeGeneration: { strings: false, wasm: false }` (eval/Function throw
 //     "Code generation from strings disallowed for this context");
 //   - only the hook globals + ECMAScript intrinsics (engine extras pruned);
@@ -18,7 +17,12 @@
 //     own constructors so `e instanceof Error` holds inside the script.
 
 import * as vm from 'node:vm';
-import { isFunction } from './guards.js';
+import { isUnknownArray } from './guards.js';
+import {
+  encodeBoundaryError,
+  encodeBoundaryValue,
+  installRealmBridge,
+} from './realmBridge.js';
 
 export const DATE_NOW_ERROR =
   'Date.now() / new Date() are unavailable in workflow scripts (breaks resume). Stamp results after the workflow returns, or pass timestamps via args.';
@@ -26,14 +30,14 @@ export const MATH_RANDOM_ERROR =
   'Math.random() is unavailable in workflow scripts (breaks resume). For N independent samples, include the index in the agent label or prompt.';
 export const IMPORT_ERROR = 'import() is not available in workflow scripts';
 
-/** Claude Code's marshalling cap for arrays crossing the VM boundary. */
+/** Maximum array length crossing the VM boundary. */
 export const VM_BOUNDARY_MAX_ARRAY = 4096;
 
 export function boundaryArrayError(length: number): string {
   return `array length ${length} exceeds the maximum of ${VM_BOUNDARY_MAX_ARRAY} supported across the workflow VM boundary`;
 }
 
-/** Engine globals a bare vm context exposes that Claude's sandbox does not. */
+/** Engine globals excluded from workflow scripts. */
 const PRUNED_GLOBALS = [
   'WebAssembly',
   'SharedArrayBuffer',
@@ -100,63 +104,22 @@ export interface CreateSandboxOptions {
 }
 
 /**
- * Build the vm context with Claude Code's sandbox shape and install the hooks.
+ * Build the restricted vm context and install the workflow hooks.
  */
 export function createWorkflowSandbox(
   hooks: WorkflowSandboxHooks,
   options: CreateSandboxOptions = {},
 ): WorkflowSandbox {
-  const timers = new Set<NodeJS.Timeout>();
+  const timers = new Map<number, NodeJS.Timeout>();
+  let nextTimer = 0;
   const logFromConsole = (...parts: unknown[]) =>
     hooks.log(
       parts.map((p) => (typeof p === 'string' ? p : safeString(p))).join(' '),
     );
 
-  const sandboxGlobals: Record<string, unknown> = {
-    agent: hooks.agent,
-    parallel: hooks.parallel,
-    pipeline: hooks.pipeline,
-    phase: hooks.phase,
-    log: hooks.log,
-    workflow: hooks.workflow,
-    args: hooks.args,
-    budget: hooks.budget,
-    console: Object.freeze({
-      log: logFromConsole,
-      info: logFromConsole,
-      warn: logFromConsole,
-      error: logFromConsole,
-      debug: logFromConsole,
-    }),
-    setTimeout: (fn: unknown, ms?: unknown, ...rest: unknown[]) => {
-      if (!isFunction(fn)) {
-        throw makeError('TypeError', 'setTimeout callback must be a function');
-      }
-      if (options.signal?.aborted) return 0;
-      const delay =
-        typeof ms === 'number' && Number.isFinite(ms) ? Math.max(0, ms) : 0;
-      const handle = setTimeout(() => {
-        timers.delete(handle);
-        try {
-          fn(...rest);
-        } catch {
-          // A throwing timer callback has no owner; swallow like browsers do.
-        }
-      }, delay);
-      timers.add(handle);
-      return handle;
-    },
-    clearTimeout: (handle: unknown) => {
-      for (const t of timers) {
-        if (t === handle) {
-          clearTimeout(t);
-          timers.delete(t);
-        }
-      }
-    },
-  };
-
-  const context = vm.createContext(sandboxGlobals, {
+  // A host Object.prototype on the global object would expose its constructor.
+  // eslint-disable-next-line no-restricted-syntax
+  const context = vm.createContext(Object.create(null), {
     name: 'workflow',
     codeGeneration: { strings: false, wasm: false },
   });
@@ -179,8 +142,117 @@ export function createWorkflowSandbox(
     return errorCtors[ctor](message);
   }
 
+  const callback = (id: unknown) =>
+    typeof id === 'number' ? (...args: unknown[]) => bridge.call(id, args) : id;
+  const bridge = installRealmBridge(
+    context,
+    (name, encoded) => {
+      try {
+        const args: unknown = JSON.parse(encoded);
+        if (!isUnknownArray(args))
+          throw new Error('Invalid workflow arguments');
+        let value: unknown;
+        switch (name) {
+          case 'args':
+            value = hooks.args;
+            break;
+          case 'total':
+            value = hooks.budget.total;
+            break;
+          case 'spent':
+            value = hooks.budget.spent();
+            break;
+          case 'remaining':
+            value = hooks.budget.remaining();
+            break;
+          case 'phase':
+            hooks.phase(args[0]);
+            break;
+          case 'log':
+            hooks.log(args[0]);
+            break;
+          case 'console':
+            logFromConsole(...args);
+            break;
+          case 'setTimeout': {
+            if (options.signal?.aborted) {
+              value = 0;
+              break;
+            }
+            const [id, ms, rest] = args;
+            const timerId = ++nextTimer;
+            const delay =
+              typeof ms === 'number' && Number.isFinite(ms)
+                ? Math.max(0, ms)
+                : 0;
+            const timer = setTimeout(() => {
+              timers.delete(timerId);
+              if (typeof id === 'number' && Array.isArray(rest))
+                void bridge.call(id, rest).catch(() => undefined);
+            }, delay);
+            timers.set(timerId, timer);
+            value = timerId;
+            break;
+          }
+          case 'clearTimeout': {
+            const id = args[0];
+            if (typeof id === 'number') {
+              clearTimeout(timers.get(id));
+              timers.delete(id);
+            }
+            break;
+          }
+          default:
+            throw new Error('Unknown workflow operation');
+        }
+        return encodeBoundaryValue(value);
+      } catch (error) {
+        return encodeBoundaryError(error);
+      }
+    },
+    (name, encoded, reply) => {
+      const dispatch = async () => {
+        const args: unknown = JSON.parse(encoded);
+        if (!isUnknownArray(args))
+          throw new Error('Invalid workflow arguments');
+        switch (name) {
+          case 'agent':
+            return hooks.agent(args[0], args[1]);
+          case 'workflow':
+            return hooks.workflow(args[0], args[1]);
+          case 'parallel':
+            return hooks.parallel(
+              isUnknownArray(args[0]) ? args[0].map(callback) : args[0],
+            );
+          case 'pipeline':
+            return hooks.pipeline(
+              isUnknownArray(args[0])
+                ? args[0].map((id) =>
+                    typeof id === 'number' ? bridge.call(id, []) : id,
+                  )
+                : args[0],
+              ...(isUnknownArray(args[1]) ? args[1].map(callback) : []),
+            );
+          default:
+            throw new Error('Unknown workflow operation');
+        }
+      };
+      void dispatch().then(
+        (value) => {
+          try {
+            reply(encodeBoundaryValue(value));
+          } catch (error) {
+            reply(encodeBoundaryError(error));
+          }
+        },
+        (error) => reply(encodeBoundaryError(error)),
+      );
+    },
+  );
+
   const dispose = () => {
-    for (const handle of timers) clearTimeout(handle);
+    options.signal?.removeEventListener('abort', dispose);
+    for (const handle of timers.values()) clearTimeout(handle);
     timers.clear();
   };
   options.signal?.addEventListener('abort', dispose, { once: true });
@@ -198,7 +270,7 @@ export function createWorkflowSandbox(
       const pending: unknown = script.runInContext(context, {
         timeout: options.syncTimeoutMs ?? SYNC_TIMEOUT_MS,
       });
-      return await pending;
+      return bridge.settle(pending);
     },
     dispose,
   };
@@ -240,8 +312,8 @@ export function assertBoundaryArray(
 }
 
 /**
- * Produce the JSON-safe form of a script's return value the way Claude Code
- * does: functions are rejected at the top level and silently dropped inside
+ * Produce the JSON-safe form of a script's return value:
+ * functions are rejected at the top level and silently dropped inside
  * structures; anything else must survive JSON.stringify (BigInt does not).
  */
 export function marshalResult(value: unknown): unknown {

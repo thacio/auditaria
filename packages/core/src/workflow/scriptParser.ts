@@ -6,7 +6,7 @@
 
 // AUDITARIA_WORKFLOW: Pre-flight parsing of a workflow script.
 //
-// Mirrors Claude Code's contract (research 01 §6-§8, 10 §1):
+// Script requirements:
 //   1. the script must parse as plain JavaScript (acorn, module goal,
 //      top-level await/return allowed);
 //   2. `export const meta = {...}` must be the FIRST statement and a pure
@@ -22,7 +22,7 @@ import * as acorn from 'acorn';
 import type { WorkflowMeta, WorkflowPhaseMeta } from './types.js';
 import { isRecord, numberField, stringField } from './guards.js';
 
-/** Claude Code's shared cap for inline scripts and script files (512 KiB). */
+/** Shared cap for inline scripts and script files (512 KiB). */
 export const SCRIPT_MAX_BYTES = 524_288;
 
 export type WorkflowScriptErrorKind =
@@ -44,6 +44,7 @@ export class WorkflowScriptError extends Error {
 
 export interface ParsedWorkflowScript {
   meta: WorkflowMeta;
+  source: string;
   /** The script with the `export` keyword stripped from the meta statement. */
   body: string;
   /** `body` wrapped as `(async () => { 'use strict'; ... })()`. */
@@ -373,7 +374,7 @@ export function parseWorkflowScript(source: string): ParsedWorkflowScript {
   const body =
     source.slice(0, first.start) + source.slice(first.declaration.start);
   const wrapped = `(async () => { 'use strict';\n${body}\n})()`;
-  return { meta, body, wrapped };
+  return { meta, source, body, wrapped };
 }
 
 /**

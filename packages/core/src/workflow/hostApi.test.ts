@@ -111,6 +111,96 @@ const echoRunner = async (call: AgentCall): Promise<SubagentResult> => {
 };
 
 describe('agent()', () => {
+  it('does not launch queued leaves after an earlier leaf exhausts the budget', async () => {
+    let spent = 0;
+    const h = makeHarness(
+      async (call) => {
+        const result = await echoRunner(call);
+        spent = 10;
+        return result;
+      },
+      { concurrency: 1, budget: { total: 10, spent: () => spent } },
+    );
+    expect(
+      await h.run(
+        `return parallel([() => agent('first'), () => agent('queued')])`,
+      ),
+    ).toEqual(['echo:first', null]);
+    expect(h.calls.map((call) => call.prompt)).toEqual(['first']);
+    expect(h.logs).toContain(
+      'parallel: 1 slot(s) dropped — token budget exceeded',
+    );
+  });
+
+  it('preserves promised pipeline inputs and only short-circuits null', async () => {
+    const h = makeHarness(echoRunner);
+    expect(
+      await h.run(`
+      const original = Promise.resolve(3);
+      return pipeline([original, null, undefined],
+        (value, item, index) => ({ value: value ?? 'undefined', same: item === original, index }));
+    `),
+    ).toEqual([
+      { value: 3, same: true, index: 0 },
+      null,
+      { value: 'undefined', same: false, index: 2 },
+    ]);
+  });
+
+  it('allows empty combinators after budget exhaustion', async () => {
+    const h = makeHarness(echoRunner, {
+      budget: { total: 10, spent: () => 10 },
+    });
+    expect(
+      await h.run('return [await parallel([]), await pipeline([])]'),
+    ).toEqual([[], []]);
+    expect(h.calls).toHaveLength(0);
+  });
+
+  it('keeps concurrent child agents in their own phase despite explicit phase overrides', async () => {
+    const child = parseWorkflowScript(`
+      export const meta = {name:'child', description:'child'};
+      phase('ignored');
+      try { await parallel([1]); } catch (e) { if (!(e instanceof Error)) throw new Error('wrong realm'); }
+      return agent('child', {phase:'override'});
+    `);
+    const h = makeHarness(echoRunner, {
+      resolveChildWorkflow: async () => child,
+    });
+    expect(
+      await h.run(
+        `return parallel([() => workflow('child'), () => workflow('child')])`,
+      ),
+    ).toEqual(['echo:child', 'echo:child']);
+    expect(h.calls.map((call) => call.phaseTitle)).toEqual([
+      '▸ child',
+      '▸ child #2',
+    ]);
+    expect(
+      h.progress.some(
+        (row) => row.type === 'workflow_phase' && row.title === 'override',
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects invalid restrictions and execution modes before starting a leaf', async () => {
+    const h = makeHarness(echoRunner);
+    for (const opts of [
+      { disallowedTools: 'Bash' },
+      { disallowedTools: [42] },
+      { bashCommandClamp: [' padded '] },
+      { isolation: 'unknown' },
+      { provider: 'unknown' },
+      { schema: [] },
+      { stallMs: -1 },
+    ]) {
+      await expect(
+        h.run(`return agent('x', ${JSON.stringify(opts)})`),
+      ).rejects.toThrow();
+    }
+    expect(h.calls).toHaveLength(0);
+  });
+
   it('returns the runner value, journals started/result and emits start/done progress', async () => {
     const h = makeHarness(echoRunner);
     const out = await h.run(
@@ -137,7 +227,7 @@ describe('agent()', () => {
     ).toEqual(['P0', 'A']);
   });
 
-  it('coerces prompts and labels like Claude Code', async () => {
+  it('coerces prompts and labels into displayable strings', async () => {
     const h = makeHarness(echoRunner);
     await h.run(
       "await agent('')\nawait agent(12345)\nawait agent({ o: 1 })\nawait agent('  spaced   label  ', { label: ' my   label ' })",
@@ -259,7 +349,7 @@ describe('parallel() and pipeline()', () => {
     ]);
   });
 
-  it('parallel validates its input like Claude Code', async () => {
+  it('parallel rejects invalid input collections', async () => {
     const h = makeHarness(echoRunner);
     const out = await h.run(`
       const notes = {}

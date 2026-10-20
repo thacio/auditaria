@@ -110,6 +110,60 @@ describe('createWorkflowSandbox — globals', () => {
 });
 
 describe('createWorkflowSandbox — code generation and imports', () => {
+  it('keeps hooks, args, promises, results, and timer handles inside the script realm', async () => {
+    const { hooks } = makeHooks({
+      args: { task: 'test' },
+      agent: async () => ({ answer: 42 }),
+    });
+    const result = await runScript(
+      `
+      const attempted = [];
+      const check = fn => { try { attempted.push(fn()); } catch { attempted.push('blocked'); } };
+      check(() => log.constructor('return typeof process')());
+      check(() => args.constructor.constructor('return typeof process')());
+      const pending = agent('task');
+      check(() => pending.constructor.constructor('return typeof process')());
+      const answer = await pending;
+      check(() => answer.constructor.constructor('return typeof process')());
+      const timer = setTimeout(() => {}, 10000);
+      check(() => timer.constructor.constructor('return typeof process')());
+      clearTimeout(timer);
+      return {attempted, realm: [
+        args instanceof Object, pending instanceof Promise, answer instanceof Object,
+        (await parallel([() => agent('task')])) instanceof Array,
+      ]};
+    `,
+      hooks,
+    );
+    expect(result).toEqual({
+      attempted: Array(5).fill('blocked'),
+      realm: [true, true, true, true],
+    });
+  });
+
+  it('settles script thenables without exposing host promise resolvers', async () => {
+    const result = await runScript(`
+      return await parallel([() => ({
+        then(resolve) {
+          try { resolve(resolve.constructor('return typeof process')()); }
+          catch { resolve('blocked'); }
+        },
+      })]);
+    `);
+    expect(result).toEqual(['blocked']);
+  });
+
+  it('does not consult a script replacement of Promise.prototype.then to settle the run', async () => {
+    expect(
+      await runScript(`
+      Promise.prototype.then = function(resolve) {
+        return resolve(resolve.constructor('return typeof process')());
+      };
+      return 42;
+    `),
+    ).toBe(42);
+  });
+
   it('blocks eval, new Function and the prototype-constructor escape', async () => {
     const out = (await runScript(`
       const notes = {}
@@ -167,6 +221,25 @@ describe('createWorkflowSandbox — determinism shims', () => {
 });
 
 describe('createWorkflowSandbox — timers, errors, results', () => {
+  it('rejects oversized nested arrays in arguments, hook results, and script results', async () => {
+    const oversized = { nested: new Array(4097).fill(1) };
+    expect(() =>
+      createWorkflowSandbox(makeHooks({ args: oversized }).hooks),
+    ).toThrow(boundaryArrayError(4097));
+    await expect(
+      runScript(
+        'return agent("x")',
+        makeHooks({ agent: async () => oversized }).hooks,
+      ),
+    ).rejects.toThrow(boundaryArrayError(4097));
+    await expect(
+      runScript('return { nested: Array(4097).fill(1) }'),
+    ).rejects.toThrow(boundaryArrayError(4097));
+    await expect(
+      runScript('return agent("x", {schema: {enum: Array(4097).fill(1)}})'),
+    ).rejects.toThrow(boundaryArrayError(4097));
+  });
+
   it('supports setTimeout/clearTimeout and disposes pending timers', async () => {
     const sandbox = createWorkflowSandbox(makeHooks().hooks);
     const { wrapped } = parseWorkflowScript(
