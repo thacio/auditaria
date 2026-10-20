@@ -164,8 +164,6 @@ async function tryQuickClose(): Promise<void> {
  */
 async function handleStartIndexing(msg: StartIndexingMessage): Promise<void> {
   const startTime = Date.now();
-  let processed = 0;
-  let _failed = 0; // Tracked but not used in messages (result.failed is used instead)
 
   log('info', 'Starting indexing', {
     rootPath: msg.rootPath,
@@ -197,37 +195,26 @@ async function handleStartIndexing(msg: StartIndexingMessage): Promise<void> {
       return;
     }
 
-    // Subscribe to progress events and forward to main process
-    searchSystem.on('document:completed', (event) => {
-      processed++;
+    searchSystem.on('indexing:progress', (event) => {
       send({
         type: 'progress',
-        event: 'document:completed',
+        event: 'indexing:progress',
         data: event,
         memoryUsageMb: getMemoryUsageMb(),
-        processed,
-        total: msg.options.maxDocuments ?? 0,
+        processed: event.current,
+        total: event.total,
       });
     });
 
-    searchSystem.on('document:failed', (event) => {
-      _failed++;
-      send({
-        type: 'progress',
-        event: 'document:failed',
-        data: event,
-        memoryUsageMb: getMemoryUsageMb(),
-        processed,
-        total: msg.options.maxDocuments ?? 0,
-      });
-    });
-
-    // Run indexing with in-process mode (we're already in the child)
-    const result = await searchSystem.indexAll({
-      force: msg.options.force,
-      useChildProcess: false, // Don't spawn another child!
-      maxDocuments: msg.options.maxDocuments,
-    });
+    const result = msg.options.resume
+      ? await searchSystem.processQueue({
+          maxDocuments: msg.options.maxDocuments,
+        })
+      : await searchSystem.indexAll({
+          force: msg.options.force,
+          useChildProcess: false,
+          maxDocuments: msg.options.maxDocuments,
+        });
 
     // Check if there are more items to process
     const queueStatus = await searchSystem.getQueueStatus();

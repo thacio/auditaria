@@ -11,6 +11,10 @@ import { SearchServiceManager, getSearchService } from './search-service.js';
 vi.mock('@thacio/auditaria-search', () => {
   const mockSearchSystem = {
     discoverFiles: vi.fn().mockResolvedValue([]),
+    getConfigValue: vi.fn().mockResolvedValue(false),
+    processQueue: vi
+      .fn()
+      .mockResolvedValue({ indexed: 0, failed: 0, duration: 0 }),
     indexAll: vi.fn().mockResolvedValue({ indexed: 0, failed: 0, duration: 0 }),
     getStats: vi.fn().mockResolvedValue({
       totalDocuments: 0,
@@ -47,10 +51,13 @@ vi.mock('@thacio/auditaria-search', () => {
   };
 
   return {
-    initializeSearchSystem: vi.fn().mockResolvedValue(mockSearchSystem),
+    createSearchSystemSupervisor: vi.fn().mockResolvedValue(mockSearchSystem),
     loadSearchSystem: vi.fn().mockResolvedValue(mockSearchSystem),
     searchDatabaseExists: vi.fn().mockReturnValue(false),
     SearchSystem: vi.fn(),
+    createConfig: () => ({
+      indexing: { supervisorStrategy: 'none', supervisorRestartThreshold: 0 },
+    }),
   };
 });
 
@@ -106,6 +113,29 @@ describe('SearchServiceManager', () => {
       expect(service.getState().status).toBe('running');
       expect(service.getState().rootPath).toBe('/test/path');
       expect(service.getState().startedAt).toBeInstanceOf(Date);
+    });
+
+    it('shares concurrent startup and waits for it before stopping', async () => {
+      const { createSearchSystemSupervisor } = await import(
+        '@thacio/auditaria-search'
+      );
+      const service = SearchServiceManager.getInstance();
+      const starting = service.start('/test/path', { skipInitialSync: true });
+      const duplicate = service.start('/test/path', { skipInitialSync: true });
+      const stopping = service.stop();
+      await Promise.all([starting, duplicate, stopping]);
+      expect(createSearchSystemSupervisor).toHaveBeenCalledTimes(1);
+      expect(service.getSearchSystem()).toBeNull();
+      expect(service.getState().status).toBe('stopped');
+    });
+
+    it('synchronizes even when discovery would find no files', async () => {
+      const service = SearchServiceManager.getInstance();
+      await service.start('/test/path', { skipInitialSync: true });
+      const system = service.getSearchSystem()!;
+      await service.triggerSync();
+      expect(system.indexAll).toHaveBeenCalledTimes(1);
+      expect(system.discoverFiles).not.toHaveBeenCalled();
     });
 
     it('should not start twice', async () => {
@@ -221,8 +251,10 @@ describe('SearchServiceManager', () => {
 
   describe('error handling', () => {
     it('should set error state on start failure', async () => {
-      const { initializeSearchSystem } = await import('@thacio/auditaria-search');
-      vi.mocked(initializeSearchSystem).mockRejectedValueOnce(
+      const { createSearchSystemSupervisor } = await import(
+        '@thacio/auditaria-search'
+      );
+      vi.mocked(createSearchSystemSupervisor).mockRejectedValueOnce(
         new Error('Init failed'),
       );
 

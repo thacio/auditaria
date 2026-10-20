@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * OcrRegistry - Registry for OCR providers.
  * Manages multiple OCR providers and selects the best one for a given task.
  *
@@ -292,7 +298,7 @@ export class OcrRegistry {
    */
   async recognizeFileWithAutoDetect(
     filePath: string,
-    options?: { provider?: string },
+    options?: OcrOptions & { provider?: string },
   ): Promise<OcrResult> {
     // Use specified provider, or auto-select based on file type
     const provider = options?.provider
@@ -313,14 +319,20 @@ export class OcrRegistry {
             options?: OcrOptions,
           ) => Promise<OcrResult>;
         }
-      ).recognizeWithAutoDetect(filePath);
+      ).recognizeWithAutoDetect(filePath, {
+        ...this.defaultOptions,
+        ...options,
+      });
     }
 
     // Fallback: initialize if needed and use regular recognition
     if (!provider.isReady()) {
       await provider.initialize();
     }
-    return provider.recognizeFile(filePath, this.defaultOptions);
+    return provider.recognizeFile(filePath, {
+      ...this.defaultOptions,
+      ...options,
+    });
   }
 
   /**
@@ -366,7 +378,8 @@ export async function createOcrRegistryAsync(
     );
 
     if (await isTesseractAvailable()) {
-      const provider = new TesseractJsProvider();
+      const languages = options?.defaultOptions?.languages;
+      const provider = new TesseractJsProvider(languages ? { languages } : {});
       registry.register(provider);
     }
   } catch {

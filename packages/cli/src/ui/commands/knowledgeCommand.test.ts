@@ -33,8 +33,8 @@ describe('knowledgeBaseCommand status', () => {
   const createStatusContext = (rootPath = '/test/root'): CommandContext =>
     ({
       services: {
-        config: {
-          getProjectRoot: vi.fn().mockReturnValue(rootPath),
+        agentContext: {
+          config: { getProjectRoot: vi.fn().mockReturnValue(rootPath) },
         },
       },
       ui: {
@@ -121,7 +121,9 @@ describe('knowledgeBaseCommand status', () => {
     expect(result.content).toContain('Precision: EXACT');
     expect(result.content).toContain('Deferred by reason: raw_text_oversize=1');
     expect(result.content).toContain('parsed_text_oversize=1');
-    expect(result.content).toContain("Fully indexed = documents with status 'indexed'");
+    expect(result.content).toContain(
+      "Fully indexed = documents with status 'indexed'",
+    );
   });
 
   it('loads temporary system when service is not running and closes it after status', async () => {
@@ -193,5 +195,46 @@ describe('knowledgeBaseCommand status', () => {
       useMockEmbedder: false,
     });
     expect(tempSystem.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('knowledgeBaseCommand search configuration', () => {
+  it('honors configured defaults and explicit command overrides', async () => {
+    const search = vi.fn().mockResolvedValue({ results: [] });
+    mockSearchDatabaseExists.mockReturnValue(true);
+    mockGetSearchService.mockReturnValue({
+      getSearchSystem: () => ({
+        getConfig: () => ({
+          search: { defaultLimit: 3, defaultStrategy: 'keyword' },
+        }),
+        search,
+      }),
+    });
+    const action = knowledgeBaseCommand.subCommands?.find(
+      (c) => c.name === 'search',
+    )?.action;
+    if (!action) throw new Error('Missing search action');
+    const context = {
+      services: {
+        agentContext: { config: { getProjectRoot: () => '/test/root' } },
+      },
+      ui: { setPendingItem: vi.fn() },
+    } as unknown as CommandContext;
+    await action(context, 'audit');
+    expect(search).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'audit',
+        limit: 3,
+        strategy: 'keyword',
+      }),
+    );
+    await action(context, 'audit --limit=7 --strategy=semantic');
+    expect(search).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'audit',
+        limit: 7,
+        strategy: 'semantic',
+      }),
+    );
   });
 });

@@ -99,14 +99,7 @@ export class InProcessStrategy implements RestartStrategy {
 
     // 2. Close current SearchSystem
     // console.log('[InProcessStrategy] Closing SearchSystem...');
-    try {
-      await this.searchSystem.close();
-    } catch (error) {
-      console.warn(
-        '[InProcessStrategy] Error closing SearchSystem:',
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+    await this.searchSystem.close();
     this.searchSystem = null;
 
     // 3. Aggressive garbage collection to try to free native/WASM memory
@@ -140,7 +133,9 @@ export class InProcessStrategy implements RestartStrategy {
     }
 
     // Get the method from SearchSystem
-    const fn = (this.searchSystem as unknown as Record<string, unknown>)[method];
+    const fn = (this.searchSystem as unknown as Record<string, unknown>)[
+      method
+    ];
     if (typeof fn !== 'function') {
       throw new Error(`Unknown method: ${method}`);
     }
@@ -157,7 +152,9 @@ export class InProcessStrategy implements RestartStrategy {
     if (!this.eventHandlers.has(event as string)) {
       this.eventHandlers.set(event as string, new Set());
     }
-    this.eventHandlers.get(event as string)!.add(handler as (data: unknown) => void);
+    this.eventHandlers
+      .get(event as string)!
+      .add(handler as (data: unknown) => void);
 
     // Return unsubscribe function
     return () => {
@@ -223,7 +220,7 @@ export class InProcessStrategy implements RestartStrategy {
     ];
 
     for (const event of events) {
-      const unsub = this.searchSystem.on(event as keyof typeof this.searchSystem extends never ? never : string, (data: unknown) => {
+      const unsub = this.searchSystem.on(event, (data: unknown) => {
         // Forward to all registered handlers
         const handlers = this.eventHandlers.get(event);
         if (handlers) {

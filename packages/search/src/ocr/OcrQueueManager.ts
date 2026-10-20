@@ -98,6 +98,11 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
   private ocrRegistry: OcrRegistry;
   private embedder: Embedder | null;
   private jobs: Map<string, OcrJob> = new Map();
+  private drainPromise: Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+  }> | null = null;
   private state: OcrQueueState = 'idle';
   private processing: Set<string> = new Set();
   private processInterval: ReturnType<typeof setInterval> | null = null;
@@ -260,9 +265,7 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
    * Start processing OCR jobs.
    */
   start(): void {
-    if (this.state === 'running') {
-      return;
-    }
+    if (this.state === 'running' || this.state === 'stopping') return;
 
     this.state = 'running';
 
@@ -305,9 +308,12 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
    * Stop processing and wait for current jobs to complete.
    */
   async stop(): Promise<void> {
-    if (this.state === 'idle') {
+    if (
+      this.state === 'idle' &&
+      this.processing.size === 0 &&
+      !this.drainPromise
+    )
       return;
-    }
 
     this.state = 'stopping';
 
@@ -321,6 +327,7 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
+    await this.drainPromise;
     this.state = 'idle';
   }
 
@@ -343,6 +350,8 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
         return; // Main queue still processing
       }
     }
+
+    if (this.state !== 'running') return;
 
     // Get pending jobs
     const pendingJobs = this.getPendingJobs();
@@ -380,18 +389,18 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
     job.startedAt = new Date();
     job.attempts++;
 
-    // Update document status
-    await this.storage.updateDocument(job.documentId, {
-      ocrStatus: 'processing',
-    });
-
-    void this.emit('ocr:started', {
-      documentId: job.documentId,
-      filePath: job.filePath,
-      regions: job.regions.length,
-    });
-
     try {
+      // Update document status
+      await this.storage.updateDocument(job.documentId, {
+        ocrStatus: 'processing',
+      });
+
+      void this.emit('ocr:started', {
+        documentId: job.documentId,
+        filePath: job.filePath,
+        regions: job.regions.length,
+      });
+
       let ocrResults: OcrResult[];
 
       if (job.regions.length > 0 && job.regions.some((r) => r.imageData)) {
@@ -448,7 +457,9 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
       }
 
       // Merge OCR text with document
-      const mergedText = this.mergeOcrResults(ocrResults);
+      const mergedText = this.mergeOcrResults(ocrResults, {
+        minConfidence: this.config.minConfidence,
+      });
 
       // Update document with OCR text
       const doc = await this.storage.getDocument(job.documentId);
@@ -561,7 +572,20 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
    * Process all pending OCR jobs with parallel processing.
    * Respects the concurrency limit for efficient resource usage.
    */
-  async processAll(): Promise<{
+  processAll(): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+  }> {
+    if (this.state === 'stopping')
+      return Promise.resolve({ processed: 0, succeeded: 0, failed: 0 });
+    this.drainPromise ??= this.drain().finally(() => {
+      this.drainPromise = null;
+    });
+    return this.drainPromise;
+  }
+
+  private async drain(): Promise<{
     processed: number;
     succeeded: number;
     failed: number;
@@ -578,32 +602,35 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
     let failed = 0;
 
     try {
-      const pendingJobs = this.getPendingJobs();
-
-      // Process jobs in batches respecting concurrency limit
-      for (let i = 0; i < pendingJobs.length; i += this.config.concurrency) {
-        if (this.state !== 'running') {
-          break;
+      const counted = new Set<string>();
+      while (this.state === 'running') {
+        const batch = this.getPendingJobs()
+          .filter((job) => !this.processing.has(job.id))
+          .slice(
+            0,
+            Math.max(0, this.config.concurrency - this.processing.size),
+          );
+        if (batch.length === 0) {
+          if (this.processing.size === 0) break;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          continue;
         }
-
-        // Get batch of jobs up to concurrency limit
-        const batch = pendingJobs.slice(i, i + this.config.concurrency);
-
-        // Process batch in parallel
         await Promise.all(batch.map((job) => this.processJob(job)));
-
-        // Count results
         for (const job of batch) {
-          processed++;
-          if (job.status === 'completed') {
-            succeeded++;
-          } else if (job.status === 'failed') {
-            failed++;
+          if (
+            !counted.has(job.id) &&
+            (job.status === 'completed' || job.status === 'failed')
+          ) {
+            counted.add(job.id);
+            processed++;
+            if (job.status === 'completed') succeeded++;
+            else failed++;
           }
         }
       }
     } finally {
-      this.state = startState === 'running' ? 'running' : 'idle';
+      if (this.getState() !== 'stopping')
+        this.state = startState === 'running' ? 'running' : 'idle';
     }
 
     return { processed, succeeded, failed };
@@ -618,7 +645,7 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
    */
   private mergeOcrResults(
     results: OcrResult[],
-    options?: OcrMergeOptions,
+    options?: Partial<OcrMergeOptions>,
   ): OcrMergeResult {
     const minConfidence = options?.minConfidence ?? 0.5;
     const separator = options?.separator ?? '\n\n';

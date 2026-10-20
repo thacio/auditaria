@@ -21,6 +21,9 @@ export interface SearchDatabase {
   ): Promise<{ rows: T[]; affectedRows?: number }>;
   exec(sql: string): Promise<unknown>;
   close(): Promise<void>;
+  transaction<T>(
+    callback: (tx: Pick<SearchDatabase, 'query' | 'exec'>) => Promise<T>,
+  ): Promise<T>;
 }
 
 /** PostgreSQL data directories cannot be opened by another major version. */

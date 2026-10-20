@@ -94,6 +94,59 @@ describe('user-config', () => {
   // ==========================================================================
 
   describe('loadUserConfig', () => {
+    it('drops obsolete tuning settings from legacy files while preserving effective preferences', () => {
+      fs.writeFileSync(
+        getUserConfigPath(auditariaDir),
+        JSON.stringify({
+          config: {
+            indexing: {
+              ocrEnabled: false,
+              ocrPriority: 'skip',
+              prepareWorkers: 1,
+              childProcessMemoryThresholdMb: 1234,
+            },
+            chunking: {
+              strategy: 'semantic',
+              preserveSentences: false,
+              preserveParagraphs: false,
+              maxChunkSize: 500,
+            },
+            embeddings: {
+              queryPrefix: 'unused',
+              documentPrefix: 'unused',
+              model: 'Xenova/multilingual-e5-small',
+            },
+            search: { hybridStrategy: 'sql', defaultLimit: 3 },
+            ocr: {
+              enabled: true,
+              autoDetectLanguage: false,
+              minConfidence: 0.8,
+            },
+          },
+        }),
+      );
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const loaded = loadUserConfig(auditariaDir);
+        expect(loaded?.config).toEqual({
+          indexing: { prepareWorkers: 1 },
+          chunking: { maxChunkSize: 500 },
+          embeddings: { model: 'Xenova/multilingual-e5-small' },
+          search: { defaultLimit: 3 },
+          ocr: { enabled: true, autoDetectLanguage: false, minConfidence: 0.8 },
+        });
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('config.indexing.ocrEnabled'),
+        );
+        saveUserConfig(auditariaDir, loaded!);
+        expect(
+          fs.readFileSync(getUserConfigPath(auditariaDir), 'utf8'),
+        ).not.toContain('hybridStrategy');
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
     it('should return null when file does not exist', () => {
       const result = loadUserConfig(auditariaDir);
       expect(result).toBeNull();
@@ -433,7 +486,8 @@ describe('user-config', () => {
 
       expect(sample.$version).toBe(USER_CONFIG_VERSION);
       expect(sample.config).toBeDefined();
-      expect(sample.backendOptions).toBeDefined();
+      expect(sample.config?.search?.defaultStrategy).toBe('hybrid');
+      expect(sample.config?.indexing?.prepareWorkers).toBeUndefined();
     });
 
     it('should be saveable and loadable', () => {

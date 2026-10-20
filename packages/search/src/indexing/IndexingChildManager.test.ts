@@ -64,7 +64,7 @@ function createTestConfig(): DeepPartial<SearchSystemConfig> {
   return {
     database: {
       path: '.auditaria/knowledge-base.db',
-      inMemory: true,
+      inMemory: false,
       backupEnabled: false,
     },
     indexing: {
@@ -127,7 +127,6 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       const customConfig: Partial<ChildManagerConfig> = {
         batchSize: 100,
-        memoryThresholdMb: 2000,
         startupTimeoutMs: 60000,
         batchTimeoutMs: 1800000,
       };
@@ -466,6 +465,24 @@ describe('IndexingChildManager with files', () => {
 
     // Should have received progress events
     expect(progressEvents.length).toBeGreaterThanOrEqual(1);
+  }, 180000);
+
+  it('resumes persisted batches without requeueing terminal failures', async () => {
+    testDir = await createTestDirectory(3);
+    await writeFile(join(testDir, 'file0.txt'), Buffer.alloc(64, 0));
+    manager = new IndexingChildManager(
+      testDir,
+      join(testDir, '.auditaria/knowledge-base.db'),
+      createTestConfig(),
+      {
+        batchSize: 1,
+        startupTimeoutMs: 120000,
+      },
+    );
+    const result = await manager.indexAll({ force: true });
+    expect(result.indexed).toBe(2);
+    expect(result.failed).toBe(1);
+    expect(manager.getStatus().batchNumber).toBe(3);
   }, 180000);
 
   it('should handle force reindex option', async () => {

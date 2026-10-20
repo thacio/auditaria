@@ -496,7 +496,9 @@ export class PGliteStorage implements StorageAdapter {
    * This is a helper method used by both initialize() and reconnect().
    */
   private async createPGliteInstance(): Promise<SearchDatabase> {
-    return openSearchDatabase(this.config.inMemory ? undefined : this.config.path);
+    return openSearchDatabase(
+      this.config.inMemory ? undefined : this.config.path,
+    );
   }
 
   async initialize(): Promise<void> {
@@ -822,30 +824,8 @@ export class PGliteStorage implements StorageAdapter {
         log.warn('close:backup_failed', { error: String(error) });
       }
 
-      // Close the database with timeout and defensive error handling
-      // PGlite/WASM can sometimes hang or throw unusual values during shutdown
-      const CLOSE_TIMEOUT_MS = 5000; // 5 second timeout
-      try {
-        await Promise.race([
-          this.db.close(),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error('PGlite close() timed out')),
-              CLOSE_TIMEOUT_MS,
-            ),
-          ),
-        ]);
-      } catch (error) {
-        // Handle unusual error types (like Infinity from WASM) or timeout
-        const errorMsg =
-          error instanceof Error
-            ? error.message
-            : typeof error === 'number'
-              ? `WASM numeric error: ${error}`
-              : String(error);
-        log.warn('close:db_close_error', { error: errorMsg });
-        // Don't rethrow - we still want to clean up state
-      }
+      // Do not transfer ownership until the connection is actually closed.
+      await this.db.close();
 
       this.db = null;
       this._initialized = false;
@@ -878,37 +858,7 @@ export class PGliteStorage implements StorageAdapter {
     log.info('suspend:starting', {});
     log.logMemory('suspend:memoryBefore');
 
-    // Create backup before suspending
-    try {
-      await this.createBackup();
-    } catch (error) {
-      log.warn('suspend:backup_failed', { error: String(error) });
-    }
-
-    // Close the database
-    const CLOSE_TIMEOUT_MS = 5000;
-    try {
-      await Promise.race([
-        this.db.close(),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error('PGlite close() timed out')),
-            CLOSE_TIMEOUT_MS,
-          ),
-        ),
-      ]);
-    } catch (error) {
-      const errorMsg =
-        error instanceof Error
-          ? error.message
-          : typeof error === 'number'
-            ? `WASM numeric error: ${error}`
-            : String(error);
-      log.warn('suspend:db_close_error', { error: errorMsg });
-    }
-
-    this.db = null;
-    this._initialized = false;
+    await this.close();
     this._suspended = true;
 
     log.info('suspend:complete', {});
@@ -1765,6 +1715,53 @@ export class PGliteStorage implements StorageAdapter {
     return createdChunks;
   }
 
+  async replaceChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+    embeddings: number[][],
+  ): Promise<void> {
+    await this.waitForReady();
+    this.ensureWritable();
+    if (
+      chunks.length !== embeddings.length ||
+      embeddings.some(
+        (vector) =>
+          vector.length !== this.embeddingDimensions ||
+          !vector.every(Number.isFinite),
+      )
+    ) {
+      throw new Error('Invalid chunk vectors');
+    }
+    await this.db!.transaction(async (tx) => {
+      await tx.query('DELETE FROM chunks WHERE document_id = $1', [documentId]);
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const id = generateId();
+        await tx.query(
+          `INSERT INTO chunks (
+          id, document_id, chunk_index, text, start_offset, end_offset,
+          page, section, token_count, created_at, embedding
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [
+            id,
+            documentId,
+            chunk.chunkIndex,
+            chunk.text,
+            chunk.startOffset,
+            chunk.endOffset,
+            chunk.page ?? null,
+            chunk.section ?? null,
+            chunk.tokenCount ?? null,
+            new Date().toISOString(),
+            formatVector(embeddings[i]),
+          ],
+        );
+        await tx.query(UPDATE_FTS_VECTOR_SQL, [id]);
+      }
+    });
+    this._dirty = true;
+  }
+
   async getChunks(documentId: string): Promise<DocumentChunk[]> {
     await this.waitForReady();
 
@@ -2240,9 +2237,7 @@ export class PGliteStorage implements StorageAdapter {
     const id = generateId();
     const now = new Date().toISOString();
     const deferReason =
-      input.priority === 'deferred'
-        ? (input.deferReason ?? 'unknown')
-        : null;
+      input.priority === 'deferred' ? (input.deferReason ?? 'unknown') : null;
     const deferredReasonError = encodeDeferReasonInLastError(deferReason);
 
     await this.db!.query(
@@ -2340,18 +2335,22 @@ export class PGliteStorage implements StorageAdapter {
       id,
       filePath: input.filePath,
       fileSize: input.fileSize ?? 0,
-      priority: (input.priority ?? 'markup'),
+      priority: input.priority ?? 'markup',
       status: 'pending' as const,
       attempts: 0,
       lastError: null,
       deferReason:
-        input.priority === 'deferred'
-          ? (input.deferReason ?? 'unknown')
-          : null,
+        input.priority === 'deferred' ? (input.deferReason ?? 'unknown') : null,
       createdAt: nowDate,
       startedAt: null,
       completedAt: null,
     }));
+  }
+
+  async resetProcessingQueueItems(): Promise<void> {
+    await this.execute(
+      "UPDATE index_queue SET status = 'pending', started_at = NULL WHERE status = 'processing'",
+    );
   }
 
   async dequeueItem(): Promise<QueueItem | null> {

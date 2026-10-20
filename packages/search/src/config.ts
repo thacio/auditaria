@@ -117,10 +117,6 @@ export interface IndexingConfig {
   fileTypes: string[];
   /** Skip files larger than this (in bytes). Default: 50MB */
   maxFileSize: number;
-  /** Enable OCR processing. Default: true */
-  ocrEnabled: boolean;
-  /** OCR processing priority. Default: 'low' */
-  ocrPriority: 'high' | 'low' | 'skip';
   /** Respect .gitignore file. Default: true */
   respectGitignore: boolean;
   /** Number of data preparation workers (parse/chunk). Default: 2 */
@@ -140,11 +136,6 @@ export interface IndexingConfig {
    * Lower values = more frequent memory release but more overhead.
    */
   childProcessBatchSize: number;
-  /**
-   * Memory threshold (MB) for early child respawn. Default: 3000
-   * If child memory exceeds this, it will exit early to release memory.
-   */
-  childProcessMemoryThresholdMb: number;
 
   // Supervisor options for automatic restarts
   /**
@@ -169,16 +160,10 @@ export interface IndexingConfig {
 }
 
 export interface ChunkingConfig {
-  /** Chunking strategy. Default: 'recursive' */
-  strategy: 'recursive' | 'semantic' | 'fixed';
   /** Maximum chunk size in characters. Default: 1000 */
   maxChunkSize: number;
   /** Overlap between chunks in characters. Default: 200 */
   chunkOverlap: number;
-  /** Preserve sentence boundaries. Default: true */
-  preserveSentences: boolean;
-  /** Preserve paragraph boundaries. Default: true */
-  preserveParagraphs: boolean;
 }
 
 export interface EmbeddingsConfig {
@@ -192,10 +177,6 @@ export interface EmbeddingsConfig {
   batchSize: number;
   /** Embedding dimensions (must match model). Default: 384 */
   dimensions: number;
-  /** Prefix for query embeddings (E5 models need this). Default: 'query: ' */
-  queryPrefix: string;
-  /** Prefix for document embeddings. Default: 'passage: ' */
-  documentPrefix: string;
   /**
    * Use worker thread for embeddings. Default: true
    * When enabled, ML inference runs in a separate thread, keeping the CLI responsive.
@@ -277,12 +258,6 @@ export interface SearchConfig {
   keywordWeight: number;
   /** RRF constant k. Default: 60 */
   rrfK: number;
-  /**
-   * Hybrid search implementation strategy. Default: 'application'
-   * - 'application': Run semantic/keyword in parallel, merge with RRF in code
-   * - 'sql': Use SQL temp tables to compute RRF (PostgreSQL CTE-style)
-   */
-  hybridStrategy: HybridSearchStrategy;
 }
 
 /**
@@ -465,15 +440,12 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
     '.webp',
   ],
   maxFileSize: 100 * 1024 * 1024, // 50MB
-  ocrEnabled: true,
-  ocrPriority: 'low',
   respectGitignore: true,
   prepareWorkers: 2,
   preparedBufferSize: 1,
   // Child process options
   useChildProcess: false,
   childProcessBatchSize: 500,
-  childProcessMemoryThresholdMb: 3000,
   // Supervisor options
   supervisorStrategy: 'none', // in-process (recommended), child-process, none
   supervisorRestartThreshold: 0,
@@ -481,19 +453,14 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
 };
 
 export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
-  strategy: 'recursive',
   maxChunkSize: 1000,
   chunkOverlap: 200,
-  preserveSentences: true,
-  preserveParagraphs: true,
 };
 
 export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   model: 'Xenova/multilingual-e5-small', // 'Xenova/multilingual-e5-small', 'Xenova/multilingual-e5-base', 'Xenova/multilingual-e5-large'
   batchSize: 2, // Power of 2, conservative for memory
   dimensions: 384, // 384, 768, 1024
-  queryPrefix: 'query: ',
-  documentPrefix: 'passage: ',
   useWorkerThread: true,
   device: 'cpu', // CPU is faster than GPU for small models (see benchmarks)
   quantization: 'q8', // Q8 is 2.2x faster than FP16 with identical quality
@@ -509,7 +476,6 @@ export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
   semanticWeight: 0.5,
   keywordWeight: 0.5,
   rrfK: 60,
-  hybridStrategy: 'application', // Application-level RRF fusion is the default
 };
 
 export const DEFAULT_OCR_CONFIG: OcrConfig = {
@@ -666,6 +632,29 @@ export type DeepPartial<T> = {
  * Throws an error if configuration is invalid.
  */
 export function validateConfig(config: SearchSystemConfig): void {
+  for (const [section, values] of Object.entries(config)) {
+    for (const [key, value] of Object.entries(values)) {
+      if (typeof value === 'number' && !Number.isFinite(value)) {
+        throw new Error(`${section}.${key} must be finite`);
+      }
+    }
+  }
+  for (const [key, value] of Object.entries({
+    prepareWorkers: config.indexing.prepareWorkers,
+    preparedBufferSize: config.indexing.preparedBufferSize,
+    childProcessBatchSize: config.indexing.childProcessBatchSize,
+    batchSize: config.embeddings.batchSize,
+    dimensions: config.embeddings.dimensions,
+    defaultLimit: config.search.defaultLimit,
+    ocrConcurrency: config.ocr.concurrency,
+  })) {
+    if (!Number.isSafeInteger(value) || value < 1)
+      throw new Error(`${key} must be positive and an integer`);
+  }
+  if (config.search.semanticWeight + config.search.keywordWeight <= 0) {
+    throw new Error('Search weights must have a positive sum');
+  }
+
   // Validate database config
   if (!config.database.path && !config.database.inMemory) {
     throw new Error('Database path is required when not using in-memory mode');
@@ -739,12 +728,6 @@ export function validateConfig(config: SearchSystemConfig): void {
   }
   if (config.search.rrfK <= 0) {
     throw new Error('rrfK must be positive');
-  }
-  const validHybridStrategies: HybridSearchStrategy[] = ['application', 'sql'];
-  if (!validHybridStrategies.includes(config.search.hybridStrategy)) {
-    throw new Error(
-      `search.hybridStrategy must be one of: ${validHybridStrategies.join(', ')}`,
-    );
   }
 
   // Validate OCR config

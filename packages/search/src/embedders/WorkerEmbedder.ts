@@ -454,8 +454,9 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
         });
 
         // Handle worker exit
-        this.worker.on('exit', (code) => {
-          if (code !== 0) {
+        const worker = this.worker;
+        worker.on('exit', (code) => {
+          if (code !== 0 && this.worker === worker) {
             this.handleWorkerError(
               new Error(`Worker exited with code ${code}`),
             );
@@ -483,9 +484,10 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     this.pendingRequests.clear();
 
     // Terminate worker
-    await this.worker.terminate();
+    const worker = this.worker;
     this.worker = null;
     this.ready = false;
+    await worker.terminate();
   }
 
   /**

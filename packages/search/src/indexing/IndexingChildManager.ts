@@ -27,6 +27,7 @@ import { fork } from 'node:child_process';
 import type { Interface } from 'node:readline';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { EventEmitter } from '../core/EventEmitter.js';
 import { createModuleLogger } from '../core/Logger.js';
@@ -47,8 +48,6 @@ const log = createModuleLogger('IndexingChildManager');
 export interface ChildManagerConfig {
   /** Documents to process before child respawns. Default: 500 */
   batchSize: number;
-  /** Memory threshold (MB) for early respawn. Default: 3000 */
-  memoryThresholdMb: number;
   /** Startup timeout (ms). Default: 120000 (2 min) */
   startupTimeoutMs: number;
   /** Batch processing timeout (ms). Default: 3600000 (1 hour) */
@@ -57,7 +56,6 @@ export interface ChildManagerConfig {
 
 const DEFAULT_CONFIG: ChildManagerConfig = {
   batchSize: 500,
-  memoryThresholdMb: 3000,
   startupTimeoutMs: 120000,
   batchTimeoutMs: 3600000,
 };
@@ -132,8 +130,12 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
       throw new Error('Indexing already in progress');
     }
 
+    if (this.searchConfig.database?.inMemory) {
+      throw new Error('Child indexing requires a persistent database');
+    }
     this.isRunning = true;
     this.abortRequested = false;
+    this.batchNumber = 0;
     const startTime = Date.now();
     let totalIndexed = 0;
     let totalFailed = 0;
@@ -203,21 +205,16 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
       // Send shutdown command
       this.send({ type: 'shutdown', id: crypto.randomUUID() });
 
-      // Wait for child to exit with timeout
-      await Promise.race([
-        new Promise<void>((resolve) => {
-          this.child?.once('exit', () => resolve());
-        }),
-        new Promise<void>((resolve) => {
-          setTimeout(() => {
-            if (this.child) {
-              log.warn('stop:forceKill', { pid: this.child.pid });
-              this.child.kill('SIGKILL');
-            }
+      const child = this.child;
+      if (child.exitCode === null && child.signalCode === null) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
+          child.once('exit', () => {
+            clearTimeout(timer);
             resolve();
-          }, 5000);
-        }),
-      ]);
+          });
+        });
+      }
 
       this.cleanup();
     }
@@ -251,7 +248,18 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
     return new Promise((resolve, reject) => {
       // Get path to worker script
       const currentDir = dirname(fileURLToPath(import.meta.url));
-      const workerPath = join(currentDir, 'indexing-child-worker.js');
+      const adjacentWorker = join(currentDir, 'indexing-child-worker.js');
+      const workerPath = existsSync(adjacentWorker)
+        ? adjacentWorker
+        : join(
+            currentDir,
+            '..',
+            '..',
+            'dist',
+            'src',
+            'indexing',
+            'indexing-child-worker.js',
+          );
 
       log.debug('runBatch:spawning', {
         workerPath,
@@ -266,7 +274,8 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
         // No NODE_OPTIONS needed - child uses default heap
       });
 
-      const pid = this.child.pid!;
+      const child = this.child;
+      const pid = child.pid!;
       void this.emit('child:spawned', { pid, batchNumber: this.batchNumber });
 
       log.info('runBatch:spawned', {
@@ -331,8 +340,16 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
         if (!isResolved) {
           isResolved = true;
           cleanup();
-          this.cleanup();
-          reject(error);
+          if (child.exitCode === null && child.signalCode === null) {
+            child.once('exit', () => {
+              this.cleanup();
+              reject(error);
+            });
+            child.kill('SIGKILL');
+          } else {
+            this.cleanup();
+            reject(error);
+          }
         }
       };
 
@@ -343,7 +360,7 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
             `Child process startup timeout after ${this.config.startupTimeoutMs}ms`,
           ),
         );
-        this.child?.kill('SIGKILL');
+        child.kill('SIGKILL');
       }, this.config.startupTimeoutMs);
 
       // Handle messages from child
@@ -365,7 +382,7 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
                     `Batch processing timeout after ${this.config.batchTimeoutMs}ms`,
                   ),
                 );
-                this.child?.kill('SIGKILL');
+                child.kill('SIGKILL');
               }, this.config.batchTimeoutMs);
 
               // Send indexing command
@@ -377,6 +394,7 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
                 config: this.searchConfig,
                 options: {
                   force: options.force,
+                  resume: this.batchNumber > 1,
                   maxDocuments: this.config.batchSize,
                 },
               };

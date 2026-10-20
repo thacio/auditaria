@@ -468,14 +468,16 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
         const queueItem = await storage.getQueueItemByPath('file0.txt');
         expect(queueItem).not.toBeNull();
         expect(queueItem?.status).toBe('failed');
-        expect(queueItem?.lastError).toContain('Deferred parse retry timed out');
+        expect(queueItem?.lastError).toContain(
+          'Deferred parse retry timed out',
+        );
 
         const doc = await storage.getDocumentByPath('file0.txt');
         expect(doc).not.toBeNull();
         expect(doc?.status).toBe('failed');
-        expect(
-          (doc?.metadata as { lastError?: string }).lastError,
-        ).toContain('Deferred parse retry timed out');
+        expect((doc?.metadata as { lastError?: string }).lastError).toContain(
+          'Deferred parse retry timed out',
+        );
 
         expect(failedEvents).toHaveLength(1);
         expect(failedEvents[0].filePath).toBe('file0.txt');
@@ -525,9 +527,6 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
 
         await pipeline.syncAndQueue();
         pipeline.start();
-
-        // Let some processing happen
-        await new Promise((resolve) => setTimeout(resolve, 50));
 
         // Pause
         pipeline.pause();

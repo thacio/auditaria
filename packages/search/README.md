@@ -80,38 +80,17 @@ releases ALL its memory, including WASM heaps.
 **Note:** This is different from SearchSystemSupervisor - child process indexing
 spawns workers per batch, while the supervisor restarts the entire SearchSystem.
 
-```
-Main Process (CLI)                              Child Process (respawns)
-┌──────────────────────────────────┐            ┌──────────────────────────────┐
-│ SearchSystem                     │            │ Full Indexing Stack:         │
-│  ├─ SearchEngine (search)        │   JSONL   │  ├─ Storage (write)          │
-│  ├─ Storage (read-only)         │◄─────────►│  ├─ IndexingPipeline         │
-│  └─ IndexingChildManager ───────┼───stdin───►│  ├─ Embedder (ONNX/WASM)     │
-│                                  │◄──stdout──┤  └─ Parsers/Chunkers         │
-└──────────────────────────────────┘            └──────────────────────────────┘
-                                                         │
-                                                         ▼
-                                                 Exits after batch
-                                                 → ALL memory freed!
-                                                         │
-                                                         ▼
-                                                ┌──────────────────────────────┐
-                                                │ New Child (fresh memory)     │
-                                                │  ...continues indexing       │
-                                                └──────────────────────────────┘
-```
+Each worker uses the same `IndexingPipeline` as in-process indexing:
 
-**How it works (when enabled):**
+1. The first worker discovers files and persists the queue.
+2. Each worker processes a bounded batch and reports progress over JSONL.
+3. The parent waits for the worker to exit before starting another worker.
+4. Subsequent workers resume the queue without rediscovering failed files.
 
-1. Main process spawns a child for each batch (default: 500 documents)
-2. Child runs the full indexing stack (Storage, Embedder, Pipeline)
-3. Child reports progress to main process via JSONL over stdin/stdout
-4. When batch completes, child exits and OS releases all memory
-5. If more documents remain, main process spawns a new child
-6. Main process remains in read-only mode during indexing (can still search)
-
-**Memory improvement:** With child process indexing, memory stays bounded at
-~7GB regardless of corpus size. Without it, 10k documents could consume 17GB+.
+Child indexing requires persistent storage. With PGlite and LanceDB, the parent
+closes its connection before starting a worker and reopens it after indexing.
+Search requests during that transfer return an unavailable error and can be
+retried after indexing completes. The SQLite backends retain a read connection.
 
 **Configuration:** Child process indexing is disabled by default
 (`useChildProcess: false`). Enable via indexing config when WASM memory
@@ -152,8 +131,11 @@ SearchSystemSupervisor (optional)
 - `supervisorMemoryThresholdMb`: Memory threshold for early restart (default:
   4000 MB)
 
-**Note:** The supervisor is disabled by default (`restartThreshold: 0`). Enable
-it for large indexing jobs where memory bloat is a concern.
+Automatic restarts are disabled when `restartThreshold` is zero or storage is in
+memory. When enabled, the supervisor completes a bounded batch before
+restarting, resumes the persisted queue, and returns aggregate counts only when
+the requested work finishes. It owns process lifetime, so its normal indexing
+path does not spawn an additional layer of batch workers.
 
 ## Quick Start
 
@@ -170,13 +152,14 @@ const search = await SearchSystem.initialize({
 await search.indexAll();
 
 // Search
-const results = await search.search('your query', {
+const { results } = await search.search({
+  query: 'your query',
   strategy: 'hybrid', // 'keyword' | 'semantic' | 'hybrid'
   limit: 10,
 });
 
 // Cleanup
-await search.dispose();
+await search.close();
 ```
 
 ---
@@ -209,20 +192,41 @@ multiple sources with the following priority (highest to lowest):
 
 ### Example Configuration File
 
+Most projects only need to choose which files to include, how to search, and
+whether to enable OCR. The generated sample contains these settings. Existing
+backend, model, and performance options remain supported for advanced use.
+
+The project's config now keeps nine preferences: database backend, embedding
+model, include/ignore patterns, parsing concurrency, search strategy and limit,
+and OCR enablement and languages. Other effective settings use code defaults.
+Both the slash command and the `knowledge_search` tool honor search defaults
+unless the caller supplies an override.
+
+Legacy files still load, with a warning for these removed, ineffective settings:
+`indexing.ocrEnabled`, `indexing.ocrPriority`,
+`indexing.childProcessMemoryThresholdMb`, `chunking.strategy`,
+`chunking.preserveSentences`, `chunking.preserveParagraphs`,
+`embeddings.queryPrefix`, `embeddings.documentPrefix`, and
+`search.hybridStrategy`. OCR is controlled by `ocr.enabled`; document chunking,
+model prefixes and hybrid fusion are managed automatically.
+`ocr.defaultLanguages` selects languages directly when `autoDetectLanguage` is
+false, or preferred languages within the detected script when it is true.
+`ocr.minConfidence` controls whether recognized text is indexed.
+
 ```json
 {
   "$version": "1.0.0",
   "config": {
-    "database": {
-      "backend": "pglite"
-    },
-    "embeddings": {
-      "model": "Xenova/multilingual-e5-small",
-      "dimensions": 384
+    "indexing": {
+      "ignorePaths": ["**/archive/**"]
     },
     "search": {
       "defaultStrategy": "hybrid",
-      "defaultLimit": 20
+      "defaultLimit": 10
+    },
+    "ocr": {
+      "enabled": true,
+      "defaultLanguages": ["pt", "en"]
     }
   }
 }
@@ -297,7 +301,6 @@ interface SearchSystemConfig {
     prepareWorkers: number; // Parallel parsing workers
     useChildProcess: boolean;
     childProcessBatchSize: number;
-    childProcessMemoryThresholdMb: number;
     // Supervisor options
     supervisorStrategy: 'in-process' | 'child-process' | 'none';
     supervisorRestartThreshold: number; // 0 = disabled
@@ -305,7 +308,6 @@ interface SearchSystemConfig {
   };
 
   chunking: {
-    strategy: 'recursive' | 'fixed';
     maxChunkSize: number;
     chunkOverlap: number;
   };
@@ -325,7 +327,8 @@ interface SearchSystemConfig {
     defaultStrategy: 'hybrid' | 'semantic' | 'keyword';
     semanticWeight: number;
     keywordWeight: number;
-    hybridImplementation: 'application' | 'database';
+    defaultLimit: number;
+    rrfK: number;
   };
 
   vectorIndex: {
@@ -552,35 +555,39 @@ Discovery → Queue → Parser → Chunker → Embedder → Storage
 | 4        | image    | .png, .jpg (require OCR)     |
 | 5        | ocr      | Large scanned PDFs           |
 
-### Producer-Consumer Model
+### Bounded processing
 
-- **Prepare workers** (producers): Parse and chunk files in parallel
-- **Embed loop** (consumer): Generates embeddings and stores results
-- **Backpressure control**: Producers wait if buffer is full
+Queued indexing, direct file indexing, and reindexing share one preparation and
+embedding path. Each batch owns its queue claims until they are completed,
+failed, or returned to pending during shutdown.
 
-### Memory Management
+- Preparation runs in parallel up to the smaller of `prepareWorkers` and
+  `preparedBufferSize`. Embedding and publication run serially.
+- New passages and vectors are prepared before replacing published content. SQL
+  backends replace chunks in a transaction; LanceDB uses a single table merge. A
+  parsing or inference failure keeps the last indexed version and tags.
+- Streaming embedding responses are validated for count, ordering, dimensions,
+  and finite values before publication.
+- The pipeline checks the file hash again before publication. Files changed
+  during inference are retried instead of publishing mismatched content.
+- Queue claims count each attempt once. Transient errors retry up to the
+  configured limit; missing, oversized, invalid, or timed-out files fail without
+  endless retries. Startup recovers claims left processing after an interrupted
+  session.
 
-The indexing system uses multiple strategies to manage memory:
+### Memory and shutdown
 
-**Primary: Child Process Isolation** (see Architecture Overview)
+The scheduler retains only one bounded batch. Streaming inference limits model
+batch size, while all vectors for a document are retained until publication so
+an inference failure cannot erase its old passages.
 
-- Indexing runs in child processes that exit after each batch
-- OS completely releases all WASM memory when child exits
-- Main process stays lean and can continue serving search queries
-- This is the most effective strategy for large corpus indexing
+Checkpoints and backup hooks run between batches every 200 successful documents
+and at the end of a run. Maintenance does not reconnect storage underneath
+active work. Optional process isolation remains available for model/native
+memory that cannot be reclaimed within a process.
 
-**Secondary: In-Process Optimizations**
-
-When running in-process (for debugging or when `useChildProcess: false`):
-
-- **Streaming embeddings**: Embedders yield batches via async generators instead
-  of accumulating all embeddings in memory
-- **Progressive clearing**: Chunk texts are cleared from memory immediately
-  after embedding
-- **Periodic reconnects**: Storage reconnects every 500 files to attempt memory
-  recovery (limited effectiveness due to WASM limitations)
-- **Checkpoints**: Flush WAL every 50 files for durability
-- **Event loop yielding**: Prevents blocking during long operations
+`stop()` waits for the active batch and returns unfinished claims to the queue.
+`waitForIdle()` includes persistence and propagates infrastructure failures.
 
 ---
 
@@ -759,7 +766,11 @@ const filters = new FilterBuilder()
   .dateFrom(new Date('2024-01-01'))
   .build();
 
-const results = await search.search('query', { filters });
+const { results } = await search.search({
+  query: 'query',
+  strategy: 'hybrid',
+  filters,
+});
 ```
 
 ### Available Filters
@@ -875,16 +886,24 @@ The storage layer provides automatic backup and crash recovery. See
 `SearchSystem.close()` ensures data integrity on exit:
 
 - Sets `closing` flag so ongoing operations exit at next checkpoint
-- Timeout protection per cleanup step (10s each, 5s for PGlite)
-- Creates backup before closing (skipped if shutdown interrupted indexing)
+- Joins indexing, OCR, and active API operations before releasing storage
+- Disposes each shared model once; concurrent close calls share one promise
+- Waits for PGlite to close before transferring database ownership
+- Reports resource cleanup failures to the caller
 
 ---
 
 ## File Discovery & Sync (`src/discovery/`, `src/sync/`)
 
-> **Note**: Real-time file watching (FileWatcher) was removed to prevent
-> database corruption issues. Use `StartupSync` or manual `syncAndQueue()` calls
-> instead.
+`SearchSystem.sync()` and `indexAll()` use the pipeline's shared change
+detector. The exported `StartupSync` utility uses the same comparison rules.
+File hashes are streaming SHA-256 content hashes, so edits are detected even if
+file size and modification time are unchanged. Existing indexes using older
+hashes are reindexed once on the next sync; no database reset is required.
+
+The optional `FileWatcher` serializes change flushes, preserves published
+content while queuing replacements, and waits for active queue claims before
+changing those rows. It is not automatically enabled by `SearchSystem`.
 
 ### FileDiscovery
 
@@ -1168,18 +1187,25 @@ class SearchSystem {
   // Factory methods
   static initialize(options: InitOptions): Promise<SearchSystem>;
   static load(rootPath: string): Promise<SearchSystem>;
-  static exists(rootPath: string): Promise<boolean>;
+  static exists(rootPath: string): boolean;
 
   // Indexing
-  indexAll(): Promise<void>;
-  indexFile(path: string): Promise<void>;
-  syncAndQueue(): Promise<SyncResult>;
+  indexAll(options?: {
+    force?: boolean;
+    useChildProcess?: boolean;
+    maxDocuments?: number;
+  }): Promise<{ indexed: number; failed: number; duration: number }>;
+  indexFile(path: string): Promise<boolean>;
+  processQueue(options?: {
+    maxDocuments?: number;
+  }): Promise<{ indexed: number; failed: number; duration: number }>;
+  sync(options?: { dryRun?: boolean }): Promise<SyncResult>;
 
   // Search
-  search(query: string, options?: SearchOptions): Promise<SearchResult[]>;
+  search(options: SearchOptions): Promise<SearchResponse>;
 
   // Management
-  getStats(): Promise<Stats>;
+  getStats(): Promise<SearchStats>;
   close(): Promise<void>; // Graceful shutdown with backup
 }
 ```
@@ -1240,8 +1266,7 @@ interface SearchResult {
 6. **Adjust `prepareWorkers`** for parallel parsing on multi-core systems
 7. **Use hybrid search** for best results (combines keyword precision + semantic
    understanding)
-8. **LibSQL backend** provides crash-safe vectors with good
-   performance
+8. **LibSQL backend** provides crash-safe vectors with good performance
 
 ---
 

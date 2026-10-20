@@ -5,6 +5,8 @@
  */
 
 import { resolve, relative, extname } from 'node:path';
+import { createIgnore } from '../discovery/ignore.js';
+import { AsyncMutex } from '../core/AsyncMutex.js';
 import { stat } from 'node:fs/promises';
 import { EventEmitter } from '../core/EventEmitter.js';
 import type { StorageAdapter } from '../storage/types.js';
@@ -93,6 +95,9 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
   private pendingChanges: Map<string, FileChangeEvent> = new Map();
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private isReady: boolean = false;
+  private readonly lifecycle = new AsyncMutex();
+  private readonly changes = new AsyncMutex();
+  private stopping = false;
 
   constructor(
     rootPath: string,
@@ -119,7 +124,12 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
   /**
    * Start watching files.
    */
-  async start(): Promise<void> {
+  start(): Promise<void> {
+    return this.lifecycle.run(() => this.startWatching());
+  }
+
+  private async startWatching(): Promise<void> {
+    this.stopping = false;
     if (!this.config.enabled) {
       return;
     }
@@ -132,8 +142,15 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
       // Dynamic import chokidar (optional dependency)
       const chokidar = await import('chokidar');
 
+      const ignored = createIgnore().add(this.config.ignorePaths);
       this.watcher = chokidar.watch(this.rootPath, {
-        ignored: this.config.ignorePaths,
+        ignored: (path, stats) => {
+          const rel = normalizeSeparators(relative(this.rootPath, path));
+          return (
+            rel !== '' &&
+            ignored.ignores(rel + (stats?.isDirectory() ? '/' : ''))
+          );
+        },
         persistent: true,
         ignoreInitial: true, // Don't emit events for existing files
         followSymlinks: false,
@@ -174,19 +191,18 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
   /**
    * Stop watching files.
    */
-  async stop(): Promise<void> {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
+  stop(): Promise<void> {
+    this.stopping = true;
+    return this.lifecycle.run(async () => {
+      this.stopping = true;
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
-    }
-
-    if (this.watcher) {
-      await this.watcher.close();
+      await this.watcher?.close();
       this.watcher = null;
-    }
-
-    this.isReady = false;
-    this.pendingChanges.clear();
+      this.isReady = false;
+      await this.flush();
+      this.pendingChanges.clear();
+    });
   }
 
   /**
@@ -203,6 +219,7 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
     type: 'add' | 'change' | 'unlink',
     absolutePath: string,
   ): void {
+    if (this.stopping) return;
     // Check file type
     const ext = extname(absolutePath).toLowerCase();
     if (!this.allowedFileTypes.has(ext)) {
@@ -247,19 +264,30 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
    * Schedule debounced flush of pending changes.
    */
   private scheduleFlush(): void {
+    if (this.stopping) return;
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
 
     this.debounceTimer = setTimeout(() => {
-      void this.flush();
+      this.debounceTimer = null;
+      void this.flush().catch((error: unknown) =>
+        this.emit(
+          'error',
+          error instanceof Error ? error : new Error(String(error)),
+        ),
+      );
     }, this.config.debounceMs);
   }
 
   /**
    * Flush pending changes to database.
    */
-  private async flush(): Promise<void> {
+  private flush(): Promise<void> {
+    return this.changes.run(() => this.flushChanges());
+  }
+
+  private async flushChanges(): Promise<void> {
     const changes = new Map(this.pendingChanges);
     this.pendingChanges.clear();
 
@@ -267,6 +295,14 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
 
     for (const [absolutePath, event] of changes) {
       try {
+        // Let the owner finish its claim before changing/deleting its queue row.
+        const queued = await this.storage.getQueueItemByPath(event.filePath);
+        if (queued?.status === 'processing') {
+          if (!this.pendingChanges.has(absolutePath))
+            this.pendingChanges.set(absolutePath, event);
+          this.scheduleFlush();
+          continue;
+        }
         switch (event.type) {
           case 'add':
           case 'change':
@@ -317,24 +353,11 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
       return; // File doesn't exist anymore
     }
 
-    // Check if document already exists (using relative path for DB)
-    const existingDoc = await this.storage.getDocumentByPath(relativePath);
-
-    if (existingDoc) {
-      // Delete existing chunks and mark for re-indexing
-      await this.storage.deleteChunks(existingDoc.id);
-      await this.storage.updateDocument(existingDoc.id, { status: 'pending' });
-    }
-
-    // Queue for indexing (using relative path for DB)
-    const existingQueueItem =
-      await this.storage.getQueueItemByPath(relativePath);
-    if (!existingQueueItem) {
-      await this.storage.enqueueItem({
-        filePath: relativePath, // Store relative path in DB
-        priority: 'markup',
-      });
-    }
+    // Preserve published passages until the indexing pipeline has a replacement.
+    await this.storage.enqueueItem({
+      filePath: relativePath,
+      priority: 'markup',
+    });
   }
 
   /**
@@ -344,7 +367,7 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
   private async handleFileDelete(relativePath: string): Promise<void> {
     // Also remove pending queue items to prevent wasteful processing attempts
     const queueItem = await this.storage.getQueueItemByPath(relativePath);
-    if (queueItem && queueItem.status === 'pending') {
+    if (queueItem) {
       await this.storage.deleteQueueItem(queueItem.id);
     }
 

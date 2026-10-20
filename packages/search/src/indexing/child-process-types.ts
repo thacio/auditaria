@@ -41,6 +41,8 @@ export interface StartIndexingMessage {
   options: {
     /** Force re-index all files */
     force?: boolean;
+    /** Resume existing queue without rediscovering failed files. */
+    resume?: boolean;
     /** Maximum documents to process before exiting (for respawn) */
     maxDocuments?: number;
     /** Specific file paths to index (for incremental indexing) */

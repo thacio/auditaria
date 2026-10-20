@@ -7,6 +7,7 @@
 import type { StorageAdapter } from '../storage/types.js';
 import type { FileDiscovery } from '../discovery/FileDiscovery.js';
 import type { SyncResult, SyncOptions } from './types.js';
+import { detectChanges } from './changes.js';
 import { EventEmitter } from '../core/EventEmitter.js';
 
 // ============================================================================
@@ -62,46 +63,21 @@ export class StartupSync extends EventEmitter<StartupSyncEvents> {
     // 2. Get stored file hashes from database (keyed by relativePath)
     const storedHashes = await this.storage.getFileHashes();
 
-    // 3. Compare and categorize
-    const added: string[] = [];
-    const modified: string[] = [];
-    const deleted: string[] = [];
-    let unchanged = 0;
-
-    // Find added and modified files (using relativePath for comparison)
-    let checked = 0;
-    for (const [filePath, file] of currentMap) {
-      checked++;
-
-      if (checked % 100 === 0) {
-        void this.emit('sync:progress', {
-          checked,
-          total: currentFiles.length,
-        });
-      }
-
-      const storedHash = storedHashes.get(filePath);
-
-      if (!storedHash) {
-        // New file
-        added.push(filePath);
-        void this.emit('sync:file:added', { filePath });
-      } else if (storedHash !== file.hash) {
-        // Modified file
-        modified.push(filePath);
-        void this.emit('sync:file:modified', { filePath });
-      } else {
-        unchanged++;
-      }
-    }
-
-    // Find deleted files
-    for (const [filePath] of storedHashes) {
-      if (!currentMap.has(filePath)) {
-        deleted.push(filePath);
-        void this.emit('sync:file:deleted', { filePath });
-      }
-    }
+    const { added, modified, deleted } = detectChanges(
+      currentFiles,
+      storedHashes,
+    );
+    const unchanged = currentMap.size - added.length - modified.length;
+    for (const filePath of added)
+      void this.emit('sync:file:added', { filePath });
+    for (const filePath of modified)
+      void this.emit('sync:file:modified', { filePath });
+    for (const filePath of deleted)
+      void this.emit('sync:file:deleted', { filePath });
+    void this.emit('sync:progress', {
+      checked: currentFiles.length,
+      total: currentFiles.length,
+    });
 
     // 4. Apply changes (unless dry run)
     if (!options.dryRun) {
@@ -144,16 +120,6 @@ export class StartupSync extends EventEmitter<StartupSyncEvents> {
 
     // Handle modified files
     if (modified.length > 0) {
-      for (const filePath of modified) {
-        const doc = await this.storage.getDocumentByPath(filePath);
-        if (doc) {
-          // Delete existing chunks
-          await this.storage.deleteChunks(doc.id);
-          // Update document status
-          await this.storage.updateDocument(doc.id, { status: 'pending' });
-        }
-      }
-
       // Queue modified files for re-indexing
       await this.storage.enqueueItems(
         modified.map((filePath) => ({
@@ -199,18 +165,13 @@ export class StartupSync extends EventEmitter<StartupSyncEvents> {
         return true;
       }
 
-      // Sample check: verify a few random files (using relativePath for comparison)
-      const sampleSize = Math.min(10, currentFiles.length);
-      const sample = currentFiles.slice(0, sampleSize);
-
-      for (const file of sample) {
-        const storedHash = storedHashes.get(file.relativePath);
-        if (!storedHash || storedHash !== file.hash) {
-          return true;
-        }
-      }
-
-      return false;
+      const changes = detectChanges(currentFiles, storedHashes);
+      return (
+        changes.added.length +
+          changes.modified.length +
+          changes.deleted.length >
+        0
+      );
     } catch {
       // If we can't check, assume sync is needed
       return true;

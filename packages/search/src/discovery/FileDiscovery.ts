@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { hashFile } from './file-hash.js';
 import { readFile, stat } from 'node:fs/promises';
 import { join, relative, basename, extname, resolve } from 'node:path';
 import fg from 'fast-glob';
@@ -16,25 +17,8 @@ import fg from 'fast-glob';
 function normalizeSeparators(filePath: string): string {
   return filePath.replace(/\\/g, '/');
 }
-// The 'ignore' module has complex ESM/CJS interop - use dynamic type handling
-import ignoreFactory from 'ignore';
-
-// Define the Ignore interface for type safety
-interface Ignore {
-  add(pattern: string | string[]): Ignore;
-  ignores(path: string): boolean;
-}
-
-// Create a factory function that handles ESM/CJS interop at runtime
-function createIgnore(): Ignore {
-  const factory =
-    (ignoreFactory as unknown as { default?: () => Ignore }).default ||
-    ignoreFactory;
-  if (typeof factory === 'function') {
-    return (factory as () => Ignore)();
-  }
-  throw new Error('ignore module not properly loaded');
-}
+import type { Ignore } from 'ignore';
+import { createIgnore } from './ignore.js';
 import type { DiscoveredFile } from '../types.js';
 
 // ============================================================================
@@ -201,30 +185,10 @@ export class FileDiscovery {
   }
 
   /**
-   * Calculate file hash using xxhash.
+   * Calculate a streaming content hash.
    */
   private async calculateHash(filePath: string): Promise<string> {
-    try {
-      const xxhashModule = (await import('xxhash-wasm')) as unknown as {
-        default?: {
-          xxhash64: () => Promise<{
-            update(data: Buffer): { digest(enc: string): string };
-          }>;
-        };
-        xxhash64?: () => Promise<{
-          update(data: Buffer): { digest(enc: string): string };
-        }>;
-      };
-      const xxhash64 = xxhashModule.default?.xxhash64 || xxhashModule.xxhash64;
-      if (!xxhash64) throw new Error('xxhash64 not available');
-      const content = await readFile(filePath);
-      const hasher = await xxhash64();
-      return hasher.update(content).digest('hex');
-    } catch {
-      // Fallback to file size + modified time as a pseudo-hash
-      const stats = await stat(filePath);
-      return `${stats.size}-${stats.mtimeMs}`;
-    }
+    return hashFile(filePath);
   }
 
   /**

@@ -125,14 +125,35 @@ describe('LanceDB Exploration', () => {
       };
 
       // Create vectors with distinct patterns
-      const mlVector = normalize(new Array(384).fill(0).map((_, i) => (i < 100 ? 0.5 : 0.1)));
-      const cookingVector = normalize(new Array(384).fill(0).map((_, i) => (i >= 100 && i < 200 ? 0.5 : 0.1)));
-      const sportsVector = normalize(new Array(384).fill(0).map((_, i) => (i >= 200 ? 0.5 : 0.1)));
+      const mlVector = normalize(
+        new Array(384).fill(0).map((_, i) => (i < 100 ? 0.5 : 0.1)),
+      );
+      const cookingVector = normalize(
+        new Array(384).fill(0).map((_, i) => (i >= 100 && i < 200 ? 0.5 : 0.1)),
+      );
+      const sportsVector = normalize(
+        new Array(384).fill(0).map((_, i) => (i >= 200 ? 0.5 : 0.1)),
+      );
 
       const data = [
-        { id: '1', text: 'Machine learning is a subset of AI', category: 'tech', vector: mlVector },
-        { id: '2', text: 'Cooking requires fresh ingredients', category: 'food', vector: cookingVector },
-        { id: '3', text: 'Football is a popular sport', category: 'sports', vector: sportsVector },
+        {
+          id: '1',
+          text: 'Machine learning is a subset of AI',
+          category: 'tech',
+          vector: mlVector,
+        },
+        {
+          id: '2',
+          text: 'Cooking requires fresh ingredients',
+          category: 'food',
+          vector: cookingVector,
+        },
+        {
+          id: '3',
+          text: 'Football is a popular sport',
+          category: 'sports',
+          vector: sportsVector,
+        },
       ];
 
       const table = await db.createTable('vector_search', data);
@@ -180,9 +201,27 @@ describe('LanceDB Exploration', () => {
       };
 
       const data = [
-        { id: '1', text: 'Tech doc 1', category: 'tech', status: 'indexed', vector: normalize(new Array(384).fill(0.1)) },
-        { id: '2', text: 'Tech doc 2', category: 'tech', status: 'pending', vector: normalize(new Array(384).fill(0.15)) },
-        { id: '3', text: 'Food doc', category: 'food', status: 'indexed', vector: normalize(new Array(384).fill(0.2)) },
+        {
+          id: '1',
+          text: 'Tech doc 1',
+          category: 'tech',
+          status: 'indexed',
+          vector: normalize(new Array(384).fill(0.1)),
+        },
+        {
+          id: '2',
+          text: 'Tech doc 2',
+          category: 'tech',
+          status: 'pending',
+          vector: normalize(new Array(384).fill(0.15)),
+        },
+        {
+          id: '3',
+          text: 'Food doc',
+          category: 'food',
+          status: 'indexed',
+          vector: normalize(new Array(384).fill(0.2)),
+        },
       ];
 
       const table = await db.createTable('filter_test', data);
@@ -216,40 +255,46 @@ describe('LanceDB Exploration', () => {
       db = await lancedb.connect(tempDir);
 
       const data = [
-        { id: '1', text: 'Machine learning algorithms are powerful', vector: new Array(384).fill(0.1) },
-        { id: '2', text: 'Neural networks can learn patterns', vector: new Array(384).fill(0.2) },
-        { id: '3', text: 'Deep learning is a subset of machine learning', vector: new Array(384).fill(0.3) },
+        {
+          id: '1',
+          text: 'Machine learning algorithms are powerful',
+          vector: new Array(384).fill(0.1),
+        },
+        {
+          id: '2',
+          text: 'Neural networks can learn patterns',
+          vector: new Array(384).fill(0.2),
+        },
+        {
+          id: '3',
+          text: 'Deep learning is a subset of machine learning',
+          vector: new Array(384).fill(0.3),
+        },
       ];
 
       const table = await db.createTable('fts_test', data);
 
       // Create FTS index on the text column
-      try {
-        await table.createIndex('text', {
-          config: lancedb.Index.fts(),
-        });
+      await table.createIndex('text', {
+        config: lancedb.Index.fts(),
+      });
 
-        // Perform FTS search
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const results = await (table as any)
-          .search('machine learning', { queryType: 'fts' })
-          .limit(10)
-          .toArray();
+      // Perform FTS search
+      const results = await table
+        .query()
+        .fullTextSearch('machine learning')
+        .limit(10)
+        .toArray();
 
-        expect(results.length).toBeGreaterThan(0);
-        // Results should contain 'machine' or 'learning'
-        expect(
-          results.some(
-            (r: { text: string }) =>
-              r.text.toLowerCase().includes('machine') ||
-              r.text.toLowerCase().includes('learning'),
-          ),
-        ).toBe(true);
-      } catch (error) {
-        // FTS might not be available in all LanceDB versions
-        console.log('FTS index creation failed:', error);
-        // This is expected if FTS is not supported
-      }
+      expect(results.length).toBeGreaterThan(0);
+      // Results should contain 'machine' or 'learning'
+      expect(
+        results.some(
+          (r: { text: string }) =>
+            r.text.toLowerCase().includes('machine') ||
+            r.text.toLowerCase().includes('learning'),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -263,33 +308,40 @@ describe('LanceDB Exploration', () => {
       };
 
       const data = [
-        { id: '1', text: 'Machine learning algorithms for classification', vector: normalize(new Array(384).fill(0.1)) },
-        { id: '2', text: 'Neural network architectures', vector: normalize(new Array(384).fill(0.2)) },
-        { id: '3', text: 'Machine vision and computer vision', vector: normalize(new Array(384).fill(0.3)) },
+        {
+          id: '1',
+          text: 'Machine learning algorithms for classification',
+          vector: normalize(new Array(384).fill(0.1)),
+        },
+        {
+          id: '2',
+          text: 'Neural network architectures',
+          vector: normalize(new Array(384).fill(0.2)),
+        },
+        {
+          id: '3',
+          text: 'Machine vision and computer vision',
+          vector: normalize(new Array(384).fill(0.3)),
+        },
       ];
 
       const table = await db.createTable('hybrid_test', data);
 
-      try {
-        // Create FTS index
-        await table.createIndex('text', {
-          config: lancedb.Index.fts(),
-        });
+      // Create FTS index
+      await table.createIndex('text', {
+        config: lancedb.Index.fts(),
+      });
 
-        // Hybrid search
-        const queryVector = normalize(new Array(384).fill(0.1));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const results = await (table as any)
-          .search('machine', { queryType: 'hybrid' })
-          .vector(queryVector)
-          .limit(10)
-          .toArray();
+      // Hybrid search
+      const queryVector = normalize(new Array(384).fill(0.1));
+      const results = await table
+        .query()
+        .nearestTo(queryVector)
+        .fullTextSearch('machine')
+        .limit(10)
+        .toArray();
 
-        expect(results.length).toBeGreaterThan(0);
-      } catch (error) {
-        // Hybrid search might not be available
-        console.log('Hybrid search failed:', error);
-      }
+      expect(results.length).toBeGreaterThan(0);
     });
   });
 
@@ -367,7 +419,10 @@ describe('LanceDB Exploration', () => {
       const table = await db.createTable('schema_test', data);
 
       // Query and verify schema
-      const results = await table.search(new Array(384).fill(0.1)).limit(1).toArray();
+      const results = await table
+        .search(new Array(384).fill(0.1))
+        .limit(1)
+        .toArray();
 
       expect(results[0]).toHaveProperty('file_path');
       expect(results[0]).toHaveProperty('chunk_index');
@@ -397,7 +452,10 @@ describe('LanceDB Exploration', () => {
 
       const table = await db.createTable('nullable_test', data);
 
-      const results = await table.search(new Array(384).fill(0.1)).limit(2).toArray();
+      const results = await table
+        .search(new Array(384).fill(0.1))
+        .limit(2)
+        .toArray();
 
       expect(results.length).toBe(2);
       // Verify null values are preserved
@@ -411,8 +469,18 @@ describe('LanceDB Exploration', () => {
       db = await lancedb.connect(tempDir);
 
       const data = [
-        { id: '1', text: 'Original text', status: 'pending', vector: new Array(384).fill(0.1) },
-        { id: '2', text: 'Another text', status: 'pending', vector: new Array(384).fill(0.2) },
+        {
+          id: '1',
+          text: 'Original text',
+          status: 'pending',
+          vector: new Array(384).fill(0.1),
+        },
+        {
+          id: '2',
+          text: 'Another text',
+          status: 'pending',
+          vector: new Array(384).fill(0.2),
+        },
       ];
 
       const table = await db.createTable('update_test', data);
@@ -425,7 +493,10 @@ describe('LanceDB Exploration', () => {
       });
 
       // Verify update by searching and filtering
-      const results = await table.search(new Array(384).fill(0.1)).limit(10).toArray();
+      const results = await table
+        .search(new Array(384).fill(0.1))
+        .limit(10)
+        .toArray();
       const updated = results.find((r) => r.id === '1');
       expect(updated?.status).toBe('indexed');
     });
@@ -470,7 +541,10 @@ describe('LanceDB Exploration', () => {
       const count = await table.countRows();
       expect(count).toBe(1);
 
-      const results = await table.search(new Array(384).fill(0.1)).limit(10).toArray();
+      const results = await table
+        .search(new Array(384).fill(0.1))
+        .limit(10)
+        .toArray();
       expect(results.length).toBe(1);
       expect(results[0].id).toBe('1');
     });
@@ -481,9 +555,27 @@ describe('LanceDB Exploration', () => {
       db = await lancedb.connect(tempDir);
 
       const data = [
-        { id: '1', text: 'Doc 1', category: 'tech', score: 0.9, vector: new Array(384).fill(0.1) },
-        { id: '2', text: 'Doc 2', category: 'tech', score: 0.5, vector: new Array(384).fill(0.2) },
-        { id: '3', text: 'Doc 3', category: 'food', score: 0.8, vector: new Array(384).fill(0.3) },
+        {
+          id: '1',
+          text: 'Doc 1',
+          category: 'tech',
+          score: 0.9,
+          vector: new Array(384).fill(0.1),
+        },
+        {
+          id: '2',
+          text: 'Doc 2',
+          category: 'tech',
+          score: 0.5,
+          vector: new Array(384).fill(0.2),
+        },
+        {
+          id: '3',
+          text: 'Doc 3',
+          category: 'food',
+          score: 0.8,
+          vector: new Array(384).fill(0.3),
+        },
       ];
 
       const table = await db.createTable('query_builder_test', data);
@@ -571,11 +663,14 @@ describe('LanceDB Exploration', () => {
       // await table.delete("document_id = 'doc1'");
 
       // searchSemantic -> table.search(embedding).limit().toArray()
-      const semanticResults = await table.search(new Array(384).fill(0.1)).limit(10).toArray();
+      const semanticResults = await table
+        .search(new Array(384).fill(0.1))
+        .limit(10)
+        .toArray();
       expect(semanticResults.length).toBeGreaterThan(0);
 
-      // searchKeyword -> table.search(text, { queryType: 'fts' }) (requires FTS index)
-      // searchHybrid -> table.search(text, { queryType: 'hybrid' }).vector(embedding)
+      // searchKeyword -> table.query().fullTextSearch(text) (requires FTS index)
+      // searchHybrid -> application-level reciprocal rank fusion
 
       // getStats -> table.countRows() + custom aggregations
       const count = await table.countRows();

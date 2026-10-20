@@ -4,11 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { StorageAdapter, CreateChunkInput } from '../storage/types.js';
+import type {
+  StorageAdapter,
+  CreateChunkInput,
+  UpdateDocumentInput,
+} from '../storage/types.js';
 import type { ParserRegistry } from '../parsers/ParserRegistry.js';
 import type { ChunkerRegistry } from '../chunkers/ChunkerRegistry.js';
-import type { Chunk } from '../chunkers/types.js';
-import type { DiscoveredFile, QueuePriority } from '../types.js';
+import type { DiscoveredFile, QueuePriority, QueueItem } from '../types.js';
 import {
   FileDiscovery,
   type DiscoveryOptions,
@@ -27,8 +30,12 @@ import type {
 } from './types.js';
 import type { FilePriorityClassifier } from './FilePriorityClassifier.js';
 import { createFilePriorityClassifier } from './FilePriorityClassifier.js';
-import { createModuleLogger, globalLogger } from '../core/Logger.js';
-import { join, isAbsolute, relative } from 'node:path';
+import { createModuleLogger } from '../core/Logger.js';
+import { join, isAbsolute, relative, basename, extname } from 'node:path';
+import { stat } from 'node:fs/promises';
+import { AsyncMutex } from '../core/AsyncMutex.js';
+import { hashFile } from '../discovery/file-hash.js';
+import { detectChanges } from '../sync/changes.js';
 import { prepareMediaContent } from './media-content.js';
 import { isMediaFile, type MediaSource } from '../embedders/media.js';
 
@@ -202,9 +209,12 @@ interface PreparedFile {
   /** Chunk texts extracted for embedding - NOT full Chunk objects to save memory */
   chunkTexts: string[];
   mediaSources?: MediaSource[];
-  chunkIds: string[];
+  chunks: CreateChunkInput[];
   chunkCount: number;
-  isNew: boolean;
+  wasIndexed: boolean;
+  fileHash: string;
+  fileSize: number;
+  documentUpdates: UpdateDocumentInput;
   startTime: number;
   parsedMetadata: {
     requiresOcr: boolean;
@@ -250,20 +260,16 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   private processedCount = 0;
   private failedCount = 0;
   private processingStartTime: number | null = null;
-  private abortController: AbortController | null = null;
-  private timerCounter = 0; // Counter for unique timer keys in concurrent processing
-
-  // Producer-consumer pipeline state
-  private preparedBuffer: PreparedFile[] = [];
-  private prepareWorkersRunning = 0;
-  private embedLoopRunning = false;
-
-  // Maintenance coordination - ensures workers pause at safe points during reconnect
-  private maintenanceRequested = false;
-  private maintenancePromise: Promise<void> | null = null;
-  private maintenanceResolve: (() => void) | null = null;
-  private lastMaintenanceAt = 0; // processedCount at last maintenance
-  private readonly MAINTENANCE_INTERVAL = 200; // Reconnect every N files (lower = more frequent memory release, reduced from 500 for better WASM memory management)
+  private stopPromise: Promise<void> | null = null;
+  private autoStartRequested = false;
+  private readonly processing = new AsyncMutex();
+  private runPromise: Promise<void> = Promise.resolve();
+  private runError: unknown;
+  private wakeUp: (() => void) | undefined;
+  private activeDocuments = 0;
+  private runLimit = Infinity;
+  private lastMaintenanceAt = 0;
+  private readonly MAINTENANCE_INTERVAL = 200;
 
   constructor(
     storage: StorageAdapter,
@@ -302,6 +308,31 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       maxRawTextFileSize: options.maxRawTextFileSize,
       maxRawMarkupFileSize: options.maxRawMarkupFileSize,
     };
+    for (const key of [
+      'prepareWorkers',
+      'preparedBufferSize',
+      'embeddingBatchSize',
+      'maxRetries',
+    ] as const) {
+      if (!Number.isSafeInteger(this.options[key]) || this.options[key] < 1) {
+        throw new Error(`${key} must be a positive integer`);
+      }
+    }
+    for (const key of [
+      'retryDelay',
+      'maxParsedTextSize',
+      'deferParsedTextSize',
+      'deferredRetryParseTimeoutMs',
+    ] as const) {
+      if (
+        !Number.isFinite(this.options[key]) ||
+        this.options[key] < (key === 'retryDelay' ? 0 : 1)
+      ) {
+        throw new Error(
+          `${key} must be a finite ${key === 'retryDelay' ? 'non-negative' : 'positive'} number`,
+        );
+      }
+    }
     this.classifier = createFilePriorityClassifier({
       pdfSizeThreshold: options.pdfSizeThreshold,
       maxRawTextFileSize: options.maxRawTextFileSize,
@@ -336,7 +367,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     return {
       state: this.state,
-      activeDocuments: this.preparedBuffer.length,
+      activeDocuments: this.activeDocuments,
       queuedDocuments: queueStatus.pending,
       processedDocuments: this.processedCount,
       failedDocuments: this.failedCount,
@@ -360,33 +391,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     // Get existing file hashes from storage
     const existingHashes = await this.storage.getFileHashes();
-    const existingPaths = new Set(existingHashes.keys());
-
-    const changes: SyncChanges = {
-      added: [],
-      modified: [],
-      deleted: [],
-    };
-
-    // Check each discovered file (use relativePath for DB storage/comparison)
-    for (const file of discoveredFiles) {
-      const existingHash = existingHashes.get(file.relativePath);
-
-      if (!existingHash) {
-        // New file
-        changes.added.push(file.relativePath);
-      } else if (options?.forceReindex || existingHash !== file.hash) {
-        // Modified file
-        changes.modified.push(file.relativePath);
-      }
-
-      existingPaths.delete(file.relativePath);
-    }
-
-    // Remaining paths are deleted files
-    if (options?.deleteRemoved !== false) {
-      changes.deleted = Array.from(existingPaths);
-    }
+    const changes = detectChanges(
+      discoveredFiles,
+      existingHashes,
+      options?.forceReindex,
+    );
+    if (options?.deleteRemoved === false) changes.deleted = [];
 
     void this.emit('sync:changes_detected', changes);
 
@@ -398,6 +408,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    * Uses smart priority classification to process lightweight files first.
    */
   async syncAndQueue(options?: SyncOptions): Promise<SyncChanges> {
+    return this.processing.run(() => this.syncAndQueueExclusive(options));
+  }
+
+  private async syncAndQueueExclusive(
+    options?: SyncOptions,
+  ): Promise<SyncChanges> {
     const startTime = Date.now();
 
     // Discover files with full metadata (needed for classification)
@@ -416,36 +432,19 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     // Get existing file hashes from storage (keyed by relativePath)
     const existingHashes = await this.storage.getFileHashes();
-    const existingPaths = new Set(existingHashes.keys());
-
-    const changes: SyncChanges = {
-      added: [],
-      modified: [],
-      deleted: [],
-    };
-
-    // Check each discovered file for changes (use relativePath for DB storage/comparison)
-    for (const file of discoveredFiles) {
-      const existingHash = existingHashes.get(file.relativePath);
-
-      if (!existingHash) {
-        changes.added.push(file.relativePath);
-      } else if (options?.forceReindex || existingHash !== file.hash) {
-        changes.modified.push(file.relativePath);
-      }
-
-      existingPaths.delete(file.relativePath);
-    }
-
-    // Remaining paths are deleted files
-    if (options?.deleteRemoved !== false) {
-      changes.deleted = Array.from(existingPaths);
-    }
+    const changes = detectChanges(
+      discoveredFiles,
+      existingHashes,
+      options?.forceReindex,
+    );
+    if (options?.deleteRemoved === false) changes.deleted = [];
 
     void this.emit('sync:changes_detected', changes);
 
-    // Delete removed documents
+    // Delete removed documents and their obsolete queue entries.
     for (const filePath of changes.deleted) {
+      const queued = await this.storage.getQueueItemByPath(filePath);
+      if (queued) await this.storage.deleteQueueItem(queued.id);
       const doc = await this.storage.getDocumentByPath(filePath);
       if (doc) {
         await this.storage.deleteDocument(doc.id);
@@ -495,14 +494,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       duration,
     });
 
-    // Auto-start if enabled
-    if (
-      this.options.autoStart &&
-      toQueuePaths.length > 0 &&
-      this.state === 'idle'
-    ) {
-      this.start();
-    }
+    if (toQueuePaths.length > 0) this.requestAutoStart();
 
     return changes;
   }
@@ -514,11 +506,14 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     filePath: string,
     priority: QueuePriority = 'markup',
   ): Promise<void> {
-    await this.storage.enqueueItem({ filePath, priority });
+    await this.processing.run(() =>
+      this.storage.enqueueItem({
+        filePath: toRelativePath(this.options.rootPath, filePath),
+        priority,
+      }),
+    );
 
-    if (this.options.autoStart && this.state === 'idle') {
-      this.start();
-    }
+    this.requestAutoStart();
   }
 
   /**
@@ -530,200 +525,250 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   ): Promise<void> {
     if (filePaths.length === 0) return;
 
-    await this.storage.enqueueItems(
-      filePaths.map((filePath) => ({ filePath, priority })),
+    await this.processing.run(() =>
+      this.storage.enqueueItems(
+        filePaths.map((filePath) => ({
+          filePath: toRelativePath(this.options.rootPath, filePath),
+          priority,
+        })),
+      ),
     );
 
-    if (this.options.autoStart && this.state === 'idle') {
-      this.start();
-    }
+    this.requestAutoStart();
   }
 
   /**
    * Start processing the queue.
-   * Launches N prepare workers (producers) and 1 embed loop (consumer).
+   * Owns one run with bounded parallel preparation and serialized publication.
    */
-  start(): void {
-    if (this.state === 'running') return;
+  start(maxDocuments?: number): void {
+    if (this.stopPromise) return;
     if (this.state === 'paused') {
       this.resume();
       return;
     }
-
+    if (this.state !== 'idle') return;
+    if (
+      maxDocuments !== undefined &&
+      (!Number.isSafeInteger(maxDocuments) || maxDocuments <= 0)
+    )
+      throw new Error('maxDocuments must be a positive integer');
+    this.runLimit = maxDocuments ?? Infinity;
     this.state = 'running';
-    this.abortController = new AbortController();
+    this.autoStartRequested = false;
+    this.runError = undefined;
+    this.processedCount = 0;
+    this.failedCount = 0;
+    this.lastMaintenanceAt = 0;
     this.processingStartTime = Date.now();
-    this.preparedBuffer = []; // Clear buffer
-
+    // Defer execution so the completion promise exists before any event handlers run.
+    this.runPromise = Promise.resolve()
+      .then(() => this.run())
+      .catch((error: unknown) => {
+        this.runError = error;
+        void this.emit('pipeline:error', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      })
+      .finally(() => {
+        this.state = 'idle';
+        this.activeDocuments = 0;
+        void this.emit('pipeline:stopped', undefined);
+        if (this.autoStartRequested && !this.stopPromise && !this.runError)
+          this.start();
+      });
     void this.emit('pipeline:started', undefined);
-
-    // Start prepare workers (producers)
-    for (let i = 0; i < this.options.prepareWorkers; i++) {
-      void this.prepareLoop();
-    }
-
-    // Start embed loop (consumer)
-    void this.embedLoop();
   }
 
-  /**
-   * Pause processing (current items will complete).
-   */
   pause(): void {
     if (this.state !== 'running') return;
-
     this.state = 'paused';
     void this.emit('pipeline:paused', undefined);
   }
 
-  /**
-   * Resume processing.
-   */
   resume(): void {
     if (this.state !== 'paused') return;
-
     this.state = 'running';
+    this.wakeUp?.();
     void this.emit('pipeline:resumed', undefined);
-
-    // Paused workers retain their buffers and continue on the next iteration.
   }
 
-  /**
-   * Stop processing (waits for current items to complete).
-   */
-  async stop(): Promise<void> {
-    if (this.state === 'idle' || this.state === 'stopping') return;
-
+  /** Stop claiming work, finish the active operation, and release pending claims. */
+  stop(): Promise<void> {
+    if (this.stopPromise) return this.stopPromise;
+    this.autoStartRequested = false;
     this.state = 'stopping';
-    this.abortController?.abort();
+    this.wakeUp?.();
+    this.stopPromise = this.runPromise
+      .then(() => this.processing.idle())
+      .finally(() => {
+        this.state = 'idle';
+        this.stopPromise = null;
+      });
+    return this.stopPromise;
+  }
 
-    // Wait for all loops to finish
-    while (this.prepareWorkersRunning > 0 || this.embedLoopRunning) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+  private requestAutoStart(): void {
+    if (!this.options.autoStart || this.stopPromise) return;
+    this.autoStartRequested = true;
+    if (this.state === 'idle') this.start();
+  }
+
+  /** Await completion, including persistence, and surface infrastructure failures. */
+  async waitForIdle(): Promise<void> {
+    let run: Promise<void>;
+    do {
+      run = this.runPromise;
+      await run;
+    } while (run !== this.runPromise);
+    if (this.runError) throw this.runError;
+  }
+
+  private async waitWhilePaused(): Promise<void> {
+    while (this.state === 'paused') {
+      await new Promise<void>((resolve) => {
+        this.wakeUp = resolve;
+      });
+      this.wakeUp = undefined;
     }
-
-    // Clear any remaining buffer
-    this.preparedBuffer = [];
-
-    this.state = 'idle';
-    this.abortController = null;
-    void this.emit('pipeline:stopped', undefined);
   }
 
-  // -------------------------------------------------------------------------
-  // Maintenance Coordination
-  // -------------------------------------------------------------------------
-
-  /**
-   * Check if maintenance (reconnect) is needed based on processed count.
-   * Called by workers to determine if they should trigger maintenance.
-   */
-  private shouldPerformMaintenance(): boolean {
-    if (!this.storage.reconnect) return false;
-    if (this.maintenanceRequested) return false; // Already in progress
-    if (this.processedCount === 0) return false;
-
-    // Check if we've processed MAINTENANCE_INTERVAL files since last maintenance
-    return (
-      this.processedCount - this.lastMaintenanceAt >= this.MAINTENANCE_INTERVAL
-    );
-  }
-
-  /**
-   * Request and perform maintenance (reconnect) with proper worker coordination.
-   *
-   * This method orchestrates the maintenance process:
-   * 1. Sets maintenanceRequested flag - workers will pause at their next safe point
-   * 2. Waits for buffer to drain (embedLoop processes remaining items)
-   * 3. Performs the maintenance operation (storage.reconnect)
-   * 4. Releases workers to continue processing
-   *
-   * Safe to call from any worker - only one maintenance will run at a time.
-   */
-  private async performMaintenance(): Promise<void> {
-    // Only one maintenance at a time
-    if (this.maintenanceRequested) {
-      // Already in progress, wait for it
-      if (this.maintenancePromise) {
-        await this.maintenancePromise;
+  /** A bounded batch has one owner for queue claims, embedding, and maintenance. */
+  private async run(): Promise<void> {
+    while (
+      this.state !== 'stopping' &&
+      this.processedCount + this.failedCount < this.runLimit
+    ) {
+      await this.waitWhilePaused();
+      if (this.getState() === 'stopping') break;
+      const hasWork = await this.processing.run(() =>
+        this.processQueuedBatch(),
+      );
+      if (!hasWork) break;
+      if (
+        this.processedCount - this.lastMaintenanceAt >=
+        this.MAINTENANCE_INTERVAL
+      ) {
+        await this.processing.run(() => this.persist());
       }
-      return;
     }
+    if (this.processedCount > this.lastMaintenanceAt) {
+      await this.processing.run(() => this.persist());
+    }
+  }
 
-    log.info('maintenance:starting', {
+  private async persist(): Promise<void> {
+    // No preparation or embedding task can outlive this batch boundary.
+    if (this.storage.checkpoint) await this.storage.checkpoint();
+    this.lastMaintenanceAt = this.processedCount;
+    await this.emit('maintenance:completed', {
       processedCount: this.processedCount,
-      bufferSize: this.preparedBuffer.length,
     });
-    log.logMemory('maintenance:memoryBefore');
-
-    // Signal workers to pause at their next safe point
-    this.maintenanceRequested = true;
-    this.maintenancePromise = new Promise<void>((resolve) => {
-      this.maintenanceResolve = resolve;
-    });
-
-    // Wait for buffer to drain (embedLoop finishes current work)
-    const waitStart = Date.now();
-    while (this.preparedBuffer.length > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      // Safety timeout - if buffer doesn't drain within 60 seconds, something is wrong
-      if (Date.now() - waitStart > 60000) {
-        log.error('maintenance:timeout', {
-          bufferSize: this.preparedBuffer.length,
-          waitedMs: Date.now() - waitStart,
-        });
-        // Release and skip maintenance this round
-        this.maintenanceRequested = false;
-        this.maintenanceResolve?.();
-        this.maintenancePromise = null;
-        return;
-      }
-    }
-
-    log.info('maintenance:bufferDrained', {
-      waitedMs: Date.now() - waitStart,
-    });
-
-    // All workers are paused - safe to reconnect
-    try {
-      await this.storage.reconnect!();
-      this.lastMaintenanceAt = this.processedCount;
-
-      // Clear accumulated logger state (timers, benchmarks) to prevent memory leaks
-      globalLogger.clearAll();
-
-      log.info('maintenance:complete', {
-        processedCount: this.processedCount,
-      });
-      log.logMemory('maintenance:memoryAfter');
-
-      // Emit event so SearchSystem can trigger backup at this safe point
-      void this.emit('maintenance:completed', {
-        processedCount: this.processedCount,
-      });
-    } catch (error) {
-      log.error('maintenance:error', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      // Continue anyway - storage should have auto-recovered
-    }
-
-    // Release workers
-    this.maintenanceRequested = false;
-    this.maintenanceResolve?.();
-    this.maintenancePromise = null;
   }
 
-  /**
-   * Wait for any ongoing maintenance to complete.
-   * Called by workers at safe points (before processing next item).
-   */
-  private async waitForMaintenance(): Promise<void> {
-    if (this.maintenanceRequested && this.maintenancePromise) {
-      log.debug('worker:waitingForMaintenance', {});
-      await this.maintenancePromise;
+  private async processQueuedBatch(): Promise<boolean> {
+    const claimed = new Map<string, QueueItem>();
+    const prepared: PreparedFile[] = [];
+    // This bounds both parsing concurrency and retained prepared documents.
+    const capacity = Math.min(
+      this.options.prepareWorkers,
+      this.options.preparedBufferSize,
+      this.runLimit - this.processedCount - this.failedCount,
+    );
+    try {
+      for (let i = 0; i < capacity && this.state === 'running'; i++) {
+        const item = await this.storage.dequeueItem();
+        if (!item) break;
+        claimed.set(item.id, item);
+      }
+      if (claimed.size === 0) return false;
+      this.activeDocuments = claimed.size;
+      const preparations = await Promise.allSettled(
+        [...claimed.values()].map(async (item) => {
+          void this.emit('document:started', {
+            documentId: '',
+            filePath: item.filePath,
+            queueItemId: item.id,
+          });
+          try {
+            prepared.push(
+              await this.prepareFile(
+                item.id,
+                item.attempts,
+                item.filePath,
+                item.priority,
+              ),
+            );
+          } catch (error) {
+            await this.handlePrepareError(
+              item.id,
+              item.filePath,
+              item.attempts,
+              error,
+            );
+            claimed.delete(item.id);
+          }
+        }),
+      );
+      const failure = preparations.find(
+        (result) => result.status === 'rejected',
+      );
+      if (failure?.status === 'rejected') throw failure.reason;
+      for (const file of prepared) {
+        await this.waitWhilePaused();
+        if (this.state === 'stopping') break;
+        try {
+          await this.embedFile(file);
+          await this.storage.updateQueueItem(file.queueItemId, {
+            status: 'completed',
+            completedAt: new Date(),
+            lastError: null,
+          });
+          this.processedCount++;
+          await this.emit('document:completed', {
+            documentId: file.documentId,
+            filePath: file.filePath,
+            chunksCreated: file.chunkCount,
+            duration: Date.now() - file.startTime,
+          });
+        } catch (error) {
+          await this.handlePrepareError(
+            file.queueItemId,
+            file.filePath,
+            file.queueItemAttempts,
+            error,
+          );
+        }
+        claimed.delete(file.queueItemId);
+        file.chunkTexts.length = 0;
+        file.chunks.length = 0;
+        file.mediaSources = undefined;
+      }
+      return true;
+    } finally {
+      await this.releaseClaims(claimed);
     }
+  }
+
+  private async releaseClaims(claimed: Map<string, QueueItem>): Promise<void> {
+    // Attempt every release even if one write fails, then surface the failure.
+    const releases = await Promise.allSettled(
+      [...claimed.values()].map((item) =>
+        this.storage.updateQueueItem(item.id, {
+          status: 'pending',
+          startedAt: null,
+        }),
+      ),
+    );
+    this.activeDocuments = 0;
+    const errors = releases
+      .filter((result) => result.status === 'rejected')
+      .map((result): unknown => result.reason);
+    if (errors.length)
+      throw new AggregateError(
+        errors,
+        'Failed to release indexing queue claims',
+      );
   }
 
   /**
@@ -732,228 +777,53 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    * @param filePath - Path to the file (absolute or relative to rootPath)
    */
   async processFile(filePath: string): Promise<ProcessingResult> {
-    const startTime = Date.now();
-    // Use unique timer key to avoid collisions with concurrent processing
-    const timerId = ++this.timerCounter;
-    const processTimerKey = `processFile-${timerId}`;
-    log.startTimer(processTimerKey, true); // true = track memory
-
-    // Normalize paths: relative for DB storage, absolute for file I/O
-    const relativePath = toRelativePath(this.options.rootPath, filePath);
-    const absolutePath = toAbsolutePath(this.options.rootPath, filePath);
-
-    log.debug('processFile:start', {
-      timerId,
-      filePath: relativePath,
-      processedCount: this.processedCount,
+    if (this.state === 'stopping')
+      throw new Error('Indexing pipeline is stopping');
+    return this.processing.run(async () => {
+      const startTime = Date.now();
+      const normalized = toRelativePath(this.options.rootPath, filePath);
+      try {
+        // Explicit requests use the same parser, limits, chunker, and embedder as queued work.
+        const prepared = await this.prepareFile('', 1, normalized, 'deferred');
+        await this.embedFile(prepared);
+        const duration = Date.now() - startTime;
+        await this.emit('document:completed', {
+          documentId: prepared.documentId,
+          filePath: normalized,
+          chunksCreated: prepared.chunkCount,
+          duration,
+        });
+        return {
+          documentId: prepared.documentId,
+          filePath: normalized,
+          success: true,
+          chunksCreated: prepared.chunkCount,
+          duration,
+          status: 'indexed',
+          ocrStatus: prepared.parsedMetadata.requiresOcr
+            ? 'pending'
+            : 'not_needed',
+        };
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        const doc = await this.storage.getDocumentByPath(normalized);
+        if (doc)
+          await this.storage.updateDocument(doc.id, {
+            status: doc.indexedAt ? 'indexed' : 'failed',
+            metadata: { ...doc.metadata, lastError: err.message },
+          });
+        return {
+          documentId: doc?.id ?? '',
+          filePath: normalized,
+          success: false,
+          chunksCreated: 0,
+          duration: Date.now() - startTime,
+          error: err,
+          status: 'failed',
+          ocrStatus: 'not_needed',
+        };
+      }
     });
-
-    // Get or create document (using relative path for DB)
-    let doc = await this.storage.getDocumentByPath(relativePath);
-    const isNew = !doc;
-
-    if (isNew) {
-      // Create new document record
-      const { stat } = await import('node:fs/promises');
-      const { basename, extname } = await import('node:path');
-
-      const fileStats = await stat(absolutePath);
-      const hash = await this.calculateFileHash(absolutePath);
-
-      doc = await this.storage.createDocument({
-        filePath: relativePath, // Store relative path in DB
-        fileName: basename(relativePath),
-        fileExtension: extname(relativePath).toLowerCase(),
-        fileSize: fileStats.size,
-        fileHash: hash,
-        fileModifiedAt: fileStats.mtime,
-        status: 'pending',
-        ocrStatus: 'not_needed',
-      });
-    }
-
-    // At this point doc is guaranteed to exist (either fetched or created above)
-    const documentId = doc!.id;
-
-    try {
-      // Update status to parsing
-      await this.storage.updateDocument(documentId, { status: 'parsing' });
-      void this.emit('document:parsing', {
-        documentId,
-        filePath: relativePath,
-      });
-
-      // Parse the document (using absolute path for file I/O)
-      const media = await prepareMediaContent(this.embedder, absolutePath);
-      const parsed =
-        media?.parsed ??
-        (await this.parserRegistry.parse(
-          absolutePath,
-          this.options.parserOptions,
-        ));
-
-      log.debug('processFile:parsed', {
-        filePath: relativePath,
-        textLength: parsed.text.length,
-        requiresOcr: parsed.requiresOcr,
-      });
-
-      // Update document with parsed metadata
-      await this.storage.updateDocument(documentId, {
-        title: parsed.title,
-        author: parsed.metadata.author,
-        language: parsed.metadata.language,
-        pageCount: parsed.metadata.pageCount,
-        status: 'chunking',
-        ocrStatus: parsed.requiresOcr ? 'pending' : 'not_needed',
-      });
-
-      // Check if OCR is needed
-      if (parsed.requiresOcr) {
-        void this.emit('document:ocr_needed', {
-          documentId,
-          filePath: relativePath,
-          regions: parsed.ocrRegions?.length ?? 0,
-        });
-      }
-
-      void this.emit('document:chunking', {
-        documentId,
-        filePath: relativePath,
-        textLength: parsed.text.length,
-      });
-
-      // Chunk the text
-      const chunks =
-        media?.chunks ??
-        (await this.chunkerRegistry.chunk(
-          parsed.text,
-          this.options.chunkerOptions,
-        ));
-
-      log.debug('processFile:chunked', {
-        filePath: relativePath,
-        chunkCount: chunks.length,
-        avgChunkSize:
-          chunks.length > 0
-            ? Math.round(parsed.text.length / chunks.length)
-            : 0,
-      });
-
-      // Delete existing chunks if re-indexing
-      if (!isNew) {
-        await this.storage.deleteChunks(documentId);
-      }
-
-      // Create chunk records
-      const chunkInputs: CreateChunkInput[] = chunks.map((chunk) => ({
-        chunkIndex: chunk.index,
-        text: chunk.text,
-        startOffset: chunk.startOffset,
-        endOffset: chunk.endOffset,
-        page: chunk.metadata.page,
-        section: chunk.metadata.section,
-        tokenCount: chunk.metadata.tokenCount,
-      }));
-
-      const createdChunks = await this.storage.createChunks(
-        documentId,
-        chunkInputs,
-      );
-
-      log.debug('processFile:chunksStored', {
-        filePath: relativePath,
-        chunkCount: createdChunks.length,
-      });
-
-      // Update status to embedding
-      await this.storage.updateDocument(documentId, { status: 'embedding' });
-      void this.emit('document:embedding', {
-        documentId,
-        filePath: relativePath,
-        chunkCount: chunks.length,
-      });
-
-      // Generate embeddings in batches
-      if (this.embedder.isReady()) {
-        const embTimerKey = `embeddings-${documentId}`;
-        log.startTimer(embTimerKey, true);
-        if (media) {
-          await this.generateMediaEmbeddings(
-            createdChunks.map((c) => c.id),
-            media.sources,
-          );
-        } else {
-          await this.generateEmbeddings(
-            createdChunks.map((c) => c.id),
-            chunks,
-          );
-        }
-        log.endTimer(embTimerKey, 'processFile:embeddingsGenerated', {
-          filePath: relativePath,
-          chunkCount: chunks.length,
-        });
-      }
-
-      // Update status to indexed
-      const duration = Date.now() - startTime;
-      await this.storage.updateDocument(documentId, {
-        status: 'indexed',
-        indexedAt: new Date(),
-      });
-
-      void this.emit('document:completed', {
-        documentId,
-        filePath: relativePath,
-        chunksCreated: chunks.length,
-        duration,
-      });
-
-      log.endTimer(processTimerKey, 'processFile:complete', {
-        timerId,
-        filePath: relativePath,
-        chunksCreated: chunks.length,
-        durationMs: duration,
-        processedCount: this.processedCount,
-      });
-      log.logMemory('processFile:memoryAfter');
-
-      return {
-        documentId,
-        filePath: relativePath,
-        success: true,
-        chunksCreated: chunks.length,
-        duration,
-        status: 'indexed',
-        ocrStatus: parsed.requiresOcr ? 'pending' : 'not_needed',
-      };
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const err = error instanceof Error ? error : new Error(String(error));
-
-      log.endTimer(processTimerKey, 'processFile:error', {
-        timerId,
-        filePath: relativePath,
-        durationMs: duration,
-        error: err.message,
-      });
-
-      await this.storage.updateDocument(documentId, {
-        status: 'failed',
-        metadata: { lastError: err.message },
-      });
-
-      return {
-        documentId,
-        filePath: relativePath,
-        success: false,
-        chunksCreated: 0,
-        duration,
-        error: err,
-        status: 'failed',
-        ocrStatus: 'not_needed',
-      };
-    }
   }
 
   /**
@@ -1010,14 +880,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     queuePriority: QueuePriority,
   ): Promise<PreparedFile> {
     const startTime = Date.now();
-    const timerId = ++this.timerCounter;
-    log.startTimer(`prepareFile-${timerId}`, true);
 
     // Normalize paths: relative for DB storage, absolute for file I/O
     const relativePath = toRelativePath(this.options.rootPath, filePath);
     const absolutePath = toAbsolutePath(this.options.rootPath, filePath);
 
-    log.debug('prepareFile:start', { timerId, filePath: relativePath });
+    log.debug('prepareFile:start', { filePath: relativePath });
 
     // AUDITARIA: Check if file exists before processing to avoid wasteful retries
     // Files can be deleted between being queued and being processed
@@ -1056,19 +924,16 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     let doc = await this.storage.getDocumentByPath(relativePath);
     const isNew = !doc;
 
+    const fileStats = await stat(absolutePath);
+    const hash = await hashFile(absolutePath);
+
     if (isNew) {
-      const { stat } = await import('node:fs/promises');
-      const { basename, extname } = await import('node:path');
-
-      const fileStats = await stat(absolutePath);
-      const hash = await this.calculateFileHash(absolutePath);
-
       doc = await this.storage.createDocument({
         filePath: relativePath, // Store relative path in DB
         fileName: basename(relativePath),
         fileExtension: extname(relativePath).toLowerCase(),
         fileSize: fileStats.size,
-        fileHash: hash,
+        fileHash: '', // Set only after content has been published successfully.
         fileModifiedAt: fileStats.mtime,
         status: 'pending',
         ocrStatus: 'not_needed',
@@ -1078,7 +943,9 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     const documentId = doc!.id;
 
     // Update status to parsing
-    await this.storage.updateDocument(documentId, { status: 'parsing' });
+    await this.storage.updateDocument(documentId, {
+      status: doc!.indexedAt ? 'indexed' : 'parsing',
+    });
     void this.emit('document:parsing', { documentId, filePath: relativePath });
 
     // Parse the document (using absolute path for file I/O).
@@ -1108,8 +975,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     } catch (error) {
       if (error instanceof DeferredRetryParseTimeoutError) {
         await this.storage.updateDocument(documentId, {
-          status: 'failed',
-          metadata: { lastError: error.message },
+          status: doc!.indexedAt ? 'indexed' : 'failed',
+          metadata: { ...doc!.metadata, lastError: error.message },
         });
       }
       throw error;
@@ -1122,7 +989,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     });
 
     // AUDITARIA: Post-parse content quality and size gates
-    const textLength = parsed.text.length;
+    const textLength = Buffer.byteLength(parsed.text, 'utf8');
 
     // Post-parse garbage detection: check if extracted text is binary/garbage
     if (this.options.enableGarbageDetection && textLength > 0) {
@@ -1155,18 +1022,14 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       queuePriority !== 'deferred'
     ) {
       // Reset document status back to pending before deferring
-      await this.storage.updateDocument(documentId, { status: 'pending' });
+      await this.storage.updateDocument(documentId, {
+        status: doc!.indexedAt ? 'indexed' : 'pending',
+      });
       throw new FileDeferredError(relativePath, textLength);
     }
 
-    // Update document with parsed metadata
     await this.storage.updateDocument(documentId, {
-      title: parsed.title,
-      author: parsed.metadata.author,
-      language: parsed.metadata.language,
-      pageCount: parsed.metadata.pageCount,
-      status: 'chunking',
-      ocrStatus: parsed.requiresOcr ? 'pending' : 'not_needed',
+      status: doc!.indexedAt ? 'indexed' : 'chunking',
     });
 
     void this.emit('document:chunking', {
@@ -1188,11 +1051,6 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       chunkCount: chunks.length,
     });
 
-    // Delete existing chunks if re-indexing
-    if (!isNew) {
-      await this.storage.deleteChunks(documentId);
-    }
-
     // Create chunk records (without embeddings yet)
     const chunkInputs: CreateChunkInput[] = chunks.map((chunk) => ({
       chunkIndex: chunk.index,
@@ -1204,13 +1062,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       tokenCount: chunk.metadata.tokenCount,
     }));
 
-    const createdChunks = await this.storage.createChunks(
-      documentId,
-      chunkInputs,
-    );
-
-    log.endTimer(`prepareFile-${timerId}`, 'prepareFile:complete', {
-      timerId,
+    log.debug('prepareFile:complete', {
       filePath: relativePath,
       chunkCount: chunks.length,
     });
@@ -1226,9 +1078,18 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       filePath: relativePath,
       chunkTexts,
       mediaSources: media?.sources,
-      chunkIds: createdChunks.map((c) => c.id),
+      chunks: chunkInputs,
       chunkCount,
-      isNew,
+      wasIndexed: doc!.indexedAt !== null,
+      fileHash: hash,
+      fileSize: fileStats.size,
+      documentUpdates: {
+        title: parsed.title,
+        author: parsed.metadata.author,
+        language: parsed.metadata.language,
+        pageCount: parsed.metadata.pageCount,
+        ocrStatus: parsed.requiresOcr ? 'pending' : 'not_needed',
+      },
       startTime,
       parsedMetadata: {
         requiresOcr: parsed.requiresOcr,
@@ -1242,10 +1103,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    * This is the "consumer" work - generates embeddings and stores them.
    */
   private async embedFile(prepared: PreparedFile): Promise<void> {
-    const { documentId, filePath, chunkTexts, chunkIds, chunkCount } = prepared;
+    const { documentId, filePath, chunkTexts, chunks, chunkCount } = prepared;
+    const vectors: number[][] = [];
 
     // Update status to embedding
-    await this.storage.updateDocument(documentId, { status: 'embedding' });
+    await this.storage.updateDocument(documentId, {
+      status: prepared.wasIndexed ? 'indexed' : 'embedding',
+    });
     void this.emit('document:embedding', {
       documentId,
       filePath,
@@ -1253,250 +1117,65 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     });
 
     // Generate embeddings in batches
-    if (this.embedder.isReady() && chunkCount > 0) {
+    if (chunkCount > 0) {
+      if (!this.embedder.isReady()) await this.embedder.initialize();
       const embTimerKey = `embeddings-${documentId}`;
       log.startTimer(embTimerKey, true);
-      // Pass prepared to enable progressive clearing of chunkTexts for memory efficiency
-      if (prepared.mediaSources) {
-        await this.generateMediaEmbeddings(chunkIds, prepared.mediaSources);
-        prepared.mediaSources = undefined;
-      } else {
-        await this.generateEmbeddingsFromTexts(chunkIds, chunkTexts, prepared);
+      try {
+        // Pass prepared to enable progressive clearing of chunkTexts for memory efficiency
+        if (prepared.mediaSources) {
+          await this.generateMediaEmbeddings(vectors, prepared.mediaSources);
+          prepared.mediaSources = undefined;
+        } else {
+          await this.generateEmbeddingsFromTexts(vectors, chunkTexts);
+        }
+      } finally {
+        log.endTimer(embTimerKey, 'embedFile:embeddingsGenerated', {
+          filePath,
+          chunkCount,
+        });
       }
-      log.endTimer(embTimerKey, 'embedFile:embeddingsGenerated', {
-        filePath,
-        chunkCount,
-      });
+    }
+
+    this.validateEmbeddings(vectors, chunkCount);
+    if (
+      (await hashFile(toAbsolutePath(this.options.rootPath, filePath))) !==
+      prepared.fileHash
+    ) {
+      throw new Error(`File changed during indexing: ${filePath}`);
+    }
+
+    // Publish only after parsing and inference succeed. SQL adapters replace the
+    // document's chunks in a transaction; existing passages survive a failed write.
+    if (this.storage.replaceChunks) {
+      await this.storage.replaceChunks(documentId, chunks, vectors);
+    } else {
+      await this.storage.deleteChunks(documentId);
+      const stored = await this.storage.createChunks(documentId, chunks);
+      await this.storage.updateChunkEmbeddings(
+        stored.map((chunk, i) => ({
+          id: chunk.id,
+          embedding: vectors[i],
+        })),
+      );
     }
 
     // Update status to indexed
     await this.storage.updateDocument(documentId, {
+      ...prepared.documentUpdates,
       status: 'indexed',
       indexedAt: new Date(),
+      fileHash: prepared.fileHash,
+      fileSize: prepared.fileSize,
     });
 
     // Emit OCR needed if required
     if (prepared.parsedMetadata.requiresOcr) {
-      void this.emit('document:ocr_needed', {
+      await this.emit('document:ocr_needed', {
         documentId,
         filePath,
         regions: prepared.parsedMetadata.ocrRegions ?? 0,
       });
-    }
-  }
-
-  /**
-   * Producer loop: Prepares files (parse, chunk, create records).
-   * Multiple instances run in parallel to keep the buffer fed.
-   */
-  private async prepareLoop(): Promise<void> {
-    this.prepareWorkersRunning++;
-
-    try {
-      while (this.state === 'running' || this.state === 'paused') {
-        if (this.state === 'paused') {
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          continue;
-        }
-        // Backpressure: wait if buffer is full
-        if (this.preparedBuffer.length >= this.options.preparedBufferSize) {
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          continue;
-        }
-
-        // Check abort
-        if (this.abortController?.signal.aborted) break;
-
-        // Maintenance coordination
-        if (this.shouldPerformMaintenance()) {
-          await this.performMaintenance();
-        }
-        await this.waitForMaintenance();
-
-        if (this.state !== 'running') continue;
-
-        // Dequeue next item
-        const item = await this.storage.dequeueItem();
-
-        if (!item) {
-          // Queue empty - check if we should exit
-          const status = await this.storage.getQueueStatus();
-          if (status.pending === 0 && status.processing === 0) {
-            // No more items in queue, prepareLoop can exit
-            // embedLoop will drain the buffer and complete
-            break;
-          }
-
-          // Still items being processed, wait and retry
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          continue;
-        }
-
-        try {
-          // Update queue status
-          await this.storage.updateQueueItem(item.id, {
-            status: 'processing',
-            startedAt: new Date(),
-          });
-
-          void this.emit('document:started', {
-            documentId: '',
-            filePath: item.filePath,
-            queueItemId: item.id,
-          });
-
-          // Prepare the file
-          const prepared = await this.prepareFile(
-            item.id,
-            item.attempts,
-            item.filePath,
-            item.priority,
-          );
-
-          // Push to buffer for embedding
-          this.preparedBuffer.push(prepared);
-        } catch (error) {
-          // Handle preparation error
-          await this.handlePrepareError(
-            item.id,
-            item.filePath,
-            item.attempts,
-            error,
-          );
-        }
-      }
-    } finally {
-      this.prepareWorkersRunning--;
-
-      // If all prepare workers done and buffer empty, signal completion
-      if (
-        this.prepareWorkersRunning === 0 &&
-        this.preparedBuffer.length === 0
-      ) {
-        // embedLoop will detect this and stop
-      }
-    }
-  }
-
-  /**
-   * Consumer loop: Embeds prepared files.
-   * Single instance that pulls from the prepared buffer.
-   */
-  private async embedLoop(): Promise<void> {
-    this.embedLoopRunning = true;
-
-    try {
-      while (
-        this.state === 'running' ||
-        this.state === 'paused' ||
-        this.preparedBuffer.length > 0
-      ) {
-        if (this.state === 'paused') {
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          continue;
-        }
-        // Wait if buffer is empty but prepare workers still running
-        if (this.preparedBuffer.length === 0) {
-          if (this.prepareWorkersRunning === 0) {
-            // All prepare workers done and buffer empty = we're done
-            break;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          continue;
-        }
-
-        // Check abort
-        if (this.abortController?.signal.aborted) break;
-
-        // Wait for any maintenance to complete before accessing storage
-        await this.waitForMaintenance();
-
-        // Pull next prepared file
-        const prepared = this.preparedBuffer.shift()!;
-
-        try {
-          // Embed the file
-          await this.embedFile(prepared);
-
-          // Mark queue item complete
-          await this.storage.updateQueueItem(prepared.queueItemId, {
-            status: 'completed',
-            completedAt: new Date(),
-          });
-
-          this.processedCount++;
-
-          const duration = Date.now() - prepared.startTime;
-          void this.emit('document:completed', {
-            documentId: prepared.documentId,
-            filePath: prepared.filePath,
-            chunksCreated: prepared.chunkCount,
-            duration,
-          });
-
-          log.debug('embedLoop:fileComplete', {
-            filePath: prepared.filePath,
-            chunkCount: prepared.chunkCount,
-            durationMs: duration,
-            processedCount: this.processedCount,
-          });
-
-          // Progress logging
-          if (this.processedCount % 100 === 0) {
-            log.info('embedLoop:progress', {
-              processedCount: this.processedCount,
-            });
-            log.logMemory('embedLoop:memoryAt100');
-          }
-
-          // Checkpoint every 20 files (more frequent = better memory management)
-          if (this.processedCount % 50 === 0 && this.storage.checkpoint) {
-            log.info('embedLoop:checkpoint', {
-              processedCount: this.processedCount,
-            });
-            await this.storage.checkpoint();
-          }
-        } catch (error) {
-          // Handle embedding error
-          await this.handleEmbedError(prepared, error);
-        } finally {
-          // Help GC by clearing large arrays (texts can be significant)
-          prepared.chunkTexts.length = 0;
-          prepared.chunkIds.length = 0;
-        }
-      }
-    } finally {
-      this.embedLoopRunning = false;
-
-      // Signal completion if everything is done
-      if (
-        this.prepareWorkersRunning === 0 &&
-        this.preparedBuffer.length === 0
-      ) {
-        // IMPORTANT: Final reconnect to persist any remaining vectors
-        // Without this, the last batch (up to MAINTENANCE_INTERVAL files) would be lost
-        if (
-          this.storage.reconnect &&
-          this.processedCount > this.lastMaintenanceAt
-        ) {
-          log.info('embedLoop:finalReconnect', {
-            processedCount: this.processedCount,
-            lastMaintenanceAt: this.lastMaintenanceAt,
-            unsavedFiles: this.processedCount - this.lastMaintenanceAt,
-          });
-          try {
-            await this.storage.reconnect();
-            log.info('embedLoop:finalReconnect:complete');
-          } catch (error) {
-            log.error('embedLoop:finalReconnect:failed', {
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
-
-        this.state = 'idle';
-        void this.emit('pipeline:stopped', undefined);
-      }
     }
   }
 
@@ -1510,48 +1189,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     error: unknown,
   ): Promise<void> {
     const err = error instanceof Error ? error : new Error(String(error));
-    const newAttempts = attempts + 1;
-
-    // AUDITARIA: Handle file-not-found errors specially - fail immediately without retries
-    // Retrying a deleted file is wasteful since it will never succeed
-    // AUDITARIA: Handle garbage/too-large — skip quietly, no user-facing error
-    if (err instanceof GarbageFileError || err instanceof FileTooLargeError) {
-      log.debug('prepareLoop:skipped', {
-        filePath,
-        reason: err.name,
-        message: err.message,
-      });
-      await this.storage.updateQueueItem(queueItemId, {
-        status: 'failed',
-        attempts: newAttempts,
-        lastError: err.message,
-        completedAt: new Date(),
-      });
-      this.failedCount++;
-      return;
-    }
-
-    // AUDITARIA: Handle file-not-found — fail immediately without retries
-    if (err instanceof FileNotFoundError) {
-      log.warn('prepareLoop:fileNotFound', {
-        filePath,
-        message: 'File was deleted before processing, skipping',
-      });
-      await this.storage.updateQueueItem(queueItemId, {
-        status: 'failed',
-        attempts: newAttempts,
-        lastError: err.message,
-        completedAt: new Date(),
-      });
-      this.failedCount++;
-      void this.emit('document:failed', {
-        documentId: '',
-        filePath,
-        error: err,
-        attempts: newAttempts,
-      });
-      return;
-    }
+    const newAttempts = attempts; // dequeueItem already increments the attempt count.
 
     // AUDITARIA: Handle deferred files — demote to 'deferred' priority, NOT a failure
     if (err instanceof FileDeferredError) {
@@ -1569,271 +1207,110 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       return;
     }
 
-    // Deferred retry parse timeout is terminal: do not retry.
-    if (err instanceof DeferredRetryParseTimeoutError) {
-      log.warn('prepareLoop:deferredParseTimeout', {
-        filePath,
-        attempts: newAttempts,
-        message: err.message,
+    const terminal =
+      err instanceof FileNotFoundError ||
+      err instanceof GarbageFileError ||
+      err instanceof FileTooLargeError ||
+      err instanceof DeferredRetryParseTimeoutError ||
+      newAttempts >= this.options.maxRetries;
+    const doc = await this.storage.getDocumentByPath(
+      toRelativePath(this.options.rootPath, filePath),
+    );
+    if (doc)
+      await this.storage.updateDocument(doc.id, {
+        status: doc.indexedAt ? 'indexed' : terminal ? 'failed' : 'pending',
+        metadata: { ...doc.metadata, lastError: err.message },
       });
-      await this.storage.updateQueueItem(queueItemId, {
-        status: 'failed',
-        attempts: newAttempts,
-        lastError: err.message,
-        completedAt: new Date(),
-      });
-      this.failedCount++;
-      void this.emit('document:failed', {
-        documentId: '',
-        filePath,
-        error: err,
-        attempts: newAttempts,
-      });
-      return;
+    if (!terminal) {
+      // Keep the claim while backing off so another worker cannot retry immediately.
+      if (this.state !== 'stopping')
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.options.retryDelay * newAttempts),
+        );
     }
-
-    log.error('prepareLoop:error', {
-      filePath,
+    await this.storage.updateQueueItem(queueItemId, {
+      status: terminal ? 'failed' : 'pending',
       attempts: newAttempts,
-      error: err.message,
+      lastError: err.message,
+      startedAt: null,
+      completedAt: terminal ? new Date() : null,
     });
-
-    if (newAttempts < this.options.maxRetries) {
-      // Retry later
-      await this.storage.updateQueueItem(queueItemId, {
-        status: 'pending',
-        attempts: newAttempts,
-        lastError: err.message,
-      });
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.options.retryDelay * newAttempts),
-      );
-    } else {
-      // Max retries reached
-      await this.storage.updateQueueItem(queueItemId, {
-        status: 'failed',
-        attempts: newAttempts,
-        lastError: err.message,
-        completedAt: new Date(),
-      });
+    if (terminal) {
       this.failedCount++;
       void this.emit('document:failed', {
-        documentId: '',
+        documentId: doc?.id ?? '',
         filePath,
         error: err,
         attempts: newAttempts,
       });
     }
-  }
-
-  /**
-   * Handle error during file embedding.
-   */
-  private async handleEmbedError(
-    prepared: PreparedFile,
-    error: unknown,
-  ): Promise<void> {
-    const err = error instanceof Error ? error : new Error(String(error));
-
-    log.error('embedLoop:error', {
-      filePath: prepared.filePath,
-      documentId: prepared.documentId,
-      error: err.message,
-    });
-
-    // Try to update storage, but don't fail if storage is unavailable
-    // (can happen during maintenance/reconnect)
-    try {
-      // Update document status
-      await this.storage.updateDocument(prepared.documentId, {
-        status: 'failed',
-        metadata: { lastError: err.message },
-      });
-
-      // Update queue item
-      await this.storage.updateQueueItem(prepared.queueItemId, {
-        status: 'failed',
-        lastError: err.message,
-        completedAt: new Date(),
-      });
-    } catch (storageError) {
-      log.warn('handleEmbedError:storageUnavailable', {
-        filePath: prepared.filePath,
-        storageError:
-          storageError instanceof Error
-            ? storageError.message
-            : String(storageError),
-      });
-    }
-
-    this.failedCount++;
-    void this.emit('document:failed', {
-      documentId: prepared.documentId,
-      filePath: prepared.filePath,
-      error: err,
-      attempts: prepared.queueItemAttempts + 1,
-    });
   }
 
   // -------------------------------------------------------------------------
   // Private Helper Methods
   // -------------------------------------------------------------------------
 
-  /** Embed each media source independently to bound decoded media memory. */
+  /** Decode one media source at a time; retain only the vectors until publication. */
   private async generateMediaEmbeddings(
-    chunkIds: string[],
+    vectors: number[][],
     sources: MediaSource[],
   ): Promise<void> {
     if (!this.embedder.embedMedia)
       throw new Error('Media embedding is not supported');
-    if (chunkIds.length !== sources.length)
-      throw new Error('Media chunk count mismatch');
-    // One source at a time bounds decoded raster/audio memory and gives queries a turn.
-    for (let index = 0; index < sources.length; index++) {
-      const embeddings = await this.embedder.embedMedia([sources[index]]);
-      if (embeddings.length !== 1)
-        throw new Error('Media embedder returned the wrong number of vectors');
-      await this.storage.updateChunkEmbeddings([
-        { id: chunkIds[index], embedding: embeddings[0] },
-      ]);
+    for (const source of sources) {
+      const embeddings = await this.embedder.embedMedia([source]);
+      this.validateEmbeddings(embeddings, 1);
+      vectors.push(...embeddings);
       await yieldToEventLoop();
     }
   }
 
-  /** Generate text embeddings with the model's document task prefix. */
-  private async generateEmbeddings(
-    chunkIds: string[],
-    chunks: Chunk[],
-  ): Promise<void> {
-    const texts = chunks.map((c) => c.text);
-    await this.generateEmbeddingsFromTexts(chunkIds, texts);
-  }
-
-  /**
-   * Generate embeddings from text strings using streaming for memory efficiency.
-   * Progressively clears processed chunk texts to minimize memory footprint.
-   *
-   * @param chunkIds - Array of chunk IDs to update with embeddings
-   * @param texts - Array of text strings to embed
-   * @param prepared - Optional PreparedFile to enable progressive clearing of chunkTexts
-   */
   private async generateEmbeddingsFromTexts(
-    chunkIds: string[],
+    vectors: number[][],
     texts: string[],
-    prepared?: PreparedFile,
   ): Promise<void> {
     const batchSize = this.options.embeddingBatchSize;
-
-    log.debug('generateEmbeddings:start', {
-      totalChunks: texts.length,
-      batchSize,
-      streaming: !!this.embedder.embedBatchDocumentsStreaming,
-      progressiveClearing: !!prepared,
-    });
-
-    // Use streaming if available (memory-efficient)
     if (this.embedder.embedBatchDocumentsStreaming) {
       for await (const {
         startIndex,
         embeddings,
       } of this.embedder.embedBatchDocumentsStreaming(texts, batchSize)) {
-        // Yield to event loop between batches to prevent blocking
-        if (startIndex > 0) {
-          await yieldToEventLoop();
+        if (
+          startIndex !== vectors.length ||
+          embeddings.length === 0 ||
+          startIndex + embeddings.length > texts.length
+        ) {
+          throw new Error('Embedder returned an invalid streaming batch');
         }
-
-        // Prepare updates for this batch
-        const updates = embeddings.map((embedding, i) => ({
-          id: chunkIds[startIndex + i],
-          embedding,
-        }));
-
-        // Store immediately
-        await this.storage.updateChunkEmbeddings(updates);
-
-        // Progressive clearing (Option B): release processed texts to free memory
-        if (prepared) {
-          for (let i = startIndex; i < startIndex + embeddings.length; i++) {
-            prepared.chunkTexts[i] = ''; // Release string reference
-          }
-        }
-
-        log.debug('generateEmbeddings:batch', {
-          batchIndex: Math.floor(startIndex / batchSize),
-          batchStart: startIndex,
-          batchEnd: startIndex + embeddings.length,
-          totalBatches: Math.ceil(texts.length / batchSize),
-        });
-      }
-      return;
-    }
-
-    // Fallback: non-streaming path (existing logic with progressive clearing)
-    for (let i = 0; i < texts.length; i += batchSize) {
-      // Yield to event loop between batches to prevent blocking
-      if (i > 0) {
+        this.validateEmbeddings(embeddings, embeddings.length);
+        vectors.push(...embeddings);
         await yieldToEventLoop();
       }
-
-      const batchTexts = texts.slice(i, i + batchSize);
-      const batchIds = chunkIds.slice(i, i + batchSize);
-
-      // Use embedBatchDocuments if available (handles E5 prefix),
-      // otherwise fall back to embedBatch
+      if (vectors.length !== texts.length)
+        throw new Error('Embedder returned incomplete vectors');
+      return;
+    }
+    for (let i = 0; i < texts.length; i += batchSize) {
+      const batch = texts.slice(i, i + batchSize);
       const embeddings = this.embedder.embedBatchDocuments
-        ? await this.embedder.embedBatchDocuments(batchTexts)
-        : await this.embedder.embedBatch(batchTexts);
-
-      const updates = batchIds.map((id, index) => ({
-        id,
-        embedding: embeddings[index],
-      }));
-
-      await this.storage.updateChunkEmbeddings(updates);
-
-      // Progressive clearing (Option B): release processed texts to free memory
-      if (prepared) {
-        for (let j = i; j < Math.min(i + batchSize, texts.length); j++) {
-          prepared.chunkTexts[j] = ''; // Release string reference
-        }
-      }
-
-      log.debug('generateEmbeddings:batch', {
-        batchIndex: Math.floor(i / batchSize),
-        batchStart: i,
-        batchEnd: Math.min(i + batchSize, texts.length),
-        totalBatches: Math.ceil(texts.length / batchSize),
-      });
+        ? await this.embedder.embedBatchDocuments(batch)
+        : await this.embedder.embedBatch(batch);
+      this.validateEmbeddings(embeddings, batch.length);
+      vectors.push(...embeddings);
+      await yieldToEventLoop();
     }
   }
 
-  /**
-   * Calculate file hash for change detection.
-   */
-  private async calculateFileHash(filePath: string): Promise<string> {
-    try {
-      const { readFile } = await import('node:fs/promises');
-      const xxhashModule = (await import('xxhash-wasm')) as unknown as {
-        default?: {
-          xxhash64: () => Promise<{
-            update(data: Buffer): { digest(enc: string): string };
-          }>;
-        };
-        xxhash64?: () => Promise<{
-          update(data: Buffer): { digest(enc: string): string };
-        }>;
-      };
-      const xxhash64 = xxhashModule.default?.xxhash64 || xxhashModule.xxhash64;
-      if (!xxhash64) throw new Error('xxhash64 not available');
-      const content = await readFile(filePath);
-      const hasher = await xxhash64();
-      return hasher.update(content).digest('hex');
-    } catch {
-      // Fallback
-      const { stat } = await import('node:fs/promises');
-      const stats = await stat(filePath);
-      return `${stats.size}-${stats.mtimeMs}`;
-    }
+  private validateEmbeddings(embeddings: number[][], count: number): void {
+    if (
+      embeddings.length !== count ||
+      embeddings.some(
+        (vector) =>
+          vector.length !== this.embedder.dimensions ||
+          !vector.every(Number.isFinite),
+      )
+    )
+      throw new Error('Embedder returned invalid vectors');
   }
 }
 

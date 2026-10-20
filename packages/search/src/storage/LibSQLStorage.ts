@@ -55,10 +55,7 @@ import type {
   VectorIndexConfig,
   HybridSearchStrategy,
 } from '../config.js';
-import {
-  DEFAULT_VECTOR_INDEX_CONFIG,
-  DEFAULT_SEARCH_CONFIG,
-} from '../config.js';
+import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
 import type { LibSQLBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_LIBSQL_OPTIONS } from '../config/backend-options.js';
@@ -235,8 +232,7 @@ export class LibSQLStorage implements StorageAdapter {
     this.config = config;
     this.vectorIndexConfig = vectorIndexConfig ?? DEFAULT_VECTOR_INDEX_CONFIG;
     this.embeddingDimensions = embeddingDimensions ?? 384;
-    this.hybridStrategy =
-      hybridStrategy ?? DEFAULT_SEARCH_CONFIG.hybridStrategy;
+    this.hybridStrategy = hybridStrategy ?? 'application';
     this.backendOptions = { ...DEFAULT_LIBSQL_OPTIONS, ...backendOptions };
   }
 
@@ -867,6 +863,50 @@ export class LibSQLStorage implements StorageAdapter {
     return createdChunks;
   }
 
+  async replaceChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+    embeddings: number[][],
+  ): Promise<void> {
+    this.ensureReady();
+    this.ensureWritable();
+    if (
+      chunks.length !== embeddings.length ||
+      embeddings.some(
+        (vector) =>
+          vector.length !== this.embeddingDimensions ||
+          !vector.every(Number.isFinite),
+      )
+    ) {
+      throw new Error('Invalid chunk vectors');
+    }
+    const insert = this.db!.prepare(`INSERT INTO chunks (
+      id, document_id, chunk_index, text, start_offset, end_offset,
+      page, section, token_count, created_at, embedding
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,${this._vectorFunc}(?))`);
+    this.db!.transaction(() => {
+      this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(
+        documentId,
+      );
+      chunks.forEach((chunk, i) =>
+        insert.run(
+          generateId(),
+          documentId,
+          chunk.chunkIndex,
+          chunk.text,
+          chunk.startOffset,
+          chunk.endOffset,
+          chunk.page ?? null,
+          chunk.section ?? null,
+          chunk.tokenCount ?? null,
+          new Date().toISOString(),
+          vectorToJson(embeddings[i]),
+        ),
+      );
+    })();
+    this._dirty = true;
+  }
+
   async getChunks(documentId: string): Promise<DocumentChunk[]> {
     this.ensureReady();
 
@@ -1204,9 +1244,11 @@ export class LibSQLStorage implements StorageAdapter {
 
       // Pass vectorJson twice: once for distance calc, once for vector_top_k
       const params = [vectorJson, vectorJson, ...filterParams, limit];
-      const rows = this.db!.prepare(sql).all(...params) as Array<SearchResultRow & {
-        distance: number;
-      }>;
+      const rows = this.db!.prepare(sql).all(...params) as Array<
+        SearchResultRow & {
+          distance: number;
+        }
+      >;
 
       // Convert distance to similarity score (1 - distance for cosine)
       const results: SearchResult[] = rows.map((row) => ({
@@ -1271,9 +1313,11 @@ export class LibSQLStorage implements StorageAdapter {
       `;
 
       const params = [vectorJson, ...filterParams, limit];
-      const rows = this.db!.prepare(sql).all(...params) as Array<SearchResultRow & {
-        distance: number;
-      }>;
+      const rows = this.db!.prepare(sql).all(...params) as Array<
+        SearchResultRow & {
+          distance: number;
+        }
+      >;
 
       // Convert distance to similarity score (1 - distance for cosine)
       const results: SearchResult[] = rows.map((row) => ({
@@ -1433,9 +1477,7 @@ export class LibSQLStorage implements StorageAdapter {
     const id = generateId();
     const now = new Date().toISOString();
     const deferReason =
-      input.priority === 'deferred'
-        ? (input.deferReason ?? 'unknown')
-        : null;
+      input.priority === 'deferred' ? (input.deferReason ?? 'unknown') : null;
     const deferredReasonError = encodeDeferReasonInLastError(deferReason);
 
     this.db!.prepare(
@@ -1519,18 +1561,22 @@ export class LibSQLStorage implements StorageAdapter {
       id,
       filePath: input.filePath,
       fileSize: input.fileSize ?? 0,
-      priority: (input.priority ?? 'markup'),
+      priority: input.priority ?? 'markup',
       status: 'pending' as const,
       attempts: 0,
       lastError: null,
       deferReason:
-        input.priority === 'deferred'
-          ? (input.deferReason ?? 'unknown')
-          : null,
+        input.priority === 'deferred' ? (input.deferReason ?? 'unknown') : null,
       createdAt: nowDate,
       startedAt: null,
       completedAt: null,
     }));
+  }
+
+  async resetProcessingQueueItems(): Promise<void> {
+    await this.execute(
+      "UPDATE index_queue SET status = 'pending', started_at = NULL WHERE status = 'processing'",
+    );
   }
 
   async dequeueItem(): Promise<QueueItem | null> {
@@ -2032,7 +2078,9 @@ export class LibSQLStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => `REPLACE(file_path, '\\', '/') LIKE ?`);
+      const folderConditions = filters.folders.map(
+        () => `REPLACE(file_path, '\\', '/') LIKE ?`,
+      );
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }
@@ -2085,7 +2133,9 @@ export class LibSQLStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => `REPLACE(d.file_path, '\\', '/') LIKE ?`);
+      const folderConditions = filters.folders.map(
+        () => `REPLACE(d.file_path, '\\', '/') LIKE ?`,
+      );
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }

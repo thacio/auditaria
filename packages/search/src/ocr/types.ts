@@ -197,6 +197,8 @@ export interface OcrQueueConfig {
   autoDetectLanguage: boolean;
   /** Default languages to use (fallback when auto-detect is disabled) */
   defaultLanguages: string[];
+  /** Minimum confidence required before recognized text becomes searchable. */
+  minConfidence?: number;
   /** Root path for resolving relative file paths to absolute paths for I/O */
   rootPath?: string;
 }

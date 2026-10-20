@@ -44,6 +44,20 @@ export const USER_CONFIG_FILENAME = 'knowledge-base.config.json';
 /** Current version of the config file format */
 export const USER_CONFIG_VERSION = '1.0.0';
 
+// These were accepted by the old file format but never affected SearchSystem.
+// Keep old files readable without carrying ineffective settings into runtime.
+const OBSOLETE_SETTINGS = new Set([
+  'config.indexing.ocrEnabled',
+  'config.indexing.ocrPriority',
+  'config.indexing.childProcessMemoryThresholdMb',
+  'config.chunking.strategy',
+  'config.chunking.preserveSentences',
+  'config.chunking.preserveParagraphs',
+  'config.embeddings.queryPrefix',
+  'config.embeddings.documentPrefix',
+  'config.search.hybridStrategy',
+]);
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -109,13 +123,15 @@ export function getUserConfigPath(auditariaDir: string): string {
  * Keys starting with '_' or '$' are considered metadata and stripped.
  * This allows users to add comments like "_docs" in their JSON config.
  */
-function stripMetadataKeys<T>(obj: T): T {
+function stripMetadataKeys<T>(obj: T, prefix = '', removed: string[] = []): T {
   if (obj === null || typeof obj !== 'object') {
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(stripMetadataKeys) as T;
+    return obj.map((value: unknown) =>
+      stripMetadataKeys(value, prefix, removed),
+    ) as T;
   }
 
   const result: Record<string, unknown> = {};
@@ -124,7 +140,12 @@ function stripMetadataKeys<T>(obj: T): T {
     if (key.startsWith('_') || key.startsWith('$')) {
       continue;
     }
-    result[key] = stripMetadataKeys(value);
+    const setting = `${prefix}.${key}`;
+    if (OBSOLETE_SETTINGS.has(setting)) {
+      removed.push(setting);
+      continue;
+    }
+    result[key] = stripMetadataKeys(value, setting, removed);
   }
   return result as T;
 }
@@ -156,13 +177,23 @@ export function loadUserConfig(auditariaDir: string): UserConfigFile | null {
 
     // Strip metadata keys like _docs, $schema, $version from nested config
     // but preserve $version at root level for compatibility checking
+    const removed: string[] = [];
     const cleaned: UserConfigFile = {
       $version: parsed.$version,
-      config: parsed.config ? stripMetadataKeys(parsed.config) : undefined,
+      config: parsed.config
+        ? stripMetadataKeys(parsed.config, 'config', removed)
+        : undefined,
       backendOptions: parsed.backendOptions
         ? stripMetadataKeys(parsed.backendOptions)
         : undefined,
     };
+
+    if (removed.length > 0) {
+      console.warn(
+        `[search] Remove obsolete settings from ${configPath}: ${removed.join(', ')}. ` +
+          'Use config.ocr.enabled to control OCR; chunking, model prefixes and hybrid fusion are managed automatically.',
+      );
+    }
 
     return cleaned;
   } catch (error) {
@@ -196,8 +227,11 @@ export function saveUserConfig(
 
   // Add version if not present
   const toSave: UserConfigFile = {
-    $version: config.$version ?? USER_CONFIG_VERSION,
     ...config,
+    $version: config.$version ?? USER_CONFIG_VERSION,
+    config: config.config
+      ? stripMetadataKeys(config.config, 'config')
+      : undefined,
   };
 
   // Write with pretty formatting for human readability
@@ -397,51 +431,19 @@ export function createSampleUserConfig(): UserConfigFile {
   return {
     $version: USER_CONFIG_VERSION,
     config: {
-      database: {
-        // backend: 'pglite',  // 'pglite', 'libsql', 'sqlite', 'lancedb'
-        // path: '.auditaria/knowledge-base.db',
-        // backupEnabled: true,
-      },
       indexing: {
-        // ignorePaths: ['node_modules', '.git', 'dist', 'build'],
-        // maxFileSize: 104857600,  // 100MB
-        // ocrEnabled: true,
-        // supervisorStrategy: 'none',  // 'in-process', 'child-process', 'none'
+        includePaths: [],
+        ignorePaths: [
+          'node_modules',
+          '.git',
+          'dist',
+          'build',
+          '*.log',
+          '.auditaria',
+        ],
       },
-      chunking: {
-        // strategy: 'recursive',  // 'recursive', 'semantic', 'fixed'
-        // maxChunkSize: 1000,
-        // chunkOverlap: 200,
-      },
-      embeddings: {
-        // model: 'Xenova/multilingual-e5-large',
-        // dimensions is auto-derived from the model name (384 for e5-small, 768 for e5-base, 1024 for e5-large)
-        // device: 'cpu',  // 'auto', 'cpu', 'dml', 'cuda'
-        // quantization: 'q8',  // 'auto', 'fp32', 'fp16', 'q8', 'q4'
-      },
-      search: {
-        // defaultLimit: 10,
-        // defaultStrategy: 'hybrid',  // 'hybrid', 'semantic', 'keyword'
-        // semanticWeight: 0.5,
-        // keywordWeight: 0.5,
-      },
-      ocr: {
-        // enabled: true,
-        // autoDetectLanguage: true,
-        // defaultLanguages: ['en'],
-      },
-      vectorIndex: {
-        // type: 'hnsw',  // 'hnsw', 'ivfflat', 'none'
-        // useHalfVec: true,
-        // createIndex: true,
-      },
-    },
-    backendOptions: {
-      libsql: {
-        // metric: 'cosine',  // 'cosine', 'l2', 'inner_product'
-        // compressNeighbors: 'float8',  // 'float8', 'float1bit', null
-        // maxNeighbors: 20,
-      },
+      search: { defaultStrategy: 'hybrid', defaultLimit: 10 },
+      ocr: { enabled: true, defaultLanguages: ['pt', 'en'] },
     },
   };
 }

@@ -246,13 +246,13 @@ const searchSubCommand: SlashCommand = {
     const strategyMatch = args.match(/--strategy=(keyword|semantic|hybrid)/);
 
     const fileType = typeMatch?.[1];
-    const limit = limitMatch ? parseInt(limitMatch[1], 10) : 20;
-    const strategy: 'keyword' | 'semantic' | 'hybrid' =
+    const limit = limitMatch ? parseInt(limitMatch[1], 10) : undefined;
+    const strategy: 'keyword' | 'semantic' | 'hybrid' | undefined =
       strategyMatch?.[1] === 'keyword' ||
       strategyMatch?.[1] === 'semantic' ||
       strategyMatch?.[1] === 'hybrid'
         ? strategyMatch[1]
-        : 'hybrid';
+        : undefined;
 
     // Remove flags from query
     const query = args
@@ -301,17 +301,16 @@ const searchSubCommand: SlashCommand = {
       }
 
       // Build search options
+      const effectiveLimit = limit ?? system.getConfig().search.defaultLimit;
       // Use web search syntax for user-facing searches (supports "quoted phrases", OR, -exclusion)
-      /* eslint-disable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/no-explicit-any */
       const response = await system.search({
         query,
-        strategy,
-        limit,
+        strategy: strategy ?? system.getConfig().search.defaultStrategy,
+        limit: effectiveLimit,
         filters: fileType ? { fileTypes: [`.${fileType}`] } : undefined,
         highlight: true,
         useWebSearchSyntax: true, // Google-style: "exact phrase", OR, -exclude
-      } as any);
-      /* eslint-enable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/no-explicit-any */
+      });
 
       // Only close if we created a temporary system
       if (closeAfter) {
@@ -358,7 +357,7 @@ const searchSubCommand: SlashCommand = {
         response.took,
         {
           offset: 0,
-          limit,
+          limit: effectiveLimit,
           totalAvailable: response.total,
         },
       );

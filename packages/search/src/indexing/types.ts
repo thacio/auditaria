@@ -131,6 +131,8 @@ export interface PipelineEvents {
 
   /** Fired when pipeline starts processing */
   'pipeline:started': undefined;
+  /** Infrastructure failure; waitForIdle also rejects with this error. */
+  'pipeline:error': { error: Error };
   /** Fired when pipeline stops (all items processed) */
   'pipeline:stopped': undefined;
   /** Fired when pipeline is paused */

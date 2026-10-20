@@ -6,6 +6,7 @@
  * @license
  */
 
+import { AsyncMutex } from '../core/AsyncMutex.js';
 import * as lancedb from '@lancedb/lancedb';
 import type { Table as _Table } from '@lancedb/lancedb';
 import type {
@@ -169,6 +170,7 @@ interface PendingDocument {
 // ============================================================================
 
 export class LanceDBStorage implements StorageAdapter {
+  private readonly queueClaims = new AsyncMutex();
   private db: lancedb.Connection | null = null;
   private chunksTable: lancedb.Table | null = null;
   private queueTable: lancedb.Table | null = null;
@@ -886,6 +888,32 @@ export class LanceDBStorage implements StorageAdapter {
     documentId: string,
     chunks: CreateChunkInput[],
   ): Promise<DocumentChunk[]> {
+    return this.writeChunks(documentId, chunks);
+  }
+
+  async replaceChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+    embeddings: number[][],
+  ): Promise<void> {
+    if (
+      chunks.length !== embeddings.length ||
+      embeddings.some(
+        (vector) =>
+          vector.length !== this.embeddingDimensions ||
+          !vector.every(Number.isFinite),
+      )
+    ) {
+      throw new Error('Invalid chunk vectors');
+    }
+    await this.writeChunks(documentId, chunks, embeddings);
+  }
+
+  private async writeChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+    embeddings?: number[][],
+  ): Promise<DocumentChunk[]> {
     await this.waitForReady();
     this.ensureWritable();
 
@@ -935,8 +963,6 @@ export class LanceDBStorage implements StorageAdapter {
         metadata: JSON.stringify(pending.input.metadata ?? {}),
         tags: JSON.stringify(pending.tags),
       };
-      // Remove from pending since we're now persisting
-      this.pendingDocuments.delete(documentId);
     } else {
       // Try to get from existing chunks
       const existingDoc = await this.getDocument(documentId);
@@ -969,7 +995,13 @@ export class LanceDBStorage implements StorageAdapter {
     const createdChunks: DocumentChunk[] = [];
 
     // Build chunk rows
-    const rows: ChunkRow[] = chunks.map((chunk) => {
+    // A metadata-only row keeps empty documents durable without returning a
+    // synthetic passage from search or chunk APIs.
+    const inputs =
+      chunks.length > 0
+        ? chunks
+        : [{ chunkIndex: -1, text: '', startOffset: 0, endOffset: 0 }];
+    const rows: ChunkRow[] = inputs.map((chunk, index) => {
       const id = generateId();
       createdChunks.push({
         id,
@@ -990,7 +1022,8 @@ export class LanceDBStorage implements StorageAdapter {
         document_id: documentId,
         chunk_index: chunk.chunkIndex,
         text: chunk.text,
-        vector: new Array(this.embeddingDimensions).fill(0), // Placeholder until embedding
+        vector:
+          embeddings?.[index] ?? new Array(this.embeddingDimensions).fill(0),
         start_offset: chunk.startOffset,
         end_offset: chunk.endOffset,
         page: chunk.page ?? 0, // 0 = null
@@ -1018,17 +1051,22 @@ export class LanceDBStorage implements StorageAdapter {
       };
     });
 
-    // Create or add to chunks table
     if (!this.chunksTable) {
       this.chunksTable = await this.db!.createTable('chunks', rows);
-      log.info('createChunks:table:created', { rowCount: rows.length });
-      // Create FTS index after first data
-      await this.ensureFtsIndex();
+    } else if (embeddings) {
+      await this.chunksTable
+        .mergeInsert(['document_id', 'chunk_index'])
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .whenNotMatchedBySourceDelete({
+          where: `document_id = '${this.escapeString(documentId)}'`,
+        })
+        .execute(rows);
     } else {
       await this.chunksTable.add(rows);
-      // Ensure FTS index exists
-      await this.ensureFtsIndex();
     }
+    this.pendingDocuments.delete(documentId);
+    await this.ensureFtsIndex();
 
     this._dirty = true;
 
@@ -1042,7 +1080,7 @@ export class LanceDBStorage implements StorageAdapter {
       documentId,
       chunkCount: chunks.length,
     });
-    return createdChunks;
+    return createdChunks.filter((chunk) => chunk.chunkIndex >= 0);
   }
 
   async getChunks(documentId: string): Promise<DocumentChunk[]> {
@@ -1053,7 +1091,9 @@ export class LanceDBStorage implements StorageAdapter {
     try {
       const results = await this.chunksTable
         .query()
-        .where(`document_id = '${this.escapeString(documentId)}'`)
+        .where(
+          `document_id = '${this.escapeString(documentId)}' AND chunk_index >= 0`,
+        )
         .limit(QUERY_ALL_LIMIT)
         .toArray();
 
@@ -1170,7 +1210,7 @@ export class LanceDBStorage implements StorageAdapter {
     if (!this.chunksTable) return 0;
 
     try {
-      return await this.chunksTable.countRows();
+      return await this.chunksTable.countRows('chunk_index >= 0');
     } catch {
       return 0;
     }
@@ -1373,10 +1413,10 @@ export class LanceDBStorage implements StorageAdapter {
       await this.ensureFtsIndex();
 
       // Use LanceDB FTS search
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const searchQuery = (this.chunksTable as any)
-        .search(query, { queryType: 'fts' })
-        .where("status = 'indexed'")
+      const searchQuery = this.chunksTable
+        .query()
+        .fullTextSearch(query)
+        .where("status = 'indexed' AND chunk_index >= 0")
         .limit(limit * 2);
 
       const results = await searchQuery.toArray();
@@ -1427,7 +1467,7 @@ export class LanceDBStorage implements StorageAdapter {
       // Get all indexed chunks and filter in code
       const results = await this.chunksTable
         .query()
-        .where("status = 'indexed'")
+        .where("status = 'indexed' AND chunk_index >= 0")
         .limit(QUERY_ALL_LIMIT)
         .toArray();
 
@@ -1476,7 +1516,7 @@ export class LanceDBStorage implements StorageAdapter {
       const searchQuery = (this.chunksTable as any)
         .search(embedding)
         .distanceType('cosine')
-        .where("status = 'indexed'")
+        .where("status = 'indexed' AND chunk_index >= 0")
         .limit(limit * 2);
 
       const results = await searchQuery.toArray();
@@ -1524,72 +1564,8 @@ export class LanceDBStorage implements StorageAdapter {
 
     if (!this.chunksTable) return [];
 
-    log.debug('searchHybrid:start', { limit });
-
-    try {
-      // Ensure FTS index exists
-      await this.ensureFtsIndex();
-
-      // Try native hybrid search first
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const searchQuery = (this.chunksTable as any)
-        .search(query, { queryType: 'hybrid' })
-        .vector(embedding)
-        .where("status = 'indexed'")
-        .limit(limit * 2);
-
-      const results = await searchQuery.toArray();
-
-      // Apply additional filters
-      const filtered = results
-        .map((row: Record<string, unknown>) => {
-          const chunkRow = row as ChunkRow & {
-            _score?: number;
-            _distance?: number;
-          };
-          const score = chunkRow._score ?? 1 - (chunkRow._distance ?? 0);
-          return { row: chunkRow, score };
-        })
-        .filter(({ row }: { row: ChunkRow }) =>
-          this.matchesSearchFilters(row, filters),
-        )
-        .slice(0, limit);
-
-      const searchResults = filtered.map(
-        ({ row, score }: { row: ChunkRow; score: number }) =>
-          this.rowToSearchResult(row, score, 'hybrid'),
-      );
-
-      log.debug('searchHybrid:complete:native', {
-        resultCount: searchResults.length,
-      });
-      return searchResults;
-    } catch (error) {
-      log.warn('searchHybrid:native:failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      // Fallback to application-level fusion
-      return this.searchHybridFallback(
-        query,
-        embedding,
-        filters,
-        limit,
-        weights,
-        rrfK,
-        options,
-      );
-    }
-  }
-
-  private async searchHybridFallback(
-    query: string,
-    embedding: number[],
-    filters?: SearchFilters,
-    limit = 10,
-    weights: HybridSearchWeights = { semantic: 0.5, keyword: 0.5 },
-    rrfK = 60,
-    options?: KeywordSearchOptions,
-  ): Promise<SearchResult[]> {
+    // External embedders supply the vector; apply the same explicit RRF weights
+    // as other adapters instead of asking LanceDB to generate an embedding.
     // Run semantic and keyword searches in parallel
     const [semanticResults, keywordResults] = await Promise.all([
       this.searchSemantic(embedding, filters, 50),
@@ -1680,9 +1656,7 @@ export class LanceDBStorage implements StorageAdapter {
     }
 
     const deferReason =
-      input.priority === 'deferred'
-        ? (input.deferReason ?? 'unknown')
-        : null;
+      input.priority === 'deferred' ? (input.deferReason ?? 'unknown') : null;
     const deferredReasonError = encodeDeferReasonInLastError(deferReason);
 
     const id = generateId();
@@ -1765,7 +1739,20 @@ export class LanceDBStorage implements StorageAdapter {
     return rows.map((row) => this.rowToQueueItem(row));
   }
 
-  async dequeueItem(): Promise<QueueItem | null> {
+  async resetProcessingQueueItems(): Promise<void> {
+    await this.waitForReady();
+    this.ensureWritable();
+    await this.queueTable?.update({
+      where: "status = 'processing'",
+      values: { status: 'pending', started_at: 0 },
+    });
+  }
+
+  dequeueItem(): Promise<QueueItem | null> {
+    return this.queueClaims.run(() => this.claimQueueItem());
+  }
+
+  private async claimQueueItem(): Promise<QueueItem | null> {
     await this.waitForReady();
     this.ensureWritable();
 
@@ -1821,7 +1808,7 @@ export class LanceDBStorage implements StorageAdapter {
       log.warn('dequeueItem:failed', {
         error: error instanceof Error ? error.message : String(error),
       });
-      return null;
+      throw error;
     }
   }
 
@@ -1844,7 +1831,8 @@ export class LanceDBStorage implements StorageAdapter {
     if (updates.lastError !== undefined)
       values.last_error = updates.lastError ?? '';
     else if (updates.deferReason !== undefined) {
-      values.last_error = encodeDeferReasonInLastError(updates.deferReason) ?? '';
+      values.last_error =
+        encodeDeferReasonInLastError(updates.deferReason) ?? '';
     }
     if (updates.startedAt !== undefined) {
       values.started_at = updates.startedAt?.getTime() ?? 0;
@@ -1868,7 +1856,7 @@ export class LanceDBStorage implements StorageAdapter {
       filePath: '', // Not needed by callers
       fileSize: 0,
       priority: 'text' as QueuePriority,
-      status: (updates.status ?? 'pending'),
+      status: updates.status ?? 'pending',
       attempts: updates.attempts ?? 0,
       lastError:
         updates.lastError ??
@@ -2238,7 +2226,7 @@ export class LanceDBStorage implements StorageAdapter {
 
     if (this.chunksTable) {
       try {
-        totalChunks = await this.chunksTable.countRows();
+        totalChunks = await this.chunksTable.countRows('chunk_index >= 0');
 
         const results = await this.chunksTable
           .query()

@@ -1,5 +1,7 @@
 /**
- * Tests for Logger class.
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -75,7 +77,9 @@ describe('Logger', () => {
 
   describe('Log Levels', () => {
     it('should respect log level filtering', () => {
-      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'debug')
+        .mockImplementation(() => {});
 
       logger.configure({ console: true, level: LogLevel.INFO });
       logger.debug('TestModule', 'Debug message'); // Should be filtered
@@ -97,7 +101,11 @@ describe('Logger', () => {
     it('should filter by module when modules are specified', () => {
       const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
-      logger.configure({ console: true, level: LogLevel.DEBUG, modules: ['AllowedModule'] });
+      logger.configure({
+        console: true,
+        level: LogLevel.DEBUG,
+        modules: ['AllowedModule'],
+      });
 
       logger.info('AllowedModule', 'Should appear');
       expect(consoleSpy).toHaveBeenCalledTimes(1);
@@ -122,7 +130,10 @@ describe('Logger', () => {
       const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
       logger.configure({ console: true, level: LogLevel.DEBUG });
-      logger.info('TestModule', 'Message with data', { key: 'value', count: 42 });
+      logger.info('TestModule', 'Message with data', {
+        key: 'value',
+        count: 42,
+      });
 
       expect(consoleSpy).toHaveBeenCalled();
       const output = consoleSpy.mock.calls[0][0];
@@ -164,12 +175,18 @@ describe('Logger', () => {
 
   describe('Timing Utilities', () => {
     it('should track timer duration', async () => {
-      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'debug')
+        .mockImplementation(() => {});
       logger.configure({ console: true, level: LogLevel.DEBUG });
 
       logger.startTimer('testOperation');
       await new Promise((resolve) => setTimeout(resolve, 50)); // Wait 50ms
-      const duration = logger.endTimer('testOperation', 'TestModule', 'Operation complete');
+      const duration = logger.endTimer(
+        'testOperation',
+        'TestModule',
+        'Operation complete',
+      );
 
       expect(duration).toBeGreaterThanOrEqual(40); // Allow some variance
       expect(duration).toBeLessThan(200);
@@ -182,14 +199,20 @@ describe('Logger', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       logger.configure({ console: true, level: LogLevel.DEBUG });
 
-      const duration = logger.endTimer('nonExistent', 'TestModule', 'Should warn');
+      const duration = logger.endTimer(
+        'nonExistent',
+        'TestModule',
+        'Should warn',
+      );
 
       expect(duration).toBe(-1);
       warnSpy.mockRestore();
     });
 
     it('should track memory delta when enabled', async () => {
-      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'debug')
+        .mockImplementation(() => {});
       logger.configure({ console: true, level: LogLevel.DEBUG });
 
       logger.startTimer('memoryTest', true); // Enable memory tracking
@@ -197,7 +220,11 @@ describe('Logger', () => {
       // Allocate some memory
       const arr = new Array(100000).fill('test');
 
-      const duration = logger.endTimer('memoryTest', 'TestModule', 'Memory test');
+      const duration = logger.endTimer(
+        'memoryTest',
+        'TestModule',
+        'Memory test',
+      );
 
       expect(duration).toBeGreaterThan(0);
       expect(consoleSpy).toHaveBeenCalled();
@@ -210,7 +237,9 @@ describe('Logger', () => {
     });
 
     it('should measure async function with measure()', async () => {
-      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'debug')
+        .mockImplementation(() => {});
       logger.configure({ console: true, level: LogLevel.DEBUG });
 
       const result = await logger.measure('asyncOp', 'TestModule', async () => {
@@ -226,6 +255,8 @@ describe('Logger', () => {
   });
 
   describe('Benchmarking', () => {
+    beforeEach(() => vi.stubEnv('DEBUG', 'auditaria:search'));
+    afterEach(() => vi.unstubAllEnvs());
     it('should record benchmark statistics', () => {
       logger.benchmark('testBench', 100);
       logger.benchmark('testBench', 150);
@@ -268,6 +299,8 @@ describe('Logger', () => {
   });
 
   describe('File Output', () => {
+    beforeEach(() => vi.stubEnv('DEBUG', 'auditaria:search'));
+    afterEach(() => vi.unstubAllEnvs());
     it('should write logs to file in JSON format', async () => {
       const fileLogger = new Logger({
         level: LogLevel.DEBUG,

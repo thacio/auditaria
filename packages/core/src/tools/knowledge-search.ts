@@ -54,7 +54,7 @@ export interface KnowledgeSearchToolParams {
   file_types?: string[];
 
   /**
-   * Maximum number of results to return (default: 30, max: 200)
+   * Maximum number of results (defaults to knowledge base configuration, max: 300)
    */
   limit?: number;
 
@@ -177,7 +177,7 @@ The keyword search uses PostgreSQL full-text search (plainto_tsquery). Key behav
 - **semantic_dedup_threshold**: Cosine similarity for dedup (0.9-1.0, default: 0.97)
 
 **Pagination:**
-- **limit**: Max passages to return (default: 100, max: 300)
+- **limit**: Max passages to return (configured default, max: 300)
 - **offset**: Starting position for pagination
 
 **Workflow for retrieving full documents:**
@@ -205,8 +205,8 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
     if (this.params.document_id) {
       return `Retrieving document "${this.params.document_id}"`;
     }
-    const strategy = this.params.strategy ?? 'hybrid';
-    return `Searching for "${this.params.query}" (${strategy})`;
+    const strategy = this.params.strategy;
+    return `Searching for "${this.params.query}"${strategy ? ` (${strategy})` : ''}`;
   }
 
   async execute(): Promise<ToolResult> {
@@ -293,12 +293,13 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
       }
 
       // Perform the search
-      const effectiveLimit = limit ?? 100;
+      const effectiveLimit =
+        limit ?? searchSystem.getConfig().search.defaultLimit;
       const effectiveOffset = offset ?? 0;
 
       const response = await searchSystem.search({
         query,
-        strategy: strategy ?? 'hybrid',
+        strategy: strategy ?? searchSystem.getConfig().search.defaultStrategy,
         filters: {
           folders,
           fileTypes: file_types,
@@ -502,7 +503,7 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
             type: 'string',
             enum: ['hybrid', 'semantic', 'keyword'],
             description:
-              'Search strategy to use. "hybrid" (default) combines semantic and keyword search for best results.',
+              'Search strategy to use. Defaults to the knowledge base configuration (hybrid unless customized).',
           },
           folders: {
             type: 'array',
@@ -519,7 +520,7 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
           limit: {
             type: 'number',
             description:
-              'Maximum number of passages to return (default: 30, max: 200)',
+              'Maximum number of passages to return. Defaults to the knowledge base configuration (10 unless customized). Maximum: 300.',
           },
           document_id: {
             type: 'string',

@@ -1,6 +1,7 @@
 /**
- * Search engine for the Auditaria search system.
- * Supports keyword, semantic, and hybrid search strategies.
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { StorageAdapter } from '../storage/types.js';
@@ -55,6 +56,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
   private readonly embedder: TextEmbedder;
   private readonly config: Required<SearchEngineConfig>;
   private queryCounter = 0;
+  private initialization: Promise<void> | null = null;
 
   constructor(
     storage: StorageAdapter,
@@ -87,11 +89,14 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     const queryId = this.generateQueryId();
     const timerKey = `search-${queryId}`;
 
-    log.startTimer(timerKey, true);
-    log.debug('search:start', { queryId, strategy: options.strategy, queryLength: options.query.length });
-    log.logMemory('search:memoryBefore');
-
     const params = this.normalizeParams(options);
+    log.startTimer(timerKey, true);
+    log.debug('search:start', {
+      queryId,
+      strategy: options.strategy,
+      queryLength: options.query.length,
+    });
+    log.logMemory('search:memoryBefore');
 
     void this.emit('search:started', {
       queryId,
@@ -129,14 +134,14 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         log.debug('search:applyDiversity', {
           queryId,
           strategy: params.diversity.strategy,
-          beforeCount: results.length
+          beforeCount: results.length,
         });
 
         results = this.applyDiversityStrategy(results, params.diversity);
 
         log.debug('search:diversityApplied', {
           queryId,
-          afterCount: results.length
+          afterCount: results.length,
         });
       }
 
@@ -145,18 +150,18 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         log.debug('search:applySemanticDedup', {
           queryId,
           threshold: params.diversity.semanticDedupThreshold,
-          beforeCount: results.length
+          beforeCount: results.length,
         });
 
         results = await this.applySemanticDedup(
           results,
           params.diversity.semanticDedupThreshold,
-          queryId
+          queryId,
         );
 
         log.debug('search:semanticDedupApplied', {
           queryId,
-          afterCount: results.length
+          afterCount: results.length,
         });
       }
 
@@ -189,7 +194,11 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         strategy: params.strategy,
       });
 
-      log.endTimer(timerKey, 'search:complete', { queryId, resultCount: results.length, strategy: params.strategy });
+      log.endTimer(timerKey, 'search:complete', {
+        queryId,
+        resultCount: results.length,
+        strategy: params.strategy,
+      });
       log.logMemory('search:memoryAfter');
 
       return {
@@ -216,8 +225,9 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     filters?: SearchFilters,
     limit?: number,
   ): Promise<SearchResult[]> {
+    this.normalizeParams({ query, filters, limit, strategy: 'keyword' });
     return this.storage.searchKeyword(
-      query,
+      query.trim(),
       filters,
       limit ?? this.config.defaultLimit,
     );
@@ -231,10 +241,8 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     filters?: SearchFilters,
     limit?: number,
   ): Promise<SearchResult[]> {
-    // Ensure embedder is ready
-    if (!this.embedder.isReady()) {
-      await this.embedder.initialize();
-    }
+    this.normalizeParams({ query, filters, limit, strategy: 'semantic' });
+    await this.ensureEmbedder();
 
     // Generate query embedding
     const queryEmbedding = await this.embedder.embedQuery(query);
@@ -255,25 +263,14 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     limit?: number,
     weights?: { semantic: number; keyword: number },
   ): Promise<SearchResult[]> {
-    // Ensure embedder is ready
-    if (!this.embedder.isReady()) {
-      await this.embedder.initialize();
-    }
-
-    // Generate query embedding
-    const queryEmbedding = await this.embedder.embedQuery(query);
-
-    return this.storage.searchHybrid(
+    const params = this.normalizeParams({
       query,
-      queryEmbedding,
       filters,
-      limit ?? this.config.defaultLimit,
-      weights ?? {
-        semantic: this.config.semanticWeight,
-        keyword: this.config.keywordWeight,
-      },
-      this.config.rrfK,
-    );
+      limit,
+      weights,
+      strategy: 'hybrid',
+    });
+    return this.hybridSearch(this.generateQueryId(), params);
   }
 
   /**
@@ -305,26 +302,62 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
   // Private Methods
   // -------------------------------------------------------------------------
 
+  private async ensureEmbedder(): Promise<void> {
+    if (this.embedder.isReady()) return;
+    this.initialization ??= this.embedder.initialize().finally(() => {
+      this.initialization = null;
+    });
+    await this.initialization;
+  }
+
   /**
    * Normalize search parameters with defaults.
    */
   private normalizeParams(options: SearchOptions): NormalizedSearchParams {
+    if (typeof options.query !== 'string' || !options.query.trim()) {
+      throw new Error('Search query must not be empty');
+    }
+    const strategy = options.strategy ?? this.config.defaultStrategy;
+    if (!['keyword', 'semantic', 'hybrid'].includes(strategy))
+      throw new Error('Invalid search strategy');
+    const limit = options.limit ?? this.config.defaultLimit;
+    const offset = options.offset ?? 0;
+    if (!Number.isSafeInteger(limit) || limit < 1)
+      throw new Error('Search limit must be a positive integer');
+    if (!Number.isSafeInteger(offset) || offset < 0)
+      throw new Error('Search offset must be a non-negative integer');
+    const semanticWeight =
+      options.weights?.semantic ?? this.config.semanticWeight;
+    const keywordWeight = options.weights?.keyword ?? this.config.keywordWeight;
+    if (
+      ![semanticWeight, keywordWeight].every(
+        (weight) => Number.isFinite(weight) && weight >= 0,
+      ) ||
+      semanticWeight + keywordWeight <= 0
+    )
+      throw new Error(
+        'Search weights must be non-negative and have a positive sum',
+      );
     const diversity: NormalizedDiversityOptions = {
       strategy: options.diversity?.strategy ?? DEFAULT_DIVERSITY_STRATEGY,
-      decayFactor: options.diversity?.decayFactor ?? DEFAULT_DIVERSITY_DECAY_FACTOR,
-      maxPerDocument: options.diversity?.maxPerDocument ?? DEFAULT_DIVERSITY_MAX_PER_DOCUMENT,
+      decayFactor:
+        options.diversity?.decayFactor ?? DEFAULT_DIVERSITY_DECAY_FACTOR,
+      maxPerDocument:
+        options.diversity?.maxPerDocument ?? DEFAULT_DIVERSITY_MAX_PER_DOCUMENT,
       semanticDedup: options.diversity?.semanticDedup ?? DEFAULT_SEMANTIC_DEDUP,
-      semanticDedupThreshold: options.diversity?.semanticDedupThreshold ?? DEFAULT_SEMANTIC_DEDUP_THRESHOLD,
+      semanticDedupThreshold:
+        options.diversity?.semanticDedupThreshold ??
+        DEFAULT_SEMANTIC_DEDUP_THRESHOLD,
     };
 
     return {
       query: options.query.trim(),
-      strategy: options.strategy ?? this.config.defaultStrategy,
+      strategy,
       filters: options.filters ?? {},
-      limit: options.limit ?? this.config.defaultLimit,
-      offset: options.offset ?? 0,
-      semanticWeight: options.weights?.semantic ?? this.config.semanticWeight,
-      keywordWeight: options.weights?.keyword ?? this.config.keywordWeight,
+      limit,
+      offset,
+      semanticWeight,
+      keywordWeight,
       rrfK: this.config.rrfK,
       highlight: options.highlight ?? false,
       highlightTag: options.highlightTag ?? this.config.highlightTag,
@@ -366,9 +399,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     params: NormalizedSearchParams,
   ): Promise<SearchResult[]> {
     // Ensure embedder is ready
-    if (!this.embedder.isReady()) {
-      await this.embedder.initialize();
-    }
+    await this.ensureEmbedder();
 
     void this.emit('search:embedding', { queryId, query: params.query });
 
@@ -404,16 +435,17 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     log.debug('hybridSearch:start', { queryId });
 
     // Ensure embedder is ready
-    if (!this.embedder.isReady()) {
-      await this.embedder.initialize();
-    }
+    await this.ensureEmbedder();
 
     void this.emit('search:embedding', { queryId, query: params.query });
 
     // Generate query embedding
     log.debug('hybridSearch:embeddingStart', { queryId });
     const queryEmbedding = await this.embedder.embedQuery(params.query);
-    log.debug('hybridSearch:embeddingComplete', { queryId, embeddingDim: queryEmbedding.length });
+    log.debug('hybridSearch:embeddingComplete', {
+      queryId,
+      embeddingDim: queryEmbedding.length,
+    });
 
     // Run both searches in parallel
     const fetchLimit = (params.limit + params.offset) * 2; // Fetch more for fusion
@@ -421,12 +453,14 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     log.debug('hybridSearch:parallelSearchStart', { queryId, fetchLimit });
     const [semanticResults, keywordResults] = await Promise.all([
       this.storage.searchSemantic(queryEmbedding, params.filters, fetchLimit),
-      this.storage.searchKeyword(params.query, params.filters, fetchLimit, { useWebSearchSyntax: params.useWebSearchSyntax }),
+      this.storage.searchKeyword(params.query, params.filters, fetchLimit, {
+        useWebSearchSyntax: params.useWebSearchSyntax,
+      }),
     ]);
     log.debug('hybridSearch:parallelSearchComplete', {
       queryId,
       semanticCount: semanticResults.length,
-      keywordCount: keywordResults.length
+      keywordCount: keywordResults.length,
     });
 
     void this.emit('search:semantic', {
@@ -451,7 +485,10 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       params.rrfK,
       queryId,
     );
-    log.debug('hybridSearch:fusionComplete', { queryId, fusedCount: fusedResults.length });
+    log.debug('hybridSearch:fusionComplete', {
+      queryId,
+      fusedCount: fusedResults.length,
+    });
 
     void this.emit('search:fusion', {
       queryId,
@@ -460,7 +497,10 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       fusedCount: fusedResults.length,
     });
 
-    log.endTimer(timerKey, 'hybridSearch:complete', { queryId, fusedCount: fusedResults.length });
+    log.endTimer(timerKey, 'hybridSearch:complete', {
+      queryId,
+      fusedCount: fusedResults.length,
+    });
     return fusedResults;
   }
 
@@ -478,7 +518,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     log.debug('rrfFusion:start', {
       queryId,
       semanticCount: semanticResults.length,
-      keywordCount: keywordResults.length
+      keywordCount: keywordResults.length,
     });
 
     // Build rank maps
@@ -486,13 +526,19 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     semanticResults.forEach((result, index) => {
       semanticRanks.set(result.chunkId, index + 1);
     });
-    log.debug('rrfFusion:semanticRanksBuilt', { queryId, mapSize: semanticRanks.size });
+    log.debug('rrfFusion:semanticRanksBuilt', {
+      queryId,
+      mapSize: semanticRanks.size,
+    });
 
     const keywordRanks = new Map<string, number>();
     keywordResults.forEach((result, index) => {
       keywordRanks.set(result.chunkId, index + 1);
     });
-    log.debug('rrfFusion:keywordRanksBuilt', { queryId, mapSize: keywordRanks.size });
+    log.debug('rrfFusion:keywordRanksBuilt', {
+      queryId,
+      mapSize: keywordRanks.size,
+    });
 
     // Collect all unique chunks
     const allChunks = new Map<string, SearchResult>();
@@ -504,7 +550,10 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         allChunks.set(result.chunkId, result);
       }
     }
-    log.debug('rrfFusion:allChunksCollected', { queryId, uniqueChunks: allChunks.size });
+    log.debug('rrfFusion:allChunksCollected', {
+      queryId,
+      uniqueChunks: allChunks.size,
+    });
 
     // Calculate RRF scores
     const scoredResults: Array<{ result: SearchResult; rrfScore: number }> = [];
@@ -546,7 +595,10 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     // Sort by RRF score
     scoredResults.sort((a, b) => b.rrfScore - a.rrfScore);
 
-    log.debug('rrfFusion:complete', { queryId, scoredResultsCount: scoredResults.length });
+    log.debug('rrfFusion:complete', {
+      queryId,
+      scoredResultsCount: scoredResults.length,
+    });
 
     return scoredResults.map((sr) => sr.result);
   }
@@ -583,10 +635,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     // Create regex for highlighting - phrases first (longer), then individual terms
     // Sort by length descending so longer matches are tried first
     highlightPatterns.sort((a, b) => b.length - a.length);
-    const pattern = new RegExp(
-      `(${highlightPatterns.join('|')})`,
-      'gi',
-    );
+    const pattern = new RegExp(`(${highlightPatterns.join('|')})`, 'gi');
 
     // For snippet extraction, use phrases first, then terms
     const snippetTerms = [...phrases, ...terms];
@@ -721,7 +770,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
    */
   private applyDiversityStrategy(
     results: SearchResult[],
-    diversity: NormalizedDiversityOptions
+    diversity: NormalizedDiversityOptions,
   ): SearchResult[] {
     if (diversity.strategy === 'score_penalty') {
       return this.applyScorePenalty(results, diversity.decayFactor);
@@ -738,7 +787,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
    */
   private applyScorePenalty(
     results: SearchResult[],
-    decayFactor: number
+    decayFactor: number,
   ): SearchResult[] {
     // Track rank within each document
     const docRanks = new Map<string, number>();
@@ -777,7 +826,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
    */
   private applyCapThenFill(
     results: SearchResult[],
-    maxPerDocument: number
+    maxPerDocument: number,
   ): SearchResult[] {
     // Group results by document, maintaining original score order within groups
     const byDocument = new Map<string, SearchResult[]>();
@@ -790,8 +839,10 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     // Each group is already in score order from the original search
 
     const output: SearchResult[] = [];
-    const maxRound = Math.max(maxPerDocument,
-      Math.max(...Array.from(byDocument.values()).map(arr => arr.length)));
+    const maxRound = Math.max(
+      maxPerDocument,
+      Math.max(...Array.from(byDocument.values()).map((arr) => arr.length)),
+    );
 
     // Fill in rounds
     for (let round = 0; round < maxRound; round++) {
@@ -825,15 +876,14 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
   private async applySemanticDedup(
     results: SearchResult[],
     threshold: number,
-    queryId: string
+    queryId: string,
   ): Promise<SearchResult[]> {
     if (results.length === 0) {
       return results;
     }
 
     // Fetch embeddings for all chunks
-    const chunkIds = results.map(r => r.chunkId);
-    const embeddings = await this.fetchChunkEmbeddings(chunkIds);
+    const embeddings = await this.fetchChunkEmbeddings(results);
 
     if (embeddings.size === 0) {
       log.debug('search:semanticDedup:noEmbeddings', { queryId });
@@ -858,7 +908,10 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         const existingEmbedding = embeddings.get(existing.chunkId);
         if (!existingEmbedding) continue;
 
-        const similarity = this.cosineSimilarity(candidateEmbedding, existingEmbedding);
+        const similarity = this.cosineSimilarity(
+          candidateEmbedding,
+          existingEmbedding,
+        );
 
         if (similarity >= threshold) {
           // Merge: add candidate's file info to existing result's additionalSources
@@ -891,7 +944,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       queryId,
       originalCount: results.length,
       mergedCount: merged.length,
-      duplicatesFound: results.length - merged.length
+      duplicatesFound: results.length - merged.length,
     });
 
     return merged;
@@ -902,68 +955,27 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
    * Returns a map of chunkId -> embedding vector.
    */
   private async fetchChunkEmbeddings(
-    chunkIds: string[]
+    results: SearchResult[],
   ): Promise<Map<string, number[]>> {
+    const wanted = new Set(results.map((result) => result.chunkId));
     const embeddings = new Map<string, number[]>();
-
-    if (chunkIds.length === 0) {
-      return embeddings;
-    }
-
-    try {
-      // Query the database for embeddings
-      const placeholders = chunkIds.map((_, i) => `$${i + 1}`).join(', ');
-      const sql = `
-        SELECT id, embedding
-        FROM chunks
-        WHERE id IN (${placeholders})
-          AND embedding IS NOT NULL
-      `;
-
-      const rows = await this.storage.query<{ id: string; embedding: string }>(
-        sql,
-        chunkIds
-      );
-
-      for (const row of rows) {
-        if (row.embedding) {
-          // Parse the embedding vector from string format
-          const embedding = this.parseEmbeddingVector(row.embedding);
-          if (embedding) {
-            embeddings.set(row.id, embedding);
-          }
+    // Use the storage contract so PGlite, SQLite, libSQL, and LanceDB decode
+    // their own vector formats. Bound concurrent reads to one document at a time.
+    for (const documentId of new Set(
+      results.map((result) => result.documentId),
+    )) {
+      const chunks = await this.storage.getChunks(documentId);
+      for (const chunk of chunks) {
+        if (
+          wanted.has(chunk.id) &&
+          chunk.embedding?.length &&
+          chunk.embedding.every(Number.isFinite)
+        ) {
+          embeddings.set(chunk.id, chunk.embedding);
         }
       }
-    } catch (error) {
-      log.warn('fetchChunkEmbeddings:error', {
-        error: error instanceof Error ? error.message : String(error)
-      });
     }
-
     return embeddings;
-  }
-
-  /**
-   * Parse embedding vector from database format.
-   * PGlite stores vectors as '[0.1, 0.2, ...]' string format.
-   */
-  private parseEmbeddingVector(vectorStr: string): number[] | null {
-    try {
-      // Handle array format
-      if (Array.isArray(vectorStr)) {
-        return vectorStr as unknown as number[];
-      }
-
-      // Handle string format '[0.1, 0.2, ...]'
-      if (typeof vectorStr === 'string') {
-        const cleaned = vectorStr.replace(/^\[|\]$/g, '');
-        return cleaned.split(',').map(v => parseFloat(v.trim()));
-      }
-
-      return null;
-    } catch {
-      return null;
-    }
   }
 
   /**

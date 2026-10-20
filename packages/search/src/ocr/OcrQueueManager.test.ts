@@ -1,8 +1,10 @@
 /**
- * Tests for OcrQueueManager.
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { OcrQueueManager } from './OcrQueueManager.js';
 import { createOcrQueueManager } from './OcrQueueManager.js';
 import { OcrRegistry } from './OcrRegistry.js';
@@ -139,6 +141,64 @@ describe('OcrQueueManager', () => {
       autoDetectLanguage: false, // Disable auto-detect in tests (mock doesn't support it)
       defaultLanguages: ['en'],
     });
+  });
+
+  afterEach(async () => {
+    await queueManager.stop();
+  });
+
+  it('uses configured OCR languages and filters text below the confidence threshold', async () => {
+    await queueManager.stop();
+    queueManager = createOcrQueueManager(storage, registry, {
+      autoDetectLanguage: false,
+      defaultLanguages: ['pt'],
+      minConfidence: 0.99,
+      processAfterMainQueue: false,
+    });
+    const recognize = vi.spyOn(registry, 'recognizeFile');
+    await queueManager.enqueue('doc-1', '/test/file.png', []);
+    await queueManager.processAll();
+    expect(recognize).toHaveBeenCalledWith('/test/file.png', {
+      languages: ['pt'],
+    });
+    expect(storage.createChunks).not.toHaveBeenCalled();
+  });
+
+  it('drains transient retries and counts each completed OCR job once', async () => {
+    vi.spyOn(registry, 'recognizeFile')
+      .mockRejectedValueOnce(new Error('temporary OCR failure'))
+      .mockResolvedValue({
+        text: 'Recovered evidence',
+        confidence: 0.9,
+        regions: [],
+      });
+    const job = await queueManager.enqueue('doc-1', '/test/file.png', []);
+    expect(await queueManager.processAll()).toEqual({
+      processed: 1,
+      succeeded: 1,
+      failed: 0,
+    });
+    expect(job.attempts).toBe(2);
+  });
+
+  it('releases processing claims when the initial status write fails', async () => {
+    const job = await queueManager.enqueue('doc-1', '/test/file.png', []);
+    vi.mocked(storage.updateDocument).mockRejectedValueOnce(
+      new Error('temporary database failure'),
+    );
+    vi.spyOn(registry, 'recognizeFile').mockResolvedValue({
+      text: '',
+      confidence: 0.9,
+      regions: [],
+    });
+    expect(await queueManager.processAll()).toEqual({
+      processed: 1,
+      succeeded: 1,
+      failed: 0,
+    });
+    expect(job.attempts).toBe(2);
+    await queueManager.stop();
+    expect(queueManager.getState()).toBe('idle');
   });
 
   describe('state management', () => {

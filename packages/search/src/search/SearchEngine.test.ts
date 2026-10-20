@@ -1,5 +1,7 @@
 /**
- * Tests for SearchEngine.
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -54,7 +56,7 @@ function createMockStorage(): StorageAdapter {
 
     // Chunk methods
     createChunks: vi.fn(),
-    getChunks: vi.fn(),
+    getChunks: vi.fn().mockResolvedValue([]),
     deleteChunks: vi.fn(),
     updateChunkEmbeddings: vi.fn(),
     countChunks: vi.fn(),
@@ -123,6 +125,26 @@ describe('SearchEngine', () => {
   });
 
   describe('search', () => {
+    it('initializes a shared query embedder once for concurrent searches', async () => {
+      await mockEmbedder.dispose();
+      const initialize = vi.spyOn(mockEmbedder, 'initialize');
+      await Promise.all([
+        engine.searchSemantic('audit'),
+        engine.searchHybrid('controls'),
+      ]);
+      expect(initialize).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([{ limit: -1 }, { limit: 1.5 }, { offset: -1 }, { limit: NaN }])(
+      'rejects invalid pagination %j',
+      async (options) => {
+        await expect(
+          engine.search({ query: 'audit', strategy: 'hybrid', ...options }),
+        ).rejects.toThrow();
+        expect(mockStorage.searchSemantic).not.toHaveBeenCalled();
+      },
+    );
+
     it('should perform keyword search when strategy is keyword', async () => {
       const response = await engine.search({
         query: 'machine learning',
@@ -133,6 +155,7 @@ describe('SearchEngine', () => {
         'machine learning',
         {},
         expect.any(Number),
+        { useWebSearchSyntax: false },
       );
       expect(response.results).toHaveLength(2);
       expect(response.strategy).toBe('keyword');
@@ -201,6 +224,7 @@ describe('SearchEngine', () => {
           folders: ['/docs'],
         },
         expect.any(Number),
+        { useWebSearchSyntax: false },
       );
     });
 
@@ -293,27 +317,29 @@ describe('SearchEngine', () => {
   });
 
   describe('searchHybrid', () => {
-    it('should call storage searchHybrid', async () => {
+    it('should use the same fusion for convenience and full hybrid searches', async () => {
       const results = await engine.searchHybrid('test query');
 
-      expect(mockStorage.searchHybrid).toHaveBeenCalled();
+      expect(mockStorage.searchSemantic).toHaveBeenCalled();
+      expect(mockStorage.searchKeyword).toHaveBeenCalled();
       expect(results).toHaveLength(2);
     });
 
     it('should accept custom weights', async () => {
-      await engine.searchHybrid('test', undefined, undefined, {
-        semantic: 0.7,
-        keyword: 0.3,
-      });
-
-      expect(mockStorage.searchHybrid).toHaveBeenCalledWith(
+      const weights = { semantic: 0.7, keyword: 0.3 };
+      const direct = await engine.searchHybrid(
         'test',
-        expect.any(Array),
         undefined,
-        10,
-        { semantic: 0.7, keyword: 0.3 },
-        60, // default rrfK
+        undefined,
+        weights,
       );
+      const response = await engine.search({
+        query: 'test',
+        strategy: 'hybrid',
+        weights,
+        diversity: { strategy: 'none', semanticDedup: false },
+      });
+      expect(direct).toEqual(response.results);
     });
   });
 

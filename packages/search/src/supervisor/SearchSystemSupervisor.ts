@@ -19,7 +19,12 @@ import type {
   DeepPartial,
   SupervisorStrategy,
 } from '../config.js';
-import { createConfig } from '../config.js';
+import {
+  createConfig,
+  loadMergedConfig,
+  loadUserConfig,
+  deepMerge,
+} from '../config.js';
 import type {
   SearchOptions,
   SearchResponse,
@@ -68,6 +73,11 @@ import { ChildProcessStrategy } from './strategies/ChildProcessStrategy.js';
  */
 export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   private strategy: RestartStrategy | null = null;
+  private restartPromise: Promise<void> | null = null;
+  private closePromise: Promise<void> | null = null;
+  private closing = false;
+  private indexing = false;
+  private indexingCancelled = false;
   private config: SearchSystemConfig;
   /** Original partial config - passed to SearchSystem for proper user config merging */
   private partialConfig: DeepPartial<SearchSystemConfig>;
@@ -78,12 +88,6 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
 
   // Track last progress for delta calculation (must be class property to reset on restart)
   private lastProgressCurrent: number = 0;
-
-  // Restart loop protection (commented out - enable if needed)
-  // private lastMemoryRestartAt: number = 0;
-  // private consecutiveMemoryRestarts: number = 0;
-  // private static readonly MIN_RESTART_COOLDOWN_MS = 60000; // 1 minute
-  // private static readonly MAX_CONSECUTIVE_MEMORY_RESTARTS = 3;
 
   private constructor(
     rootPath: string,
@@ -115,7 +119,14 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     const partialConfig = options.config ?? {};
 
     // Create full config for Supervisor's internal use (e.g., databasePath, ocr.enabled)
-    const config = createConfig(partialConfig);
+    const auditariaDir = join(options.rootPath, '.auditaria');
+    const preferences = loadUserConfig(auditariaDir)?.config ?? {};
+    const preliminary = createConfig(deepMerge(preferences, partialConfig));
+    const { config } = loadMergedConfig(
+      auditariaDir,
+      join(options.rootPath, preliminary.database.path),
+      partialConfig,
+    );
 
     const supervisorConfig = createSupervisorConfig(
       config.indexing,
@@ -177,7 +188,16 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   /**
    * Close the supervisor and release all resources.
    */
-  async close(): Promise<void> {
+  close(): Promise<void> {
+    if (this.closePromise) return this.closePromise;
+    this.closing = true;
+    this.state.isReady = false;
+    this.closePromise = this.closeResources();
+    return this.closePromise;
+  }
+
+  private async closeResources(): Promise<void> {
+    await this.restartPromise?.catch(() => undefined);
     this.state.status = 'stopping';
     void this.emit('supervisor:stopping', { reason: 'close() called' });
 
@@ -252,7 +272,12 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
    * to support long-running indexing with automatic restarts during processing.
    */
   async indexAll(options: IndexAllOptions = {}): Promise<IndexAllResult> {
-    return this.call<IndexAllResult>('indexAll', [options]);
+    if (options.useChildProcess) {
+      const result = await this.call<IndexAllResult>('indexAll', [options]);
+      await this.checkAndRestartIfNeeded();
+      return result;
+    }
+    return this.runIndexing('indexAll', options);
   }
 
   /**
@@ -298,13 +323,20 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
    * Start processing queued items.
    */
   startProcessing(): void {
-    void this.call<void>('startProcessing', []);
+    if (this.indexing) return;
+    void this.processQueue().catch((error: unknown) => {
+      void this.emit('supervisor:error', {
+        error: error instanceof Error ? error.message : String(error),
+        fatal: false,
+      });
+    });
   }
 
   /**
    * Stop processing.
    */
   async stopProcessing(): Promise<void> {
+    this.indexingCancelled = true;
     return this.call<void>('stopProcessing', []);
   }
 
@@ -320,15 +352,64 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
    * Process items already in the queue with proper event emission.
    * Use this to resume processing after a restart.
    */
-  async processQueue(): Promise<{
-    indexed: number;
-    failed: number;
-    duration: number;
-  }> {
-    return this.call<{ indexed: number; failed: number; duration: number }>(
-      'processQueue',
-      [],
-    );
+  async processQueue(
+    options: { maxDocuments?: number } = {},
+  ): Promise<IndexAllResult> {
+    return this.runIndexing('processQueue', options);
+  }
+
+  /** Restart only between completed batches, then resume the persisted queue. */
+  private async runIndexing(
+    method: 'indexAll' | 'processQueue',
+    options: IndexAllOptions,
+  ): Promise<IndexAllResult> {
+    if (this.indexing) throw new Error('Indexing already in progress');
+    if (
+      options.maxDocuments !== undefined &&
+      (!Number.isSafeInteger(options.maxDocuments) || options.maxDocuments <= 0)
+    ) {
+      throw new Error('maxDocuments must be a positive integer');
+    }
+    this.indexing = true;
+    this.indexingCancelled = false;
+    const started = Date.now();
+    let indexed = 0;
+    let failed = 0;
+    try {
+      const bounded =
+        this.supervisorConfig.strategy !== 'none' &&
+        this.supervisorConfig.restartThreshold > 0;
+      let nextMethod = method;
+      while (!this.closing && !this.indexingCancelled) {
+        const remaining = (options.maxDocuments ?? Infinity) - indexed - failed;
+        const batchSize = bounded
+          ? Math.min(remaining, this.supervisorConfig.restartThreshold)
+          : remaining;
+        const result = await this.call<IndexAllResult>(nextMethod, [
+          {
+            ...options,
+            // The supervisor already owns process lifetime and memory recovery.
+            useChildProcess: false,
+            maxDocuments: Number.isFinite(batchSize) ? batchSize : undefined,
+          },
+        ]);
+        indexed += result.indexed;
+        failed += result.failed;
+        if (!this.indexingCancelled) await this.checkAndRestartIfNeeded();
+        if (
+          this.closing ||
+          this.indexingCancelled ||
+          indexed + failed >= (options.maxDocuments ?? Infinity)
+        )
+          break;
+        const queue = await this.getQueueStatus();
+        if (queue.pending === 0 || result.indexed + result.failed === 0) break;
+        nextMethod = 'processQueue';
+      }
+      return { indexed, failed, duration: Date.now() - started };
+    } finally {
+      this.indexing = false;
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -373,7 +454,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
       initialized: this.state.isReady,
       rootPath: this.rootPath,
       databasePath: this.databasePath,
-      indexingInProgress: false, // Would need to track this
+      indexingInProgress: this.indexing,
       ocrEnabled: this.config.ocr.enabled,
       ocrAvailable: false, // Would need to track this
     };
@@ -390,7 +471,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
       initialized: this.state.isReady,
       rootPath: this.rootPath,
       databasePath: this.databasePath,
-      indexingInProgress: false, // Would need to track this separately
+      indexingInProgress: this.indexing,
       ocrEnabled: this.config.ocr.enabled,
       ocrAvailable: false, // Would need to track this separately
     };
@@ -460,6 +541,10 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   /**
    * Get the current configuration.
    */
+  getConfigValue<T>(key: string): Promise<T | null> {
+    return this.call<T | null>('getConfigValue', [key]);
+  }
+
   getConfig(): SearchSystemConfig {
     return { ...this.config };
   }
@@ -521,8 +606,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
             this.state.totalDocumentsProcessed += delta;
             this.lastProgressCurrent = progress.current;
 
-            // Check if restart is needed (async, don't await)
-            void this.checkAndRestartIfNeeded();
+            // The caller checks restart thresholds at the next batch boundary.
           }
         }
 
@@ -543,6 +627,9 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   private async checkAndRestartIfNeeded(): Promise<void> {
     // Skip if restart is disabled
     if (
+      this.closing ||
+      this.config.database.inMemory ||
+      this.state.status !== 'running' ||
       this.supervisorConfig.strategy === 'none' ||
       this.supervisorConfig.restartThreshold <= 0
     ) {
@@ -567,28 +654,6 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     const currentMemoryMb =
       this.strategy?.getMemoryUsageMb() ?? getMemoryUsageMb();
     if (currentMemoryMb >= this.supervisorConfig.memoryThresholdMb) {
-      // RESTART LOOP PROTECTION (uncomment if experiencing continuous restarts)
-      // Prevents restart loops when memory is naturally high (e.g., large embedding model)
-      // const now = Date.now();
-      // const timeSinceLastRestart = now - this.lastMemoryRestartAt;
-      //
-      // // Enforce minimum cooldown between memory-based restarts
-      // if (timeSinceLastRestart < SearchSystemSupervisor.MIN_RESTART_COOLDOWN_MS) {
-      //   return; // Too soon since last restart, skip
-      // }
-      //
-      // // Check if we've exceeded max consecutive memory restarts
-      // if (this.consecutiveMemoryRestarts >= SearchSystemSupervisor.MAX_CONSECUTIVE_MEMORY_RESTARTS) {
-      //   console.warn(
-      //     `[SearchSystemSupervisor] Memory threshold exceeded but max restarts (${SearchSystemSupervisor.MAX_CONSECUTIVE_MEMORY_RESTARTS}) reached. ` +
-      //     `Memory may be naturally high. Disabling memory-based restarts for this session.`
-      //   );
-      //   return;
-      // }
-      //
-      // this.lastMemoryRestartAt = now;
-      // this.consecutiveMemoryRestarts++;
-
       void this.emit('supervisor:memory:warning', {
         currentMb: currentMemoryMb,
         thresholdMb: this.supervisorConfig.memoryThresholdMb,
@@ -606,7 +671,16 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   /**
    * Perform a restart of the SearchSystem.
    */
-  private async performRestart(reason: string): Promise<void> {
+  private performRestart(reason: string): Promise<void> {
+    if (this.closing) return Promise.resolve();
+    if (this.restartPromise) return this.restartPromise;
+    this.restartPromise = this.restart(reason).finally(() => {
+      this.restartPromise = null;
+    });
+    return this.restartPromise;
+  }
+
+  private async restart(reason: string): Promise<void> {
     if (!this.strategy || this.state.status === 'restarting') {
       return;
     }
@@ -625,6 +699,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
 
     try {
       await this.strategy.restart(reason);
+      if (this.closing) return;
 
       // Reset counters for fresh start
       this.state.documentsProcessedSinceRestart = 0;
@@ -666,7 +741,9 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
    * Call a method on the SearchSystem via the strategy.
    */
   private async call<T>(method: string, args: unknown[]): Promise<T> {
-    if (!this.strategy || !this.state.isReady) {
+    if (this.closing) throw new Error('Supervisor is stopping');
+    if (this.restartPromise) await this.restartPromise;
+    if (this.closing || !this.strategy || !this.state.isReady) {
       throw new Error('Supervisor not ready');
     }
 

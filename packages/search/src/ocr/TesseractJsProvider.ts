@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * TesseractJsProvider - OCR provider using tesseract.js.
  * Provides local OCR capabilities for images without requiring external services.
  *
@@ -357,7 +363,7 @@ export class TesseractJsProvider implements OcrProvider {
    * This is fully automatic - all language data is downloaded on demand.
    *
    * @param image - Image buffer or file path
-   * @param options - OCR options (languages option is ignored, auto-detected instead)
+   * @param options - OCR options (preferred languages within the detected script)
    * @param progressCallback - Optional progress callback
    * @returns OCR result with detected language information
    */
@@ -405,7 +411,16 @@ export class TesseractJsProvider implements OcrProvider {
     // Step 2: Get languages for detected script
     // Use top 5 languages to balance accuracy and speed
     // For Latin script: eng, por, spa, fra, deu (covers most common languages)
-    const detectedLangs = scriptResult.suggestedLanguages.slice(0, 5);
+    const suggested = new Set(
+      scriptResult.suggestedLanguages.map(toTesseractLang),
+    );
+    const preferred = (options?.languages ?? this.config.languages)
+      .map(toTesseractLang)
+      .filter((language) => suggested.has(language));
+    const detectedLangs =
+      preferred.length > 0
+        ? preferred
+        : scriptResult.suggestedLanguages.slice(0, 5);
 
     progressCallback?.({
       stage: 'loading',

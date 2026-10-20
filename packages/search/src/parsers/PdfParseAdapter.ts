@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Document parser using pdf-parse.
  * Specialized for PDF documents.
  * Higher priority than MarkitdownParser for PDF files.
@@ -57,7 +63,8 @@ export class PdfParseAdapter implements DocumentParser {
   readonly supportedMimeTypes = SUPPORTED_MIME_TYPES;
   readonly priority = 200; // Higher priority than MarkitdownParser (100)
 
-  private pdfParse: ((buffer: Buffer) => Promise<PdfParseResult>) | null = null;
+  private pdfParse: ((buffer: Uint8Array) => Promise<PdfParseResult>) | null =
+    null;
   private initPromise: Promise<void> | null = null;
 
   /**
@@ -77,13 +84,13 @@ export class PdfParseAdapter implements DocumentParser {
     try {
       // pdf-parse exports the function directly
       const pdfParseModule = (await import('pdf-parse')) as unknown as {
-        default?: (buffer: Buffer) => Promise<PdfParseResult>;
+        default?: (buffer: Uint8Array) => Promise<PdfParseResult>;
       };
       // Handle both default and named exports
       this.pdfParse =
         pdfParseModule.default ||
         (pdfParseModule as unknown as (
-          buffer: Buffer,
+          buffer: Uint8Array,
         ) => Promise<PdfParseResult>);
     } catch (error) {
       throw new Error(
@@ -123,7 +130,9 @@ export class PdfParseAdapter implements DocumentParser {
       const buffer = await readFile(filePath);
 
       // Parse PDF
-      const result = await this.pdfParse!(buffer);
+      // PDF.js expects Uint8Array.slice() to copy. Buffer.slice() shares memory
+      // and lets its decoder corrupt cross-reference data in otherwise valid PDFs.
+      const result = await this.pdfParse!(new Uint8Array(buffer));
 
       const text = result.text || '';
 
@@ -160,7 +169,7 @@ export class PdfParseAdapter implements DocumentParser {
     await this.ensureInitialized();
 
     try {
-      const result = await this.pdfParse!(buffer);
+      const result = await this.pdfParse!(new Uint8Array(buffer));
 
       const text = result.text || '';
       const metadata = this.extractMetadata(result, text, options);

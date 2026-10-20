@@ -10,7 +10,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 
-import { SearchSystemSupervisor, createSearchSystemSupervisor } from './SearchSystemSupervisor.js';
+import type { SearchSystemSupervisor } from './SearchSystemSupervisor.js';
+import { createSearchSystemSupervisor } from './SearchSystemSupervisor.js';
 import type { DeepPartial, SearchSystemConfig } from '../config.js';
 
 // ============================================================================
@@ -45,7 +46,7 @@ function createTestConfig(
     database: {
       backend: 'sqlite',
       path: '.auditaria/knowledge-base.db',
-      inMemory: true,
+      inMemory: false,
       backupEnabled: false,
     },
     indexing: {
@@ -330,6 +331,23 @@ describe('SearchSystemSupervisor indexing', () => {
     expect(state.totalDocumentsProcessed).toBe(3);
   }, 120000);
 
+  it('does not resume pending work after an explicit stop', async () => {
+    testDir = await createTestDirectory(3);
+    supervisor = await createSearchSystemSupervisor({
+      rootPath: testDir,
+      config: createTestConfig('in-process'),
+    });
+    let stopping: Promise<void> | undefined;
+    supervisor.on('indexing:progress', ({ current }) => {
+      if (current === 1 && !stopping) stopping = supervisor!.stopProcessing();
+    });
+    const result = await supervisor.indexAll();
+    await stopping;
+    expect(result.indexed).toBe(1);
+    expect((await supervisor.getQueueStatus()).pending).toBe(2);
+    expect((await supervisor.processQueue()).indexed).toBe(2);
+  }, 120000);
+
   it('should emit indexing events', async () => {
     testDir = await createTestDirectory(2);
 
@@ -387,7 +405,10 @@ describe('SearchSystemSupervisor automatic restart', () => {
     });
 
     // Index 3 files with threshold of 2 - should trigger at least one restart
-    await supervisor.indexAll({ force: true });
+    const result = await supervisor.indexAll({ force: true });
+    expect(result.indexed).toBe(3);
+    expect((await supervisor.getQueueStatus()).pending).toBe(0);
+    expect((await supervisor.getStats()).indexedDocuments).toBe(3);
 
     // Check state after indexing
     const state = supervisor.getSupervisorState();

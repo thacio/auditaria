@@ -57,14 +57,17 @@ import {
 } from '../discovery/FileDiscovery.js';
 import { createParserRegistry } from '../parsers/index.js';
 import { createChunkerRegistry } from '../chunkers/index.js';
-import { MockEmbedder, createEmbedders, getModelDimensions } from '../embedders/index.js';
+import {
+  MockEmbedder,
+  createEmbedders,
+  getModelDimensions,
+} from '../embedders/index.js';
 import type { TextEmbedder, EmbedderQuantization } from '../embedders/types.js';
 import type { ResolvedEmbedderConfig } from '../embedders/gpu-detection.js';
 import { IndexingPipeline } from '../indexing/index.js';
 import { IndexingChildManager } from '../indexing/IndexingChildManager.js';
 import type { Embedder } from '../indexing/types.js';
 import { createSearchEngine, type SearchEngine } from '../search/index.js';
-import { createStartupSync, type StartupSync } from '../sync/StartupSync.js';
 import type {
   SyncResult,
   SyncOptions as FileSyncOptions,
@@ -193,7 +196,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private discovery: FileDiscovery | null = null;
   private pipeline: IndexingPipeline | null = null;
   private searchEngine: SearchEngine | null = null;
-  private startupSync: StartupSync | null = null;
   /** Embedder for indexing operations (may use GPU) */
   private indexingEmbedder: TextEmbedder | null = null;
   /** Embedder for search operations (always CPU, same dtype) */
@@ -209,6 +211,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private loggingOptions?: LoggingOptions;
   /** Flag to signal graceful shutdown is in progress */
   private closing: boolean = false;
+  private storageTransferred = false;
+  private closePromise: Promise<void> | null = null;
+  private indexingTask: Promise<unknown> | null = null;
+  private indexingAbortRequested = false;
+  private readonly operations = new Set<Promise<unknown>>();
   /** Child process manager for memory-safe indexing */
   private childManager: IndexingChildManager | null = null;
   /** User backend options from knowledge-base.config.json (passed to createStorage) */
@@ -285,7 +292,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       backendOptions,
     );
 
-    await system.setup();
+    try {
+      await system.setup();
+    } catch (error) {
+      await system.close().catch(() => undefined);
+      throw error;
+    }
     return system;
   }
 
@@ -338,7 +350,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       undefined, // createStorage() will use stored options from metadata
     );
 
-    await system.setup();
+    try {
+      await system.setup();
+    } catch (error) {
+      await system.close().catch(() => undefined);
+      throw error;
+    }
     return system;
   }
 
@@ -390,10 +407,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       dbConfig,
       this.config.vectorIndex,
       storageDimensions,
-      this.config.search.hybridStrategy,
+      'application',
       this.userBackendOptions ?? undefined,
     );
     await this.storage.initialize();
+    await this.storage.resetProcessingQueueItems?.();
 
     // Recover documents stuck in intermediate states (crash recovery)
     // This handles cases where indexing was interrupted by crash/power loss
@@ -599,15 +617,28 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     });
 
     // Listen for OCR needed events from pipeline (for PDFs and other documents)
-    this.pipeline.on('document:ocr_needed', (event) => {
+    this.pipeline.on('document:ocr_needed', async (event) => {
       if (this.ocrQueueManager && this.config.ocr.enabled) {
-        this.ocrQueueManager
-          .enqueue(event.documentId, event.filePath, [])
-          .catch((err) => {
-            console.warn(
-              `[SearchSystem] Failed to enqueue OCR job: ${err.message}`,
-            );
-          });
+        await this.ocrQueueManager.enqueue(
+          event.documentId,
+          event.filePath,
+          [],
+        );
+      }
+    });
+
+    this.pipeline.on('document:completed', async (event) => {
+      if (
+        this.ocrQueueManager &&
+        this.config.ocr.enabled &&
+        IMAGE_EXTENSIONS_FOR_OCR.has(extname(event.filePath).toLowerCase()) &&
+        !this.indexingEmbedder?.canEmbedMedia?.(event.filePath)
+      ) {
+        await this.ocrQueueManager.enqueue(
+          event.documentId,
+          event.filePath,
+          [],
+        );
       }
     });
 
@@ -628,9 +659,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       }
     });
 
-    // Initialize startup sync
-    this.startupSync = createStartupSync(this.storage, this.discovery);
-
     // Initialize OCR (optional - only if tesseract.js is available)
     if (this.config.ocr.enabled) {
       try {
@@ -639,7 +667,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
           console.log(
             '[SearchSystem] Tesseract.js available, initializing OCR...',
           );
-          this.ocrRegistry = await createOcrRegistryAsync();
+          this.ocrRegistry = await createOcrRegistryAsync({
+            defaultOptions: { languages: this.config.ocr.defaultLanguages },
+          });
           this.ocrQueueManager = createOcrQueueManager(
             this.storage,
             this.ocrRegistry,
@@ -649,7 +679,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
               maxRetries: this.config.ocr.maxRetries,
               retryDelay: this.config.ocr.retryDelay,
               processAfterMainQueue: this.config.ocr.processAfterMainQueue,
+              autoDetectLanguage: this.config.ocr.autoDetectLanguage,
               defaultLanguages: this.config.ocr.defaultLanguages,
+              minConfidence: this.config.ocr.minConfidence,
               rootPath: this.rootPath, // For resolving relative file paths
             },
             this.indexingEmbedder as Embedder,
@@ -718,142 +750,68 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
   /**
    * Close the search system and release resources.
-   * Each cleanup step is wrapped in try-catch with timeout to ensure all resources
-   * are cleaned up even if one step fails or hangs.
+   * Waits for owned operations before releasing storage and shared models.
    */
-  async close(): Promise<void> {
-    // Signal shutdown immediately so ongoing operations can exit gracefully
+  close(): Promise<void> {
+    if (this.closePromise) return this.closePromise;
     this.closing = true;
     this.initialized = false;
+    this.closePromise = this.closeResources();
+    return this.closePromise;
+  }
 
-    // Stop child manager FIRST if running (this signals abort and stops the child process)
-    // Must happen before waiting for indexingInProgress to avoid deadlock
-    if (this.childManager) {
-      console.log('[SearchSystem] Stopping child indexing process...');
+  private async closeResources(): Promise<void> {
+    const errors: unknown[] = [];
+    const cleanup = async (operation: () => Promise<void>) => {
       try {
-        await this.childManager.stop();
+        await operation();
       } catch (error) {
-        console.warn(
-          '[SearchSystem] Error stopping child manager:',
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-    }
-
-    // Wait for any ongoing indexing to finish (with timeout)
-    // This prevents race conditions where indexAll() is still accessing resources
-    if (this.indexingInProgress) {
-      console.log(
-        '[SearchSystem] Waiting for indexing to finish before close...',
-      );
-      const waitStart = Date.now();
-      const MAX_WAIT_MS = 5000; // 5 second max wait for indexing to exit
-      while (this.indexingInProgress && Date.now() - waitStart < MAX_WAIT_MS) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-      if (this.indexingInProgress) {
-        console.warn(
-          '[SearchSystem] Indexing did not finish in time, proceeding with close',
-        );
-      }
-    }
-
-    const errors: Array<{ step: string; error: unknown }> = [];
-    const STEP_TIMEOUT_MS = 10000; // 10 second timeout per step
-
-    // Helper to safely close a resource with timeout
-    const safeClose = async (
-      step: string,
-      resource: unknown,
-      closeFn: () => Promise<void>,
-    ): Promise<void> => {
-      if (!resource) return;
-      try {
-        await Promise.race([
-          closeFn(),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () =>
-                reject(
-                  new Error(`${step} timed out after ${STEP_TIMEOUT_MS}ms`),
-                ),
-              STEP_TIMEOUT_MS,
-            ),
-          ),
-        ]);
-      } catch (error) {
-        // Log and collect errors but continue cleanup
-        console.warn(`[SearchSystem] Error during ${step}:`, error);
-        errors.push({ step, error });
+        errors.push(error);
       }
     };
-
-    // Stop child manager if running
-    await safeClose('childManager.stop', this.childManager, async () => {
-      await this.childManager!.stop();
-      this.childManager = null;
+    // Stop producers before releasing their database or model. A timeout cannot
+    // cancel an in-process parser and must never permit use-after-close.
+    await cleanup(async () => {
+      await this.childManager?.stop();
     });
-
-    // Stop pipeline first to prevent race condition with storage
-    await safeClose('pipeline.stop', this.pipeline, async () => {
-      await this.pipeline!.stop();
-      this.pipeline = null;
+    await cleanup(async () => {
+      await this.pipeline?.stop();
     });
-
-    // Stop OCR queue manager
-    await safeClose('ocrQueueManager.stop', this.ocrQueueManager, async () => {
-      await this.ocrQueueManager!.stop();
-      this.ocrQueueManager = null;
+    if (this.indexingTask)
+      await cleanup(async () => {
+        await this.indexingTask;
+      });
+    await cleanup(async () => {
+      await this.ocrQueueManager?.stop();
     });
-
-    // Dispose OCR registry
-    await safeClose('ocrRegistry.disposeAll', this.ocrRegistry, async () => {
-      await this.ocrRegistry!.disposeAll();
-      this.ocrRegistry = null;
+    await Promise.allSettled([...this.operations]);
+    await cleanup(async () => {
+      await this.ocrRegistry?.disposeAll();
     });
-
-    // Close storage
-    await safeClose('storage.close', this.storage, async () => {
-      await this.storage!.close();
-      this.storage = null;
+    await cleanup(async () => {
+      await this.storage?.close();
     });
-
-    // Dispose indexing embedder
-    await safeClose(
-      'indexingEmbedder.dispose',
-      this.indexingEmbedder,
-      async () => {
-        await this.indexingEmbedder!.dispose();
-        this.indexingEmbedder = null;
-      },
-    );
-
-    // Dispose search embedder
-    await safeClose('searchEmbedder.dispose', this.searchEmbedder, async () => {
-      await this.searchEmbedder!.dispose();
-      this.searchEmbedder = null;
-    });
-
+    const embedders = new Set([this.indexingEmbedder, this.searchEmbedder]);
+    for (const embedder of embedders)
+      await cleanup(async () => {
+        await embedder?.dispose();
+      });
+    this.childManager = null;
+    this.pipeline = null;
+    this.ocrQueueManager = null;
+    this.ocrRegistry = null;
+    this.storage = null;
+    this.searchEngine = null;
+    this.indexingEmbedder = null;
+    this.searchEmbedder = null;
     this.resolvedEmbedderConfig = null;
-    this.initialized = false;
     this.ocrAvailable = false;
-
-    // If any errors occurred, throw a combined error
-    if (errors.length > 0) {
-      const errorMessages = errors
-        .map(({ step, error }) => {
-          // Handle unusual error types (like Infinity)
-          const errorStr =
-            error instanceof Error
-              ? error.message
-              : typeof error === 'number' || typeof error === 'string'
-                ? `Unexpected value: ${error}`
-                : String(error);
-          return `${step}: ${errorStr}`;
-        })
-        .join('; ');
-      throw new Error(`Close errors: ${errorMessages}`);
-    }
+    this.removeAllListeners();
+    if (errors.length)
+      throw new AggregateError(
+        errors,
+        'Failed to close knowledge base resources',
+      );
   }
 
   // -------------------------------------------------------------------------
@@ -865,20 +823,19 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async discoverFiles(): Promise<DiscoveredFile[]> {
     this.ensureInitialized();
-    return this.discovery!.discoverAll();
+    return this.trackOperation(this.discovery!.discoverAll());
   }
 
   /**
    * Index all discovered files.
    * Uses sync to detect changes and queues them for processing.
    *
-   * By default, uses child process for indexing to prevent WASM memory accumulation.
-   * Set `useChildProcess: false` to use in-process indexing (for testing or debugging).
+   * Runs in this process by default. Optional child workers use the same pipeline.
    */
   async indexAll(
     options: {
       force?: boolean;
-      /** Use child process for indexing (default: true from config) */
+      /** Use child process for indexing (default: false from config) */
       useChildProcess?: boolean;
       /** Maximum documents per batch when using child process */
       maxDocuments?: number;
@@ -893,11 +850,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
     // Use child process for indexing (solves WASM memory accumulation issue)
     if (useChildProcess) {
-      return this.indexAllWithChildProcess(options);
+      return this.runIndexing(() => this.indexAllWithChildProcess(options));
     }
 
-    // In-process indexing (legacy behavior, for testing/debugging)
-    return this.indexAllInProcess(options);
+    // In-process indexing (bounded processing in the current process)
+    return this.runIndexing(() => this.indexAllInProcess(options));
   }
 
   /**
@@ -908,19 +865,25 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     force?: boolean;
     maxDocuments?: number;
   }): Promise<{ indexed: number; failed: number; duration: number }> {
-    if (this.indexingInProgress) {
-      throw new Error('Indexing already in progress');
-    }
-
-    this.indexingInProgress = true;
-
+    if (this.config.database.inMemory)
+      throw new Error('Child indexing requires a persistent database');
+    const storage = this.storage!;
+    const exclusive =
+      this.config.database.backend === 'pglite' ||
+      this.config.database.backend === 'lancedb';
     try {
-      // Main's PGlite stays OPEN for search (read-only mode)
-      // Child process has its own PGlite for WRITES
-      // This allows searching during indexing while child handles memory-heavy writes
-      if (this.storage?.setReadOnly) {
-        await this.storage.setReadOnly(true);
+      this.storageTransferred = exclusive;
+      await this.pipeline!.stop();
+      await this.ocrQueueManager?.stop();
+      if (exclusive) {
+        await Promise.allSettled([...this.operations]);
+        // PGlite owns its data directory exclusively; read-only flags don't
+        // make a second process safe. Close before transferring ownership.
+        await storage.close();
+      } else {
+        await storage.setReadOnly?.(true);
       }
+      if (this.closing) return { indexed: 0, failed: 0, duration: 0 };
 
       // Create child manager
       const databasePath = join(this.rootPath, this.config.database.path);
@@ -938,7 +901,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         {
           batchSize:
             options.maxDocuments ?? this.config.indexing.childProcessBatchSize,
-          memoryThresholdMb: this.config.indexing.childProcessMemoryThresholdMb,
         },
       );
 
@@ -972,7 +934,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         const storageWithRefresh = this.storage as
           | PGliteStorage
           | SQLiteVectorliteStorage;
-        if (storageWithRefresh?.refresh && event.code === 0) {
+        if (!exclusive && storageWithRefresh?.refresh && event.code === 0) {
           try {
             await storageWithRefresh.refresh();
             console.log(
@@ -996,7 +958,66 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       // Run indexing in child process(es)
       const result = await this.childManager.indexAll({ force: options.force });
 
-      // Ensure vector index exists after bulk indexing
+      void this.emit('indexing:completed', result);
+
+      return result;
+    } finally {
+      this.childManager = null;
+
+      if (exclusive && !this.closing) await storage.initialize();
+      if (!exclusive) await storage.setReadOnly?.(false);
+      this.storageTransferred = false;
+    }
+  }
+
+  /**
+   * Index all files in the current process.
+   * Uses sync to detect changes and queues them for processing.
+   */
+  private async indexAllInProcess(options: {
+    force?: boolean;
+    maxDocuments?: number;
+  }): Promise<{ indexed: number; failed: number; duration: number }> {
+    const startTime = Date.now();
+
+    // Sync only enqueues work; one tracked run drains both new and persisted items.
+    await this.pipeline!.syncAndQueue({ forceReindex: options.force });
+    if (this.closing)
+      return { indexed: 0, failed: 0, duration: Date.now() - startTime };
+    const { indexed, failed } = await this.drainQueue(
+      options.maxDocuments,
+      false,
+    );
+
+    // Skip OCR and backup if shutdown was triggered
+    if (this.closing) {
+      console.log('[SearchSystem] Skipping OCR and backup due to shutdown');
+      const duration = Date.now() - startTime;
+      void this.emit('indexing:completed', { indexed, failed, duration });
+      return { indexed, failed, duration };
+    }
+
+    // Process OCR queue if enabled
+    if (this.isOcrAvailable()) {
+      // Also check for existing image documents that need OCR
+      // (they might have been indexed before but OCR wasn't completed)
+      await this.enqueueExistingImagesForOcr();
+
+      const ocrStatus = this.ocrQueueManager!.getStatus();
+      if (ocrStatus.pendingJobs > 0 && !this.closing) {
+        console.log(
+          `[SearchSystem] Processing ${ocrStatus.pendingJobs} OCR job(s)...`,
+        );
+        const ocrResult = await this.ocrQueueManager!.processAll();
+        console.log(
+          `[SearchSystem] OCR completed: ${ocrResult.succeeded} succeeded, ${ocrResult.failed} failed`,
+        );
+      }
+    }
+
+    // Ensure vector index exists after bulk indexing
+    // (handles deferred index creation and edge case where no new docs were indexed)
+    if (!this.closing) {
       const pgliteStorage = this.storage as PGliteStorage;
       if (pgliteStorage.ensureVectorIndex) {
         const indexCreated = await pgliteStorage.ensureVectorIndex();
@@ -1006,225 +1027,36 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
           );
         }
       }
-
-      void this.emit('indexing:completed', result);
-
-      return result;
-    } finally {
-      this.indexingInProgress = false;
-      this.childManager = null;
-
-      // Restore write mode on main's PGlite
-      // (reconnect already happened after last child exit)
-      if (this.storage?.setReadOnly) {
-        await this.storage.setReadOnly(false);
-      }
-    }
-  }
-
-  /**
-   * Index all files in-process (legacy behavior).
-   * Uses sync to detect changes and queues them for processing.
-   */
-  private async indexAllInProcess(options: {
-    force?: boolean;
-    maxDocuments?: number;
-  }): Promise<{ indexed: number; failed: number; duration: number }> {
-    if (this.indexingInProgress) {
-      throw new Error('Indexing already in progress');
     }
 
-    this.indexingInProgress = true;
-    const startTime = Date.now();
+    const duration = Date.now() - startTime;
+    void this.emit('indexing:completed', { indexed, failed, duration });
 
-    try {
-      // Discover and sync files
-      const changes = await this.pipeline!.syncAndQueue({
-        forceReindex: options.force,
-      });
-
-      let totalToProcess = changes.added.length + changes.modified.length;
-
-      // Limit to maxDocuments if specified (for child process batching)
-      if (options.maxDocuments && totalToProcess > options.maxDocuments) {
-        totalToProcess = options.maxDocuments;
-      }
-
-      void this.emit('indexing:started', { fileCount: totalToProcess });
-
-      if (totalToProcess === 0) {
-        return { indexed: 0, failed: 0, duration: Date.now() - startTime };
-      }
-
-      // Start pipeline processing
-      this.pipeline!.start();
-
-      // Wait for processing to complete
-      let indexed = 0;
-      let failed = 0;
-
-      // Subscribe to pipeline events
-      const unsubCompleted = this.pipeline!.on(
-        'document:completed',
-        (event) => {
-          indexed++;
-          void this.emit('indexing:progress', {
-            current: indexed + failed,
-            total: totalToProcess,
-          });
-
-          // Directly enqueue image files for OCR (bypass parser's requiresOcr flag)
-          if (this.ocrQueueManager && this.config.ocr.enabled) {
-            const ext = extname(event.filePath).toLowerCase();
-            if (
-              IMAGE_EXTENSIONS_FOR_OCR.has(ext) &&
-              !this.indexingEmbedder?.canEmbedMedia?.(event.filePath)
-            ) {
-              this.ocrQueueManager
-                .enqueue(event.documentId, event.filePath, [])
-                .catch((err) => {
-                  console.warn(
-                    `[SearchSystem] Failed to enqueue image for OCR: ${err.message}`,
-                  );
-                });
-            }
-          }
-
-          // Stop early if we've reached maxDocuments
-          if (
-            options.maxDocuments &&
-            indexed + failed >= options.maxDocuments
-          ) {
-            this.pipeline!.stop().catch(() => {
-              // Ignore stop errors
-            });
-          }
-        },
-      );
-
-      const unsubFailed = this.pipeline!.on('document:failed', (event) => {
-        failed++;
-        // Log the failure for debugging
-        console.error(
-          `[SearchSystem] Failed to index: ${event.filePath}`,
-          event.error?.message ?? 'Unknown error',
-        );
-        void this.emit('indexing:progress', {
-          current: indexed + failed,
-          total: totalToProcess,
-        });
-
-        // Stop early if we've reached maxDocuments
-        if (options.maxDocuments && indexed + failed >= options.maxDocuments) {
-          this.pipeline!.stop().catch(() => {
-            // Ignore stop errors
-          });
-        }
-      });
-
-      // Wait for pipeline to finish, with graceful shutdown handling
+    // Create backup after successful indexing (skip if closing)
+    if (!this.closing) {
       try {
-        await this.waitForPipelineIdle();
+        const storage = this.storage as PGliteStorage;
+        if (typeof storage.createBackup === 'function') {
+          const backed = await storage.createBackup();
+          if (backed) {
+            console.log('[SearchSystem] Post-indexing backup created');
+          }
+        }
       } catch (error) {
-        // If shutdown was triggered, clean up and return partial results
-        if (this.closing) {
-          console.log('[SearchSystem] Indexing interrupted by shutdown');
-          unsubCompleted();
-          unsubFailed();
-          const duration = Date.now() - startTime;
-          void this.emit('indexing:completed', { indexed, failed, duration });
-          return { indexed, failed, duration };
-        }
-        throw error;
+        console.warn(
+          `[SearchSystem] Post-indexing backup failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
-
-      // Cleanup
-      unsubCompleted();
-      unsubFailed();
-
-      // Skip OCR and backup if shutdown was triggered
-      if (this.closing) {
-        console.log('[SearchSystem] Skipping OCR and backup due to shutdown');
-        const duration = Date.now() - startTime;
-        void this.emit('indexing:completed', { indexed, failed, duration });
-        return { indexed, failed, duration };
-      }
-
-      // Process OCR queue if enabled
-      if (this.isOcrAvailable()) {
-        // Also check for existing image documents that need OCR
-        // (they might have been indexed before but OCR wasn't completed)
-        await this.enqueueExistingImagesForOcr();
-
-        const ocrStatus = this.ocrQueueManager!.getStatus();
-        if (ocrStatus.pendingJobs > 0 && !this.closing) {
-          console.log(
-            `[SearchSystem] Processing ${ocrStatus.pendingJobs} OCR job(s)...`,
-          );
-          const ocrResult = await this.ocrQueueManager!.processAll();
-          console.log(
-            `[SearchSystem] OCR completed: ${ocrResult.succeeded} succeeded, ${ocrResult.failed} failed`,
-          );
-        }
-      }
-
-      // Ensure vector index exists after bulk indexing
-      // (handles deferred index creation and edge case where no new docs were indexed)
-      if (!this.closing) {
-        const pgliteStorage = this.storage as PGliteStorage;
-        if (pgliteStorage.ensureVectorIndex) {
-          const indexCreated = await pgliteStorage.ensureVectorIndex();
-          if (indexCreated) {
-            console.log(
-              `[SearchSystem] Vector index created (${this.config.vectorIndex.type})`,
-            );
-          }
-        }
-      }
-
-      const duration = Date.now() - startTime;
-      void this.emit('indexing:completed', { indexed, failed, duration });
-
-      // Create backup after successful indexing (skip if closing)
-      if (!this.closing) {
-        try {
-          const storage = this.storage as PGliteStorage;
-          if (typeof storage.createBackup === 'function') {
-            const backed = await storage.createBackup();
-            if (backed) {
-              console.log('[SearchSystem] Post-indexing backup created');
-            }
-          }
-        } catch (error) {
-          console.warn(
-            `[SearchSystem] Post-indexing backup failed: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }
-
-      return { indexed, failed, duration };
-    } finally {
-      this.indexingInProgress = false;
     }
+
+    return { indexed, failed, duration };
   }
 
   /**
    * Wait for pipeline to become idle.
    */
   private async waitForPipelineIdle(): Promise<void> {
-    // Check closing flag and pipeline existence before each iteration
-    // to handle graceful shutdown during indexing
-    while (
-      !this.closing &&
-      this.pipeline &&
-      this.pipeline.getState() !== 'idle'
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    // If we exited due to shutdown, throw a specific error
-    if (this.closing) {
-      throw new Error('Operation cancelled: system is shutting down');
-    }
+    await this.pipeline?.waitForIdle();
   }
 
   /**
@@ -1232,21 +1064,17 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async indexFile(filePath: string): Promise<boolean> {
     this.ensureInitialized();
-    const result = await this.pipeline!.processFile(filePath);
-    return result.success;
+    return this.runIndexing(async () => {
+      if (this.closing || this.indexingAbortRequested) return false;
+      return (await this.pipeline!.processFile(filePath)).success;
+    });
   }
 
   /**
-   * Reindex a file (delete chunks and re-process).
+   * Replace a file after parsing and embedding succeed.
    */
   async reindexFile(filePath: string): Promise<boolean> {
     this.ensureInitialized();
-
-    // Delete existing document if present
-    const doc = await this.storage!.getDocumentByPath(filePath);
-    if (doc) {
-      await this.storage!.deleteDocument(doc.id);
-    }
 
     return this.indexFile(filePath);
   }
@@ -1259,7 +1087,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     priority: QueuePriority = 'markup',
   ): Promise<void> {
     this.ensureInitialized();
-    await this.pipeline!.queueFiles(filePaths, priority);
+    return this.trackOperation(
+      (async () => {
+        await this.pipeline!.queueFiles(filePaths, priority);
+      })(),
+    );
   }
 
   /**
@@ -1267,7 +1099,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   startProcessing(): void {
     this.ensureInitialized();
-    this.pipeline!.start();
+    if (this.indexingTask) return;
+    void this.processQueue().catch((error: unknown) => {
+      void this.emit('indexing:error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+    });
   }
 
   /**
@@ -1275,7 +1112,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async stopProcessing(): Promise<void> {
     this.ensureInitialized();
+    this.indexingAbortRequested = true;
     await this.pipeline!.stop();
+    await this.indexingTask;
   }
 
   /**
@@ -1284,98 +1123,88 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   isProcessingIdle(): boolean {
     if (!this.pipeline) return true;
-    return this.pipeline.getState() === 'idle';
+    return !this.indexingTask && this.pipeline.getState() === 'idle';
   }
 
   /**
    * Process items already in the queue with proper event emission.
-   * Unlike startProcessing(), this method:
-   * - Emits indexing:progress events for supervisor tracking
-   * - Returns when processing is complete
-   * - Handles graceful shutdown
+   * Emits progress events, handles graceful shutdown, and returns when complete.
    *
    * Use this when you need to resume processing after a restart.
    */
-  async processQueue(): Promise<{
+  async processQueue(options: { maxDocuments?: number } = {}): Promise<{
     indexed: number;
     failed: number;
     duration: number;
   }> {
     this.ensureInitialized();
 
-    if (this.indexingInProgress) {
-      throw new Error('Indexing already in progress');
-    }
+    return this.runIndexing(() => this.drainQueue(options.maxDocuments));
+  }
 
-    // Get queue status to know how many items to process
-    const queueStatus = await this.storage!.getQueueStatus();
-    const totalToProcess = queueStatus.pending;
-
-    if (totalToProcess === 0) {
-      return { indexed: 0, failed: 0, duration: 0 };
-    }
-
+  private runIndexing<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.indexingTask) throw new Error('Indexing already in progress');
     this.indexingInProgress = true;
-    const startTime = Date.now();
+    this.indexingAbortRequested = false;
+    const task = Promise.resolve()
+      .then(operation)
+      .finally(() => {
+        this.indexingInProgress = false;
+        this.indexingTask = null;
+      });
+    this.indexingTask = task;
+    return task;
+  }
 
+  private async drainQueue(
+    maxDocuments?: number,
+    emitCompleted = true,
+  ): Promise<{ indexed: number; failed: number; duration: number }> {
+    if (
+      maxDocuments !== undefined &&
+      (!Number.isSafeInteger(maxDocuments) || maxDocuments <= 0)
+    ) {
+      throw new Error('maxDocuments must be a positive integer');
+    }
+    const pipeline = this.pipeline!;
+    const start = Date.now();
+    const status = await this.storage!.getQueueStatus();
+    const total = Math.min(
+      status.pending + status.processing,
+      maxDocuments ?? Infinity,
+    );
+    let indexed = 0;
+    let failed = 0;
+    const progress = () => {
+      void this.emit('indexing:progress', { current: indexed + failed, total });
+    };
+    const unsubCompleted = pipeline.on('document:completed', () => {
+      indexed++;
+      progress();
+    });
+    const unsubFailed = pipeline.on('document:failed', () => {
+      failed++;
+      progress();
+    });
     try {
-      void this.emit('indexing:started', { fileCount: totalToProcess });
-
-      // Start pipeline processing
-      this.pipeline!.start();
-
-      // Wait for processing to complete with event tracking
-      let indexed = 0;
-      let failed = 0;
-
-      // Subscribe to pipeline events
-      const unsubCompleted = this.pipeline!.on('document:completed', () => {
-        indexed++;
-        void this.emit('indexing:progress', {
-          current: indexed + failed,
-          total: totalToProcess,
-        });
-      });
-
-      const unsubFailed = this.pipeline!.on('document:failed', (event) => {
-        failed++;
-        console.error(
-          `[SearchSystem] Failed to index: ${event.filePath}`,
-          event.error?.message ?? 'Unknown error',
-        );
-        void this.emit('indexing:progress', {
-          current: indexed + failed,
-          total: totalToProcess,
-        });
-      });
-
-      // Wait for pipeline to finish
-      try {
-        await this.waitForPipelineIdle();
-      } catch (error) {
-        if (this.closing) {
-          console.log(
-            '[SearchSystem] Queue processing interrupted by shutdown',
-          );
-          unsubCompleted();
-          unsubFailed();
-          const duration = Date.now() - startTime;
-          void this.emit('indexing:completed', { indexed, failed, duration });
-          return { indexed, failed, duration };
-        }
-        throw error;
-      }
-
-      // Cleanup
+      void this.emit('indexing:started', { fileCount: total });
+      if (!this.closing && !this.indexingAbortRequested)
+        pipeline.start(maxDocuments);
+      await this.waitForPipelineIdle();
+      const result = { indexed, failed, duration: Date.now() - start };
+      if (emitCompleted) void this.emit('indexing:completed', result);
+      return result;
+    } finally {
       unsubCompleted();
       unsubFailed();
-
-      const duration = Date.now() - startTime;
-      void this.emit('indexing:completed', { indexed, failed, duration });
-      return { indexed, failed, duration };
-    } finally {
-      this.indexingInProgress = false;
     }
+  }
+
+  private trackOperation<T>(operation: Promise<T>): Promise<T> {
+    this.operations.add(operation);
+    return operation.finally(() => {
+      this.operations.delete(operation);
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -1387,7 +1216,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async search(options: SearchOptions): Promise<SearchResponse> {
     this.ensureInitialized();
-    return this.searchEngine!.search(options);
+    return this.trackOperation(this.searchEngine!.search(options));
   }
 
   /**
@@ -1399,7 +1228,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     limit?: number,
   ): Promise<SearchResult[]> {
     this.ensureInitialized();
-    return this.searchEngine!.searchKeyword(query, filters, limit);
+    return this.trackOperation(
+      this.searchEngine!.searchKeyword(query, filters, limit),
+    );
   }
 
   /**
@@ -1411,7 +1242,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     limit?: number,
   ): Promise<SearchResult[]> {
     this.ensureInitialized();
-    return this.searchEngine!.searchSemantic(query, filters, limit);
+    return this.trackOperation(
+      this.searchEngine!.searchSemantic(query, filters, limit),
+    );
   }
 
   /**
@@ -1423,7 +1256,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     limit?: number,
   ): Promise<SearchResult[]> {
     this.ensureInitialized();
-    return this.searchEngine!.searchHybrid(query, filters, limit);
+    return this.trackOperation(
+      this.searchEngine!.searchHybrid(query, filters, limit),
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -1437,7 +1272,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     documentId: string,
   ): Promise<import('../types.js').Document | null> {
     this.ensureInitialized();
-    return this.storage!.getDocument(documentId);
+    return this.trackOperation(this.storage!.getDocument(documentId));
   }
 
   /**
@@ -1447,7 +1282,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     filePath: string,
   ): Promise<import('../types.js').Document | null> {
     this.ensureInitialized();
-    return this.storage!.getDocumentByPath(filePath);
+    return this.trackOperation(this.storage!.getDocumentByPath(filePath));
   }
 
   /**
@@ -1457,7 +1292,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     documentId: string,
   ): Promise<Array<import('../types.js').DocumentChunk>> {
     this.ensureInitialized();
-    return this.storage!.getChunks(documentId);
+    return this.trackOperation(this.storage!.getChunks(documentId));
   }
 
   // -------------------------------------------------------------------------
@@ -1469,13 +1304,16 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async addTags(filePath: string, tags: string[]): Promise<void> {
     this.ensureInitialized();
+    return this.trackOperation(
+      (async () => {
+        const doc = await this.storage!.getDocumentByPath(filePath);
+        if (!doc) {
+          throw new Error(`Document not found: ${filePath}`);
+        }
 
-    const doc = await this.storage!.getDocumentByPath(filePath);
-    if (!doc) {
-      throw new Error(`Document not found: ${filePath}`);
-    }
-
-    await this.storage!.addTags(doc.id, tags);
+        await this.storage!.addTags(doc.id, tags);
+      })(),
+    );
   }
 
   /**
@@ -1483,13 +1321,16 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async removeTags(filePath: string, tags: string[]): Promise<void> {
     this.ensureInitialized();
+    return this.trackOperation(
+      (async () => {
+        const doc = await this.storage!.getDocumentByPath(filePath);
+        if (!doc) {
+          throw new Error(`Document not found: ${filePath}`);
+        }
 
-    const doc = await this.storage!.getDocumentByPath(filePath);
-    if (!doc) {
-      throw new Error(`Document not found: ${filePath}`);
-    }
-
-    await this.storage!.removeTags(doc.id, tags);
+        await this.storage!.removeTags(doc.id, tags);
+      })(),
+    );
   }
 
   /**
@@ -1497,13 +1338,16 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async getFileTags(filePath: string): Promise<string[]> {
     this.ensureInitialized();
+    return this.trackOperation(
+      (async () => {
+        const doc = await this.storage!.getDocumentByPath(filePath);
+        if (!doc) {
+          throw new Error(`Document not found: ${filePath}`);
+        }
 
-    const doc = await this.storage!.getDocumentByPath(filePath);
-    if (!doc) {
-      throw new Error(`Document not found: ${filePath}`);
-    }
-
-    return this.storage!.getDocumentTags(doc.id);
+        return this.storage!.getDocumentTags(doc.id);
+      })(),
+    );
   }
 
   /**
@@ -1511,7 +1355,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async getAllTags(): Promise<TagCount[]> {
     this.ensureInitialized();
-    return this.storage!.getAllTags();
+    return this.trackOperation(this.storage!.getAllTags());
   }
 
   // -------------------------------------------------------------------------
@@ -1524,7 +1368,25 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async sync(options: FileSyncOptions = {}): Promise<SyncResult> {
     this.ensureInitialized();
-    return this.startupSync!.sync(options);
+    return this.trackOperation(
+      (async () => {
+        const start = Date.now();
+        const changes = options.dryRun
+          ? await this.pipeline!.sync()
+          : await this.pipeline!.syncAndQueue({ priority: options.priority });
+        const remaining = await this.storage!.countDocuments();
+        return {
+          ...changes,
+          unchanged: Math.max(
+            0,
+            remaining -
+              changes.modified.length -
+              (options.dryRun ? changes.deleted.length : 0),
+          ),
+          duration: Date.now() - start,
+        };
+      })(),
+    );
   }
 
   /**
@@ -1532,7 +1394,17 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async needsSync(): Promise<boolean> {
     this.ensureInitialized();
-    return this.startupSync!.needsSync();
+    return this.trackOperation(
+      (async () => {
+        const changes = await this.pipeline!.sync();
+        return (
+          changes.added.length +
+            changes.modified.length +
+            changes.deleted.length >
+          0
+        );
+      })(),
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -1544,7 +1416,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async getStats(): Promise<SearchStats> {
     this.ensureInitialized();
-    return this.storage!.getStats();
+    return this.trackOperation(this.storage!.getStats());
   }
 
   /**
@@ -1552,7 +1424,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async getQueueStatus(): Promise<QueueStatus> {
     this.ensureInitialized();
-    return this.storage!.getQueueStatus();
+    return this.trackOperation(this.storage!.getQueueStatus());
   }
 
   /**
@@ -1560,22 +1432,25 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async getQueueDetailedStatus(): Promise<QueueDetailedStatus> {
     this.ensureInitialized();
+    return this.trackOperation(
+      (async () => {
+        if (this.storage!.getQueueDetailedStatus) {
+          return this.storage!.getQueueDetailedStatus();
+        }
 
-    if (this.storage!.getQueueDetailedStatus) {
-      return this.storage!.getQueueDetailedStatus();
-    }
-
-    const base = await this.storage!.getQueueStatus();
-    return {
-      ...base,
-      precision: 'approximate',
-      deferredByReason: {
-        raw_text_oversize: 0,
-        raw_markup_oversize: 0,
-        parsed_text_oversize: 0,
-        unknown: base.byPriority.deferred,
-      },
-    };
+        const base = await this.storage!.getQueueStatus();
+        return {
+          ...base,
+          precision: 'approximate',
+          deferredByReason: {
+            raw_text_oversize: 0,
+            raw_markup_oversize: 0,
+            parsed_text_oversize: 0,
+            unknown: base.byPriority.deferred,
+          },
+        };
+      })(),
+    );
   }
 
   /**
@@ -1595,6 +1470,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   /**
    * Get the configuration.
    */
+  async getConfigValue<T>(key: string): Promise<T | null> {
+    this.ensureInitialized();
+    return this.trackOperation(this.storage!.getConfigValue<T>(key));
+  }
+
   getConfig(): SearchSystemConfig {
     return { ...this.config };
   }
@@ -1755,6 +1635,10 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   // -------------------------------------------------------------------------
 
   private ensureInitialized(): void {
+    if (this.storageTransferred)
+      throw new Error(
+        'Knowledge base is indexing in a separate process; retry after indexing completes',
+      );
     if (!this.initialized) {
       throw new Error('SearchSystem not initialized');
     }

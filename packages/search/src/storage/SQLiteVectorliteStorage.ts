@@ -56,10 +56,7 @@ import type {
   VectorIndexConfig,
   HybridSearchStrategy,
 } from '../config.js';
-import {
-  DEFAULT_VECTOR_INDEX_CONFIG,
-  DEFAULT_SEARCH_CONFIG,
-} from '../config.js';
+import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
 import type { SQLiteBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_SQLITE_OPTIONS } from '../config/backend-options.js';
@@ -232,8 +229,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     this.config = config;
     this.vectorIndexConfig = vectorIndexConfig ?? DEFAULT_VECTOR_INDEX_CONFIG;
     this.embeddingDimensions = embeddingDimensions ?? 384;
-    this.hybridStrategy =
-      hybridStrategy ?? DEFAULT_SEARCH_CONFIG.hybridStrategy;
+    this.hybridStrategy = hybridStrategy ?? 'application';
     this.backendOptions = { ...DEFAULT_SQLITE_OPTIONS, ...backendOptions };
   }
 
@@ -498,6 +494,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   }
 
   async reconnect(): Promise<void> {
+    if (this.config.inMemory) return;
     if (!this.db || !this._initialized) {
       // Not initialized, nothing to reconnect
       return;
@@ -911,6 +908,66 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       chunkCount: chunks.length,
     });
     return createdChunks;
+  }
+
+  async replaceChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+    embeddings: number[][],
+  ): Promise<void> {
+    this.ensureReady();
+    this.ensureWritable();
+    if (
+      chunks.length !== embeddings.length ||
+      embeddings.some(
+        (vector) =>
+          vector.length !== this.embeddingDimensions ||
+          !vector.every(Number.isFinite),
+      )
+    ) {
+      throw new Error('Invalid chunk vectors');
+    }
+    const insert = this.db!.prepare(`INSERT INTO chunks (
+      id, document_id, chunk_index, text, start_offset, end_offset,
+      page, section, token_count, created_at, embedding
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+    this.db!.transaction(() => {
+      if (this._vectorliteAvailable && !this._bruteForceMode) {
+        const previous = this.db!.prepare<[string], { rowid: number }>(
+          'SELECT rowid FROM chunks WHERE document_id = ?',
+        ).all(documentId);
+        const remove = this.db!.prepare(
+          'DELETE FROM chunks_vec WHERE rowid = ?',
+        );
+        for (const row of previous) remove.run(row.rowid);
+      }
+      this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(
+        documentId,
+      );
+      chunks.forEach((chunk, i) => {
+        const id = generateId();
+        const vector = vectorToBlob(embeddings[i]);
+        const result = insert.run(
+          id,
+          documentId,
+          chunk.chunkIndex,
+          chunk.text,
+          chunk.startOffset,
+          chunk.endOffset,
+          chunk.page ?? null,
+          chunk.section ?? null,
+          chunk.tokenCount ?? null,
+          new Date().toISOString(),
+          this._bruteForceMode ? vector : null,
+        );
+        if (this._vectorliteAvailable && !this._bruteForceMode) {
+          this.db!.prepare(
+            'INSERT INTO chunks_vec(rowid, embedding) VALUES (?, ?)',
+          ).run(result.lastInsertRowid, vector);
+        }
+      });
+    })();
+    this._dirty = true;
   }
 
   async getChunks(documentId: string): Promise<DocumentChunk[]> {
@@ -1391,9 +1448,11 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       `;
 
       const params = [...rowids, ...filterParams];
-      const rows = this.db!.prepare(sql).all(...params) as Array<SearchResultRow & {
-        chunk_rowid: number;
-      }>;
+      const rows = this.db!.prepare(sql).all(...params) as Array<
+        SearchResultRow & {
+          chunk_rowid: number;
+        }
+      >;
 
       // Add scores and sort by distance
       const results: SearchResult[] = rows
@@ -1715,9 +1774,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const id = generateId();
     const now = new Date().toISOString();
     const deferReason =
-      input.priority === 'deferred'
-        ? (input.deferReason ?? 'unknown')
-        : null;
+      input.priority === 'deferred' ? (input.deferReason ?? 'unknown') : null;
     const deferredReasonError = encodeDeferReasonInLastError(deferReason);
 
     this.db!.prepare(
@@ -1803,18 +1860,22 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       id,
       filePath: input.filePath,
       fileSize: input.fileSize ?? 0,
-      priority: (input.priority ?? 'markup'),
+      priority: input.priority ?? 'markup',
       status: 'pending' as const,
       attempts: 0,
       lastError: null,
       deferReason:
-        input.priority === 'deferred'
-          ? (input.deferReason ?? 'unknown')
-          : null,
+        input.priority === 'deferred' ? (input.deferReason ?? 'unknown') : null,
       createdAt: nowDate,
       startedAt: null,
       completedAt: null,
     }));
+  }
+
+  async resetProcessingQueueItems(): Promise<void> {
+    await this.execute(
+      "UPDATE index_queue SET status = 'pending', started_at = NULL WHERE status = 'processing'",
+    );
   }
 
   async dequeueItem(): Promise<QueueItem | null> {
@@ -2330,7 +2391,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => `REPLACE(file_path, '\\', '/') LIKE ?`);
+      const folderConditions = filters.folders.map(
+        () => `REPLACE(file_path, '\\', '/') LIKE ?`,
+      );
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }
@@ -2383,7 +2446,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => `REPLACE(d.file_path, '\\', '/') LIKE ?`);
+      const folderConditions = filters.folders.map(
+        () => `REPLACE(d.file_path, '\\', '/') LIKE ?`,
+      );
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }

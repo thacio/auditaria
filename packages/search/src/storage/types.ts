@@ -265,6 +265,13 @@ export interface StorageAdapter {
    */
   getChunks(documentId: string): Promise<DocumentChunk[]>;
 
+  /** Atomically replace a document's searchable content after successful inference. */
+  replaceChunks?(
+    documentId: string,
+    chunks: CreateChunkInput[],
+    embeddings: number[][],
+  ): Promise<void>;
+
   /**
    * Delete all chunks for a document.
    */
@@ -358,6 +365,9 @@ export interface StorageAdapter {
    * Get the next pending item from the queue.
    */
   dequeueItem(): Promise<QueueItem | null>;
+
+  /** Recover claims after the previous database owner exited. Call only at startup. */
+  resetProcessingQueueItems?(): Promise<void>;
 
   /**
    * Update a queue item.
