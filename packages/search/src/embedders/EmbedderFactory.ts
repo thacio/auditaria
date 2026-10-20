@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * EmbedderFactory - Factory for creating embedders with GPU support.
  *
  * This factory handles:
@@ -7,6 +13,9 @@
  * - Graceful fallback to CPU with debug logging
  * - Ensuring dtype consistency between indexing and search
  */
+
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('EmbedderFactory');
 
 import type {
   TextEmbedder,
@@ -175,7 +184,7 @@ export async function createEmbedders(
   let effectivePreferPythonEmbedder = config.preferPythonEmbedder;
 
   if (isBunExe) {
-    console.log(
+    log.info(
       '[EmbedderFactory] Running in Bun executable - disabling worker threads and Python embedder',
     );
     debugLog('Factory: Bun executable detected, disabling worker threads');
@@ -185,14 +194,14 @@ export async function createEmbedders(
 
   // Step 0b: Check if Python embedder is preferred and available
   if (effectivePreferPythonEmbedder) {
-    console.log(
+    log.info(
       '[EmbedderFactory] Python embedder preferred, checking availability...',
     );
     debugLog('Factory: Python embedder preferred, checking availability...');
 
     const pythonResult = await detectPython();
     if (pythonResult.available) {
-      console.log(
+      log.info(
         `[EmbedderFactory] Python ${pythonResult.version} found (${pythonResult.command}), initializing Python embedder...`,
       );
       debugLog(
@@ -219,9 +228,7 @@ export async function createEmbedders(
           pythonEmbedder: true,
         };
 
-        console.log(
-          '[EmbedderFactory] Python embedder initialized successfully',
-        );
+        log.info('[EmbedderFactory] Python embedder initialized successfully');
         debugLog('Factory: Python embedder initialized successfully');
 
         return {
@@ -232,7 +239,7 @@ export async function createEmbedders(
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        console.warn(
+        log.warn(
           `[EmbedderFactory] Python embedder initialization failed: ${errorMessage}. Falling back to Node.js.`,
         );
         debugLog(
@@ -241,7 +248,7 @@ export async function createEmbedders(
         // Fall through to Node.js embedder
       }
     } else {
-      console.log(
+      log.info(
         `[EmbedderFactory] Python not available (${pythonResult.error}), falling back to Node.js`,
       );
       debugLog(
@@ -249,7 +256,7 @@ export async function createEmbedders(
       );
     }
   } else {
-    console.log(
+    log.info(
       '[EmbedderFactory] Using Node.js embedder (preferPythonEmbedder=false)',
     );
   }
@@ -374,7 +381,7 @@ export async function createEmbedders(
     fallbackReason,
   };
 
-  console.log(
+  log.info(
     `[EmbedderFactory] Node.js embedder ready: device=${actualDevice}, quantization=${targetQuantization}`,
   );
   debugLog(

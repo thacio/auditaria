@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Generic Registry pattern implementation for pluggable components.
  * Used for parsers, chunkers, embedders, OCR providers, etc.
  */
@@ -128,20 +134,16 @@ export class Registry<T extends Provider> {
    * @param input - The input to check support for
    * @returns The best matching provider, or undefined if none match
    */
-  findBest<TInput>(
-    input: TInput,
-  ): T extends SupportCheckProvider<TInput> ? T | undefined : never {
+  findBest<TInput>(input: TInput): T | undefined {
     const providers = this.getAll();
     for (const provider of providers) {
       if ('supports' in provider && typeof provider.supports === 'function') {
-        if ((provider as SupportCheckProvider<TInput>).supports(input)) {
-          return provider as T extends SupportCheckProvider<TInput> ? T : never;
+        if (provider.supports(input)) {
+          return provider;
         }
       }
     }
-    return undefined as T extends SupportCheckProvider<TInput>
-      ? T | undefined
-      : never;
+    return undefined;
   }
 
   /**
@@ -151,21 +153,19 @@ export class Registry<T extends Provider> {
    * @param input - The input to check support for
    * @returns Array of matching providers
    */
-  findAllMatching<TInput>(
-    input: TInput,
-  ): T extends SupportCheckProvider<TInput> ? T[] : never {
+  findAllMatching<TInput>(input: TInput): T[] {
     const providers = this.getAll();
     const matching: T[] = [];
 
     for (const provider of providers) {
       if ('supports' in provider && typeof provider.supports === 'function') {
-        if ((provider as SupportCheckProvider<TInput>).supports(input)) {
+        if (provider.supports(input)) {
           matching.push(provider);
         }
       }
     }
 
-    return matching as T extends SupportCheckProvider<TInput> ? T[] : never;
+    return matching;
   }
 }
 

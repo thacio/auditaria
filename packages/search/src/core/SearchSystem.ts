@@ -47,8 +47,7 @@ import type {
   QueuePriority,
   DiscoveredFile,
 } from '../types.js';
-import type { PGliteStorage } from '../storage/PGliteStorage.js';
-import type { SQLiteVectorliteStorage } from '../storage/SQLiteVectorliteStorage.js';
+
 import { createStorage } from '../storage/StorageFactory.js';
 import type { StorageAdapter } from '../storage/types.js';
 import {
@@ -550,7 +549,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       }
 
       // Update metadata file with embeddings config (for human visibility)
-      const pgliteStorage = this.storage as PGliteStorage;
+      const pgliteStorage = this.storage;
       if (pgliteStorage.updateMetadataEmbeddings) {
         pgliteStorage.updateMetadataEmbeddings({
           model: effectiveModel,
@@ -645,8 +644,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     // Listen for maintenance completion events to trigger backup at safe points
     this.pipeline.on('maintenance:completed', async () => {
       try {
-        const storage = this.storage as PGliteStorage;
-        if (typeof storage.createBackup === 'function') {
+        const storage = this.storage;
+        if (typeof storage?.createBackup === 'function') {
           const backed = await storage.createBackup();
           if (backed) {
             console.log('[SearchSystem] Backup created during maintenance');
@@ -931,9 +930,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         );
 
         // Refresh main storage to see child's writes (lightweight, no reconnect)
-        const storageWithRefresh = this.storage as
-          | PGliteStorage
-          | SQLiteVectorliteStorage;
+        const storageWithRefresh = this.storage;
         if (!exclusive && storageWithRefresh?.refresh && event.code === 0) {
           try {
             await storageWithRefresh.refresh();
@@ -1018,8 +1015,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     // Ensure vector index exists after bulk indexing
     // (handles deferred index creation and edge case where no new docs were indexed)
     if (!this.closing) {
-      const pgliteStorage = this.storage as PGliteStorage;
-      if (pgliteStorage.ensureVectorIndex) {
+      const pgliteStorage = this.storage;
+      if (pgliteStorage?.ensureVectorIndex) {
         const indexCreated = await pgliteStorage.ensureVectorIndex();
         if (indexCreated) {
           console.log(
@@ -1035,8 +1032,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     // Create backup after successful indexing (skip if closing)
     if (!this.closing) {
       try {
-        const storage = this.storage as PGliteStorage;
-        if (typeof storage.createBackup === 'function') {
+        const storage = this.storage;
+        if (typeof storage?.createBackup === 'function') {
           const backed = await storage.createBackup();
           if (backed) {
             console.log('[SearchSystem] Post-indexing backup created');

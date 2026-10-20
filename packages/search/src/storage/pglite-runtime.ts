@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 // eslint-plugin-import cannot parse this generated WASM loader; tsc validates the API.
-// eslint-disable-next-line import/namespace
+
 import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite-pgvector';
 import { amcheck } from '@electric-sql/pglite/contrib/amcheck';

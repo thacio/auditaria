@@ -69,7 +69,7 @@ export interface SearchServiceStartOptions {
  * - Concurrent search during indexing
  */
 export class SearchServiceManager {
-  private static instance: SearchServiceManager;
+  private static instance: SearchServiceManager | undefined;
 
   // AUDITARIA_FEATURE: Can be either SearchSystem directly or SearchSystemSupervisor wrapper
   private searchSystem: SearchSystem | SearchSystemSupervisor | null = null;
@@ -136,8 +136,7 @@ export class SearchServiceManager {
       const inst = SearchServiceManager.instance;
       inst.stopQueueProcessor();
       void inst.stop();
-      SearchServiceManager.instance =
-        undefined as unknown as SearchServiceManager;
+      SearchServiceManager.instance = undefined;
     }
   }
 

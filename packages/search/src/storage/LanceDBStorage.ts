@@ -6,6 +6,25 @@
  * @license
  */
 
+import {
+  parseJson,
+  objectOf,
+  isString,
+  isNumber,
+  isUnknown,
+  read,
+  arrayOf,
+  allOf,
+  optional,
+  isMatchType,
+  isQueuePriority,
+  isDocumentStatus,
+  isOcrStatus,
+  isQueueStatus,
+  readJsonRecord,
+  readJsonStrings,
+} from '../core/validation.js';
+
 import { AsyncMutex } from '../core/AsyncMutex.js';
 import * as lancedb from '@lancedb/lancedb';
 import type { Table as _Table } from '@lancedb/lancedb';
@@ -32,8 +51,12 @@ import type {
   QueueStatus,
   QueueDetailedStatus,
 } from '../types.js';
-import type { DatabaseConfig, VectorIndexConfig } from '../config.js';
-import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
+import {
+  type DatabaseConfig,
+  type VectorIndexConfig,
+  DEFAULT_VECTOR_INDEX_CONFIG,
+} from '../config.js';
+
 import {
   readMetadata,
   writeMetadata,
@@ -43,8 +66,11 @@ import {
   type DatabaseMetadata,
 } from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
-import type { LanceDBBackendOptions } from '../config/backend-options.js';
-import { DEFAULT_LANCEDB_OPTIONS } from '../config/backend-options.js';
+import {
+  type LanceDBBackendOptions,
+  DEFAULT_LANCEDB_OPTIONS,
+} from '../config/backend-options.js';
+
 import {
   emptyDeferReasonCounts,
   encodeDeferReasonInLastError,
@@ -103,7 +129,7 @@ interface ChunkRow {
   document_id: string;
   chunk_index: number;
   text: string;
-  vector: number[];
+  vector: unknown; // Arrow vector on reads; number array on writes.
   start_offset: number;
   end_offset: number;
   page: number; // 0 = null
@@ -169,6 +195,55 @@ interface PendingDocument {
 // LanceDB Storage Adapter
 // ============================================================================
 
+const isChunkRow = objectOf<ChunkRow>({
+  chunk_id: isString,
+  document_id: isString,
+  chunk_index: isNumber,
+  text: isString,
+  vector: isUnknown,
+  start_offset: isNumber,
+  end_offset: isNumber,
+  page: isNumber,
+  section: isString,
+  token_count: isNumber,
+  chunk_created_at: isNumber,
+  file_path: isString,
+  file_name: isString,
+  file_extension: isString,
+  file_size: isNumber,
+  file_hash: isString,
+  mime_type: isString,
+  title: isString,
+  author: isString,
+  language: isString,
+  page_count: isNumber,
+  status: isString,
+  ocr_status: isString,
+  indexed_at: isNumber,
+  file_modified_at: isNumber,
+  doc_created_at: isNumber,
+  doc_updated_at: isNumber,
+  metadata: isString,
+  tags: isString,
+});
+const isQueueRow = objectOf<QueueRow>({
+  id: isString,
+  file_path: isString,
+  file_size: isNumber,
+  priority: isString,
+  status: isString,
+  attempts: isNumber,
+  last_error: isString,
+  created_at: isNumber,
+  started_at: isNumber,
+  completed_at: isNumber,
+});
+const isConfigRow = objectOf<ConfigRow>({
+  key: isString,
+  value: isString,
+  updated_at: isNumber,
+});
+
 export class LanceDBStorage implements StorageAdapter {
   private readonly queueClaims = new AsyncMutex();
   private db: lancedb.Connection | null = null;
@@ -194,7 +269,7 @@ export class LanceDBStorage implements StorageAdapter {
   /** Recently created documents - cache updates until status=indexed to avoid repeated chunk updates */
   private recentDocuments = new Map<
     string,
-    { status: string; indexedAt: Date | null }
+    { status: Document['status']; indexedAt: Date | null }
   >();
 
   constructor(
@@ -648,12 +723,12 @@ export class LanceDBStorage implements StorageAdapter {
 
       if (results.length === 0) return null;
 
-      const doc = this.rowToDocument(results[0] as ChunkRow);
+      const doc = this.rowToDocument(read(results[0], isChunkRow));
 
       // Apply cached status from recentDocuments if available
       const recent = this.recentDocuments.get(id);
       if (recent) {
-        doc.status = recent.status as typeof doc.status;
+        doc.status = recent.status;
         if (recent.indexedAt) {
           doc.indexedAt = recent.indexedAt;
         }
@@ -690,7 +765,7 @@ export class LanceDBStorage implements StorageAdapter {
 
       if (results.length === 0) return null;
 
-      return this.rowToDocument(results[0] as ChunkRow);
+      return this.rowToDocument(read(results[0], isChunkRow));
     } catch (error) {
       log.warn('getDocumentByPath:failed', {
         filePath,
@@ -760,7 +835,7 @@ export class LanceDBStorage implements StorageAdapter {
         const doc = await this.getDocument(id);
         if (!doc) throw new Error('Document not found after update');
         // Override status from cache
-        doc.status = recent.status as typeof doc.status;
+        doc.status = recent.status;
         return doc;
       }
     }
@@ -770,7 +845,7 @@ export class LanceDBStorage implements StorageAdapter {
     }
 
     // Build update values
-    const values: Record<string, unknown> = {
+    const values: Record<string, lancedb.IntoSql> = {
       doc_updated_at: Date.now(),
     };
 
@@ -796,7 +871,7 @@ export class LanceDBStorage implements StorageAdapter {
     // Update all chunks for this document
     await this.chunksTable.update({
       where: `document_id = '${this.escapeString(id)}'`,
-      values: values as Record<string, lancedb.IntoSql>,
+      values,
     });
 
     this._dirty = true;
@@ -860,7 +935,7 @@ export class LanceDBStorage implements StorageAdapter {
       const results = await query.limit(QUERY_ALL_LIMIT).toArray();
 
       for (const row of results) {
-        const chunkRow = row as ChunkRow;
+        const chunkRow = read(row, isChunkRow);
         if (!seenIds.has(chunkRow.document_id)) {
           seenIds.add(chunkRow.document_id);
           documents.push(this.rowToDocument(chunkRow));
@@ -1098,7 +1173,7 @@ export class LanceDBStorage implements StorageAdapter {
         .toArray();
 
       return results
-        .map((row) => this.rowToChunk(row as ChunkRow))
+        .map((row) => this.rowToChunk(read(row, isChunkRow)))
         .sort((a, b) => a.chunkIndex - b.chunkIndex);
     } catch (error) {
       log.warn('getChunks:failed', {
@@ -1153,7 +1228,7 @@ export class LanceDBStorage implements StorageAdapter {
         .toArray();
 
       // Filter to only the chunks we need to update
-      const existingRows = (results as ChunkRow[]).filter((row) =>
+      const existingRows = read(results, arrayOf(isChunkRow)).filter((row) =>
         chunkIds.has(row.chunk_id),
       );
 
@@ -1247,8 +1322,8 @@ export class LanceDBStorage implements StorageAdapter {
 
       if (results.length === 0) return;
 
-      const row = results[0] as ChunkRow;
-      const currentTags = new Set<string>(JSON.parse(row.tags || '[]'));
+      const row = read(results[0], isChunkRow);
+      const currentTags = new Set<string>(readJsonStrings(row.tags || '[]'));
       for (const tag of tags) {
         currentTags.add(tag);
       }
@@ -1293,8 +1368,8 @@ export class LanceDBStorage implements StorageAdapter {
 
       if (results.length === 0) return;
 
-      const row = results[0] as ChunkRow;
-      const currentTags = new Set<string>(JSON.parse(row.tags || '[]'));
+      const row = read(results[0], isChunkRow);
+      const currentTags = new Set<string>(readJsonStrings(row.tags || '[]'));
       for (const tag of tags) {
         currentTags.delete(tag);
       }
@@ -1336,8 +1411,8 @@ export class LanceDBStorage implements StorageAdapter {
 
       if (results.length === 0) return [];
 
-      const row = results[0] as ChunkRow;
-      return JSON.parse(row.tags || '[]');
+      const row = read(results[0], isChunkRow);
+      return readJsonStrings(row.tags || '[]');
     } catch {
       return [];
     }
@@ -1368,11 +1443,11 @@ export class LanceDBStorage implements StorageAdapter {
         const seenDocs = new Set<string>();
 
         for (const row of results) {
-          const chunkRow = row as ChunkRow;
+          const chunkRow = read(row, isChunkRow);
           if (seenDocs.has(chunkRow.document_id)) continue;
           seenDocs.add(chunkRow.document_id);
 
-          const tags: string[] = JSON.parse(chunkRow.tags || '[]');
+          const tags: string[] = readJsonStrings(chunkRow.tags || '[]');
           for (const tag of tags) {
             if (!tagCounts.has(tag)) {
               tagCounts.set(tag, new Set());
@@ -1424,10 +1499,16 @@ export class LanceDBStorage implements StorageAdapter {
       // Apply additional filters in code
       const filtered = results
         .map((row: Record<string, unknown>) => {
-          const chunkRow = row as ChunkRow & {
-            _score?: number;
-            score?: number;
-          };
+          const chunkRow = read(
+            row,
+            allOf(
+              isChunkRow,
+              objectOf<{
+                _score?: number;
+                score?: number;
+              }>({ _score: optional(isNumber), score: optional(isNumber) }),
+            ),
+          );
           return {
             row: chunkRow,
             score: chunkRow._score ?? chunkRow.score ?? 0.5,
@@ -1476,7 +1557,7 @@ export class LanceDBStorage implements StorageAdapter {
 
       const matched = results
         .filter((row) => {
-          const chunkRow = row as ChunkRow;
+          const chunkRow = read(row, isChunkRow);
           const textLower = chunkRow.text.toLowerCase();
           return (
             terms.every((term) => textLower.includes(term)) &&
@@ -1486,7 +1567,7 @@ export class LanceDBStorage implements StorageAdapter {
         .slice(0, limit);
 
       return matched.map((row) =>
-        this.rowToSearchResult(row as ChunkRow, 0.5, 'keyword'),
+        this.rowToSearchResult(read(row, isChunkRow), 0.5, 'keyword'),
       );
     } catch (error) {
       log.warn('searchKeywordFallback:failed', {
@@ -1512,9 +1593,9 @@ export class LanceDBStorage implements StorageAdapter {
 
     try {
       // Vector search with cosine distance
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const searchQuery = (this.chunksTable as any)
-        .search(embedding)
+
+      const searchQuery = this.chunksTable
+        .vectorSearch(embedding)
         .distanceType('cosine')
         .where("status = 'indexed' AND chunk_index >= 0")
         .limit(limit * 2);
@@ -1524,7 +1605,15 @@ export class LanceDBStorage implements StorageAdapter {
       // Apply additional filters and convert distance to score
       const filtered = results
         .map((row: Record<string, unknown>) => {
-          const chunkRow = row as ChunkRow & { _distance?: number };
+          const chunkRow = read(
+            row,
+            allOf(
+              isChunkRow,
+              objectOf<{ _distance?: number }>({
+                _distance: optional(isNumber),
+              }),
+            ),
+          );
           const distance = chunkRow._distance ?? 0;
           const score = 1 - distance; // Convert cosine distance to similarity
           return { row: chunkRow, score };
@@ -1627,7 +1716,7 @@ export class LanceDBStorage implements StorageAdapter {
       scored.push({
         result: {
           ...result,
-          matchType: matchType as 'hybrid' | 'semantic' | 'keyword',
+          matchType: read(matchType, isMatchType),
         },
         score: totalScore,
         matchType,
@@ -1776,7 +1865,7 @@ export class LanceDBStorage implements StorageAdapter {
 
         if (results.length > 0) {
           // Sort by file size (smallest first) and pick the first
-          const sorted = (results as QueueRow[]).sort(
+          const sorted = read(results, arrayOf(isQueueRow)).sort(
             (a, b) => a.file_size - b.file_size,
           );
           item = sorted[0];
@@ -1823,7 +1912,7 @@ export class LanceDBStorage implements StorageAdapter {
       throw new Error('Queue table not initialized');
     }
 
-    const values: Record<string, unknown> = {};
+    const values: Record<string, lancedb.IntoSql> = {};
 
     if (updates.status !== undefined) values.status = updates.status;
     if (updates.priority !== undefined) values.priority = updates.priority;
@@ -1843,7 +1932,7 @@ export class LanceDBStorage implements StorageAdapter {
 
     await this.queueTable.update({
       where: `id = '${this.escapeString(id)}'`,
-      values: values as Record<string, lancedb.IntoSql>,
+      values,
     });
 
     this._dirty = true;
@@ -1855,7 +1944,7 @@ export class LanceDBStorage implements StorageAdapter {
       id,
       filePath: '', // Not needed by callers
       fileSize: 0,
-      priority: 'text' as QueuePriority,
+      priority: read('text', isQueuePriority),
       status: updates.status ?? 'pending',
       attempts: updates.attempts ?? 0,
       lastError:
@@ -1892,7 +1981,7 @@ export class LanceDBStorage implements StorageAdapter {
 
       if (results.length === 0) return null;
 
-      return this.rowToQueueItem(results[0] as QueueRow);
+      return this.rowToQueueItem(read(results[0], isQueueRow));
     } catch {
       return null;
     }
@@ -2034,14 +2123,14 @@ export class LanceDBStorage implements StorageAdapter {
     };
     const deferredByReason = emptyDeferReasonCounts();
 
-    for (const rawRow of rows as QueueRow[]) {
+    for (const rawRow of read(rows, arrayOf(isQueueRow))) {
       const status = rawRow.status;
       if (status in statusCounts) {
         statusCounts[status]++;
       }
 
       if (status === 'pending') {
-        const priority = rawRow.priority as QueuePriority;
+        const priority = read(rawRow.priority, isQueuePriority);
         if (priority in priorityCounts) {
           priorityCounts[priority]++;
         }
@@ -2104,7 +2193,7 @@ export class LanceDBStorage implements StorageAdapter {
         .query()
         .limit(QUERY_ALL_LIMIT)
         .toArray();
-      for (const row of results as QueueRow[]) {
+      for (const row of read(results, arrayOf(isQueueRow))) {
         await this.queueTable.delete(`id = '${this.escapeString(row.id)}'`);
       }
       this._dirty = true;
@@ -2138,7 +2227,7 @@ export class LanceDBStorage implements StorageAdapter {
         const seenDocs = new Set<string>();
 
         for (const row of results) {
-          const chunkRow = row as ChunkRow;
+          const chunkRow = read(row, isChunkRow);
           if (!seenDocs.has(chunkRow.document_id)) {
             seenDocs.add(chunkRow.document_id);
             map.set(chunkRow.file_path, chunkRow.file_hash);
@@ -2179,7 +2268,7 @@ export class LanceDBStorage implements StorageAdapter {
           .toArray();
 
         for (const row of results) {
-          const chunkRow = row as ChunkRow;
+          const chunkRow = read(row, isChunkRow);
           if (!seenIds.has(chunkRow.document_id)) {
             seenIds.add(chunkRow.document_id);
             documents.push(this.rowToDocument(chunkRow));
@@ -2234,7 +2323,7 @@ export class LanceDBStorage implements StorageAdapter {
           .toArray();
 
         for (const row of results) {
-          const chunkRow = row as ChunkRow;
+          const chunkRow = read(row, isChunkRow);
           if (!seenDocs.has(chunkRow.document_id)) {
             seenDocs.add(chunkRow.document_id);
             totalDocuments++;
@@ -2243,7 +2332,7 @@ export class LanceDBStorage implements StorageAdapter {
             else if (chunkRow.status === 'pending') pendingDocuments++;
             else if (chunkRow.status === 'failed') failedDocuments++;
             if (chunkRow.ocr_status === 'pending') ocrPending++;
-            const tags: string[] = JSON.parse(chunkRow.tags || '[]');
+            const tags: string[] = readJsonStrings(chunkRow.tags || '[]');
             for (const tag of tags) seenTags.add(tag);
           }
         }
@@ -2284,8 +2373,10 @@ export class LanceDBStorage implements StorageAdapter {
 
       if (results.length === 0) return null;
 
-      const row = results[0] as ConfigRow;
-      return JSON.parse(row.value) as T;
+      const row = read(results[0], isConfigRow);
+      // The value is written by setConfigValue<T>; its schema belongs to the caller.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      return parseJson(row.value) as T;
     } catch {
       return null;
     }
@@ -2368,7 +2459,7 @@ export class LanceDBStorage implements StorageAdapter {
       const stuckDocs = new Map<string, ChunkRow>();
 
       for (const row of results) {
-        const chunkRow = row as ChunkRow;
+        const chunkRow = read(row, isChunkRow);
         const status = chunkRow.status;
         if (['parsing', 'chunking', 'embedding'].includes(status)) {
           if (!stuckDocs.has(chunkRow.document_id)) {
@@ -2443,14 +2534,14 @@ export class LanceDBStorage implements StorageAdapter {
       author: row.author || null, // '' -> null
       language: row.language || null, // '' -> null
       pageCount: row.page_count || null, // 0 -> null
-      status: row.status as Document['status'],
-      ocrStatus: row.ocr_status as Document['ocrStatus'],
+      status: read(row.status, isDocumentStatus),
+      ocrStatus: read(row.ocr_status, isOcrStatus),
       indexedAt: row.indexed_at ? new Date(row.indexed_at) : null, // 0 -> null
       fileModifiedAt: new Date(row.file_modified_at),
       createdAt: new Date(row.doc_created_at),
       updatedAt: new Date(row.doc_updated_at),
-      metadata: JSON.parse(row.metadata || '{}'),
-      tags: JSON.parse(row.tags || '[]'),
+      metadata: readJsonRecord(row.metadata || '{}'),
+      tags: readJsonStrings(row.tags || '[]'),
     };
   }
 
@@ -2479,8 +2570,8 @@ export class LanceDBStorage implements StorageAdapter {
       id: row.id,
       filePath: row.file_path,
       fileSize: row.file_size,
-      priority: row.priority as QueuePriority,
-      status: row.status as QueueItem['status'],
+      priority: read(row.priority, isQueuePriority),
+      status: read(row.status, isQueueStatus),
       attempts: row.attempts,
       lastError: row.last_error || null, // Empty string -> null
       deferReason,
@@ -2507,7 +2598,7 @@ export class LanceDBStorage implements StorageAdapter {
       metadata: {
         page: row.page,
         section: row.section,
-        tags: JSON.parse(row.tags || '[]'),
+        tags: readJsonStrings(row.tags || '[]'),
       },
     };
   }
@@ -2598,7 +2689,7 @@ export class LanceDBStorage implements StorageAdapter {
     }
 
     if (filters.tags && filters.tags.length > 0) {
-      const rowTags: string[] = JSON.parse(row.tags || '[]');
+      const rowTags: string[] = readJsonStrings(row.tags || '[]');
       if (!filters.tags.some((t) => rowTags.includes(t))) {
         return false;
       }

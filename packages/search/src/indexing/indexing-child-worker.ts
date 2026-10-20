@@ -2,9 +2,10 @@
  * @license
  * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
- *
- * @license
  */
+
+import { isMainToChildMessage } from './child-process-validation.js';
+import { read, parseJson } from '../core/validation.js';
 
 /**
  * Child process entry point for indexing.
@@ -17,14 +18,15 @@
  * Communication with the main process uses JSONL protocol over stdin/stdout.
  */
 
-import type { Interface } from 'node:readline';
-import { createInterface } from 'node:readline';
-import type {
-  MainToChildMessage,
-  ChildToMainMessage,
-  StartIndexingMessage,
+import { type Interface, createInterface } from 'node:readline';
+
+import {
+  type MainToChildMessage,
+  type ChildToMainMessage,
+  type StartIndexingMessage,
+  getMemoryUsageMb,
+  serializeMessage,
 } from './child-process-types.js';
-import { getMemoryUsageMb, serializeMessage } from './child-process-types.js';
 
 // Import SearchSystem type for typing (actual import is dynamic)
 import type { SearchSystem } from '../core/SearchSystem.js';
@@ -353,7 +355,11 @@ async function main(): Promise<void> {
     if (isShuttingDown) return;
 
     try {
-      const msg: MainToChildMessage = JSON.parse(line);
+      const msg: MainToChildMessage = read(
+        parseJson(line),
+        isMainToChildMessage,
+        'IPC message',
+      );
 
       switch (msg.type) {
         case 'start_indexing':

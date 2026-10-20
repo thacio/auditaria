@@ -1,5 +1,37 @@
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SearchEventEmitter, createEventEmitter } from './EventEmitter.js';
+import {
+  EventEmitter,
+  SearchEventEmitter,
+  createEventEmitter,
+} from './EventEmitter.js';
+
+it('supports event names that also exist on Object.prototype after clearing listeners', async () => {
+  class CustomEmitter extends EventEmitter<{
+    constructor: string;
+    '': string;
+  }> {
+    publish(event: 'constructor' | '', data: string) {
+      return this.emit(event, data);
+    }
+  }
+  const emitter = new CustomEmitter();
+  const handler = vi.fn();
+  emitter.on('constructor', handler);
+  await emitter.publish('constructor', 'first');
+  emitter.removeAllListeners();
+  emitter.once('constructor', handler);
+  emitter.on('', handler);
+  emitter.removeAllListeners('');
+  await emitter.publish('', 'removed');
+  await emitter.publish('constructor', 'second');
+  await emitter.publish('constructor', 'once');
+  expect(handler.mock.calls).toEqual([['first'], ['second']]);
+});
 
 describe('SearchEventEmitter', () => {
   let emitter: SearchEventEmitter;

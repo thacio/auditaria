@@ -2,9 +2,10 @@
  * @license
  * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
- *
- * @license
  */
+
+import { isChildToMainMessage } from './child-process-validation.js';
+import { read, parseJson } from '../core/validation.js';
 
 /**
  * IPC message types for communication between main process and indexing child process.
@@ -193,5 +194,5 @@ export function serializeMessage(
  * Parse a JSONL message.
  */
 export function parseMessage(line: string): ChildToMainMessage {
-  return JSON.parse(line) as ChildToMainMessage;
+  return read(parseJson(line), isChildToMainMessage, 'IPC message');
 }

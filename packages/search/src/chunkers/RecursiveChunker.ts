@@ -1,15 +1,21 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Recursive text chunker.
  * Splits text by trying different separators recursively to find optimal chunks.
  */
 
-import type {
-  Chunk,
-  ChunkMetadata,
-  ChunkerOptions,
-  DocumentChunker,
+import {
+  type Chunk,
+  type ChunkMetadata,
+  type ChunkerOptions,
+  type DocumentChunker,
+  DEFAULT_CHUNKER_OPTIONS,
 } from './types.js';
-import { DEFAULT_CHUNKER_OPTIONS } from './types.js';
 
 // ============================================================================
 // Utility: Event Loop Yielding

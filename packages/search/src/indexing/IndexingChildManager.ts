@@ -2,9 +2,15 @@
  * @license
  * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
- *
- * @license
  */
+
+import { isChildToMainMessage } from './child-process-validation.js';
+import {
+  read,
+  parseJson,
+  readJsonRecord,
+  isRecord,
+} from '../core/validation.js';
 
 /**
  * IndexingChildManager - Orchestrates child processes for indexing.
@@ -22,10 +28,10 @@
  * - Main process spawns new child for next batch if more work remains
  */
 
-import type { ChildProcess } from 'node:child_process';
-import { fork } from 'node:child_process';
-import type { Interface } from 'node:readline';
-import { createInterface } from 'node:readline';
+import { type ChildProcess, fork } from 'node:child_process';
+
+import { type Interface, createInterface } from 'node:readline';
+
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -298,14 +304,23 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
       // Handle child stderr logs - parse JSONL and log through our system
       this.stderrReader.on('line', (line) => {
         try {
-          const logEntry = JSON.parse(line);
+          const logEntry = readJsonRecord(line);
           // Forward to our logger based on level
           if (logEntry.level === 'error') {
-            log.error(`child:${logEntry.message}`, logEntry.data);
+            log.error(
+              `child:${logEntry.message}`,
+              read(logEntry.data ?? {}, isRecord),
+            );
           } else if (logEntry.level === 'warn') {
-            log.warn(`child:${logEntry.message}`, logEntry.data);
+            log.warn(
+              `child:${logEntry.message}`,
+              read(logEntry.data ?? {}, isRecord),
+            );
           } else {
-            log.debug(`child:${logEntry.message}`, logEntry.data);
+            log.debug(
+              `child:${logEntry.message}`,
+              read(logEntry.data ?? {}, isRecord),
+            );
           }
         } catch {
           // Non-JSON stderr output (e.g., native errors) - log as debug
@@ -366,7 +381,11 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
       // Handle messages from child
       this.readline.on('line', (line) => {
         try {
-          const msg: ChildToMainMessage = JSON.parse(line);
+          const msg: ChildToMainMessage = read(
+            parseJson(line),
+            isChildToMainMessage,
+            'IPC message',
+          );
 
           switch (msg.type) {
             case 'ready': {

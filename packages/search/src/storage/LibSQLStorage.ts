@@ -6,6 +6,24 @@
  * @license
  */
 
+import {
+  parseJson,
+  optional,
+  objectOf,
+  isString,
+  read,
+  isNumber,
+  nullable,
+  getProperty,
+  arrayOf,
+  isMatchType,
+  isQueuePriority,
+  isDocumentStatus,
+  isOcrStatus,
+  isQueueStatus,
+  readJsonRecord,
+} from '../core/validation.js';
+
 import type {
   StorageAdapter,
   CreateDocumentInput,
@@ -50,15 +68,19 @@ import {
   type MetadataEmbeddings,
   type DatabaseMetadata,
 } from './metadata.js';
-import type {
-  DatabaseConfig,
-  VectorIndexConfig,
-  HybridSearchStrategy,
+import {
+  type DatabaseConfig,
+  type VectorIndexConfig,
+  type HybridSearchStrategy,
+  DEFAULT_VECTOR_INDEX_CONFIG,
 } from '../config.js';
-import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
+
 import { createModuleLogger } from '../core/Logger.js';
-import type { LibSQLBackendOptions } from '../config/backend-options.js';
-import { DEFAULT_LIBSQL_OPTIONS } from '../config/backend-options.js';
+import {
+  type LibSQLBackendOptions,
+  DEFAULT_LIBSQL_OPTIONS,
+} from '../config/backend-options.js';
+
 import { convertToFTS5Query } from './web-search-parser.js';
 import {
   emptyDeferReasonCounts,
@@ -124,7 +146,6 @@ interface ChunkRow {
   document_id: string;
   chunk_index: number;
   text: string;
-  rowid: number;
   start_offset: number;
   end_offset: number;
   page: number | null;
@@ -182,30 +203,89 @@ interface _VectorResultRow {
 // LibSQL Database Type (better-sqlite3 compatible API)
 // ============================================================================
 
-// Note: libsql package provides a better-sqlite3 compatible API
-// but doesn't ship with TypeScript declarations. We define our own interface.
-interface LibSQLDatabase {
-  prepare(sql: string): LibSQLStatement;
-  exec(sql: string): void;
-  pragma(pragma: string, options?: { simple?: boolean }): unknown;
-  transaction<F extends (...args: unknown[]) => unknown>(fn: F): F;
-  close(): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function(name: string, fn: (...args: any[]) => any): void;
-}
-
-interface LibSQLStatement {
-  run(...params: unknown[]): {
-    changes: number;
-    lastInsertRowid: bigint | number;
-  };
-  get(...params: unknown[]): unknown;
-  all(...params: unknown[]): unknown[];
-}
+import type LibSQLDatabase from 'libsql';
 
 // ============================================================================
 // LibSQL Storage Adapter
 // ============================================================================
+
+const isDocumentRow = objectOf<DocumentRow>({
+  id: isString,
+  file_path: isString,
+  file_name: isString,
+  file_extension: isString,
+  file_size: isNumber,
+  file_hash: isString,
+  mime_type: nullable(isString),
+  title: nullable(isString),
+  author: nullable(isString),
+  language: nullable(isString),
+  page_count: nullable(isNumber),
+  status: isString,
+  ocr_status: isString,
+  indexed_at: nullable(isString),
+  file_modified_at: isString,
+  created_at: isString,
+  updated_at: isString,
+  metadata: isString,
+});
+const isChunkRow = objectOf<ChunkRow>({
+  id: isString,
+  document_id: isString,
+  chunk_index: isNumber,
+  text: isString,
+  start_offset: isNumber,
+  end_offset: isNumber,
+  page: nullable(isNumber),
+  section: nullable(isString),
+  token_count: nullable(isNumber),
+  created_at: isString,
+});
+const isTagCountRow = objectOf<TagCountRow>({ tag: isString, count: isNumber });
+const isSearchResultRow = objectOf<SearchResultRow>({
+  chunk_id: isString,
+  document_id: isString,
+  file_path: isString,
+  file_name: isString,
+  chunk_text: isString,
+  highlighted_text: optional(isString),
+  page: nullable(isNumber),
+  section: nullable(isString),
+  score: isNumber,
+  match_type: isString,
+});
+const isQueueItemRow = objectOf<QueueItemRow>({
+  id: isString,
+  file_path: isString,
+  file_size: isNumber,
+  priority: isString,
+  status: isString,
+  attempts: isNumber,
+  last_error: nullable(isString),
+  created_at: isString,
+  started_at: nullable(isString),
+  completed_at: nullable(isString),
+});
+const isStatsRow = objectOf<StatsRow>({
+  total_documents: isNumber,
+  indexed_documents: isNumber,
+  pending_documents: isNumber,
+  failed_documents: isNumber,
+  ocr_pending: isNumber,
+  total_file_size: isNumber,
+});
+
+const isSemanticRow = objectOf({
+  chunk_id: isString,
+  document_id: isString,
+  file_path: isString,
+  file_name: isString,
+  chunk_text: isString,
+  page: nullable(isNumber),
+  section: nullable(isString),
+  distance: isNumber,
+  match_type: isString,
+});
 
 export class LibSQLStorage implements StorageAdapter {
   private db: LibSQLDatabase | null = null;
@@ -263,7 +343,7 @@ export class LibSQLStorage implements StorageAdapter {
         ? ':memory:'
         : getDatabaseFilePath(this.config.path, 'libsql');
 
-      this.db = new Database(dbFilePath) as unknown as LibSQLDatabase;
+      this.db = new Database(dbFilePath);
       log.info('initialize:database:opened', { dbFilePath });
     } catch (error) {
       log.error('initialize:database:failed', {
@@ -554,7 +634,7 @@ export class LibSQLStorage implements StorageAdapter {
       const dbFilePath = this.config.inMemory
         ? ':memory:'
         : getDatabaseFilePath(this.config.path, 'libsql');
-      this.db = new Database(dbFilePath) as unknown as LibSQLDatabase;
+      this.db = new Database(dbFilePath);
 
       // Re-enable foreign keys and memory optimization pragmas
       this.db.pragma('foreign_keys = ON');
@@ -565,11 +645,14 @@ export class LibSQLStorage implements StorageAdapter {
 
       // Check if vector index exists
       try {
-        const indexCheck = this.db
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_chunks_embedding'",
-          )
-          .get() as { name: string } | undefined;
+        const indexCheck = read(
+          this.db
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_chunks_embedding'",
+            )
+            .get(),
+          optional(objectOf<{ name: string }>({ name: isString })),
+        );
         this._vectorIndexCreated = !!indexCheck;
       } catch {
         this._vectorIndexCreated = false;
@@ -695,9 +778,10 @@ export class LibSQLStorage implements StorageAdapter {
   async getDocument(id: string): Promise<Document | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT * FROM documents WHERE id = ?').get(
-      id,
-    ) as DocumentRow | undefined;
+    const row = read(
+      this.db!.prepare('SELECT * FROM documents WHERE id = ?').get(id),
+      optional(isDocumentRow),
+    );
 
     if (!row) return null;
     return this.rowToDocument(row);
@@ -706,9 +790,12 @@ export class LibSQLStorage implements StorageAdapter {
   async getDocumentByPath(filePath: string): Promise<Document | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare(
-      'SELECT * FROM documents WHERE file_path = ?',
-    ).get(filePath) as DocumentRow | undefined;
+    const row = read(
+      this.db!.prepare('SELECT * FROM documents WHERE file_path = ?').get(
+        filePath,
+      ),
+      optional(isDocumentRow),
+    );
 
     if (!row) return null;
     return this.rowToDocument(row);
@@ -742,7 +829,7 @@ export class LibSQLStorage implements StorageAdapter {
     };
 
     for (const [key, column] of Object.entries(fieldMap)) {
-      const value = updates[key as keyof UpdateDocumentInput];
+      const value = getProperty(updates, key);
       if (value !== undefined) {
         sets.push(`${column} = ?`);
         if (key === 'indexedAt' && value instanceof Date) {
@@ -779,9 +866,12 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureReady();
 
     const { where, params } = this.buildDocumentFilters(filters);
-    const rows = this.db!.prepare(
-      `SELECT * FROM documents ${where} ORDER BY file_path`,
-    ).all(...params) as DocumentRow[];
+    const rows = read(
+      this.db!.prepare(
+        `SELECT * FROM documents ${where} ORDER BY file_path`,
+      ).all(...params),
+      arrayOf(isDocumentRow),
+    );
 
     return rows.map((row) => this.rowToDocument(row));
   }
@@ -790,9 +880,12 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureReady();
 
     const { where, params } = this.buildDocumentFilters(filters);
-    const result = this.db!.prepare(
-      `SELECT COUNT(*) as count FROM documents ${where}`,
-    ).get(...params) as { count: number };
+    const result = read(
+      this.db!.prepare(`SELECT COUNT(*) as count FROM documents ${where}`).get(
+        ...params,
+      ),
+      objectOf<{ count: number }>({ count: isNumber }),
+    );
 
     return result.count;
   }
@@ -910,9 +1003,12 @@ export class LibSQLStorage implements StorageAdapter {
   async getChunks(documentId: string): Promise<DocumentChunk[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(
-      'SELECT * FROM chunks WHERE document_id = ? ORDER BY chunk_index',
-    ).all(documentId) as ChunkRow[];
+    const rows = read(
+      this.db!.prepare(
+        'SELECT * FROM chunks WHERE document_id = ? ORDER BY chunk_index',
+      ).all(documentId),
+      arrayOf(isChunkRow),
+    );
 
     return rows.map((row) => this.rowToChunk(row));
   }
@@ -969,9 +1065,10 @@ export class LibSQLStorage implements StorageAdapter {
   async countChunks(): Promise<number> {
     this.ensureReady();
 
-    const result = this.db!.prepare(
-      'SELECT COUNT(*) as count FROM chunks',
-    ).get() as { count: number };
+    const result = read(
+      this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get(),
+      objectOf<{ count: number }>({ count: isNumber }),
+    );
     return result.count;
   }
 
@@ -993,7 +1090,10 @@ export class LibSQLStorage implements StorageAdapter {
 
     const transaction = this.db!.transaction(() => {
       for (const tagName of tags) {
-        let tagRow = getTagStmt.get(tagName) as { id: string } | undefined;
+        let tagRow = read(
+          getTagStmt.get(tagName),
+          optional(objectOf<{ id: string }>({ id: isString })),
+        );
 
         if (!tagRow) {
           const tagId = generateId();
@@ -1020,7 +1120,10 @@ export class LibSQLStorage implements StorageAdapter {
 
     const transaction = this.db!.transaction(() => {
       for (const tagName of tags) {
-        const tagRow = getTagStmt.get(tagName) as { id: string } | undefined;
+        const tagRow = read(
+          getTagStmt.get(tagName),
+          optional(objectOf<{ id: string }>({ id: isString })),
+        );
         if (tagRow) {
           unlinkTagStmt.run(documentId, tagRow.id);
         }
@@ -1034,14 +1137,17 @@ export class LibSQLStorage implements StorageAdapter {
   async getDocumentTags(documentId: string): Promise<string[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(
-      `
+    const rows = read(
+      this.db!.prepare(
+        `
       SELECT t.name FROM tags t
       JOIN document_tags dt ON t.id = dt.tag_id
       WHERE dt.document_id = ?
       ORDER BY t.name
     `,
-    ).all(documentId) as Array<{ name: string }>;
+      ).all(documentId),
+      arrayOf(objectOf<{ name: string }>({ name: isString })),
+    );
 
     return rows.map((row) => row.name);
   }
@@ -1049,15 +1155,18 @@ export class LibSQLStorage implements StorageAdapter {
   async getAllTags(): Promise<TagCount[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(
-      `
+    const rows = read(
+      this.db!.prepare(
+        `
       SELECT t.name as tag, COUNT(dt.document_id) as count
       FROM tags t
       LEFT JOIN document_tags dt ON t.id = dt.tag_id
       GROUP BY t.id, t.name
       ORDER BY count DESC, t.name
     `,
-    ).all() as TagCountRow[];
+      ).all(),
+      arrayOf(isTagCountRow),
+    );
 
     return rows.map((row) => ({
       tag: row.tag,
@@ -1119,7 +1228,10 @@ export class LibSQLStorage implements StorageAdapter {
       `;
 
       const params = [ftsQuery, ...filterParams, limit];
-      const rows = this.db!.prepare(sql).all(...params) as SearchResultRow[];
+      const rows = read(
+        this.db!.prepare(sql).all(...params),
+        arrayOf(isSearchResultRow),
+      );
       const results = this.rowsToSearchResults(rows);
 
       log.debug('searchKeyword:complete:fts', { resultCount: results.length });
@@ -1176,7 +1288,10 @@ export class LibSQLStorage implements StorageAdapter {
     `;
 
     const params = [...likeParams, ...filterParams, limit];
-    const rows = this.db!.prepare(sql).all(...params) as SearchResultRow[];
+    const rows = read(
+      this.db!.prepare(sql).all(...params),
+      arrayOf(isSearchResultRow),
+    );
 
     log.debug('searchKeyword:complete:fallback', { resultCount: rows.length });
     return this.rowsToSearchResults(rows);
@@ -1244,11 +1359,10 @@ export class LibSQLStorage implements StorageAdapter {
 
       // Pass vectorJson twice: once for distance calc, once for vector_top_k
       const params = [vectorJson, vectorJson, ...filterParams, limit];
-      const rows = this.db!.prepare(sql).all(...params) as Array<
-        SearchResultRow & {
-          distance: number;
-        }
-      >;
+      const rows = read(
+        this.db!.prepare(sql).all(...params),
+        arrayOf(isSemanticRow),
+      );
 
       // Convert distance to similarity score (1 - distance for cosine)
       const results: SearchResult[] = rows.map((row) => ({
@@ -1313,11 +1427,10 @@ export class LibSQLStorage implements StorageAdapter {
       `;
 
       const params = [vectorJson, ...filterParams, limit];
-      const rows = this.db!.prepare(sql).all(...params) as Array<
-        SearchResultRow & {
-          distance: number;
-        }
-      >;
+      const rows = read(
+        this.db!.prepare(sql).all(...params),
+        arrayOf(isSemanticRow),
+      );
 
       // Convert distance to similarity score (1 - distance for cosine)
       const results: SearchResult[] = rows.map((row) => ({
@@ -1450,7 +1563,7 @@ export class LibSQLStorage implements StorageAdapter {
       scored.push({
         result: {
           ...result,
-          matchType: matchType as 'hybrid' | 'semantic' | 'keyword',
+          matchType: read(matchType, isMatchType),
         },
         score: totalScore,
         matchType,
@@ -1583,8 +1696,9 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureReady();
     this.ensureWritable();
 
-    const row = this.db!.prepare(
-      `
+    const row = read(
+      this.db!.prepare(
+        `
       SELECT * FROM index_queue
       WHERE status = 'pending'
       ORDER BY
@@ -1600,7 +1714,9 @@ export class LibSQLStorage implements StorageAdapter {
         created_at ASC
       LIMIT 1
     `,
-    ).get() as QueueItemRow | undefined;
+      ).get(),
+      optional(isQueueItemRow),
+    );
 
     if (!row) return null;
 
@@ -1665,9 +1781,10 @@ export class LibSQLStorage implements StorageAdapter {
       ).run(...params);
     }
 
-    const row = this.db!.prepare('SELECT * FROM index_queue WHERE id = ?').get(
-      id,
-    ) as QueueItemRow | undefined;
+    const row = read(
+      this.db!.prepare('SELECT * FROM index_queue WHERE id = ?').get(id),
+      optional(isQueueItemRow),
+    );
     if (!row) throw new Error('Queue item not found');
 
     this._dirty = true;
@@ -1685,9 +1802,12 @@ export class LibSQLStorage implements StorageAdapter {
   async getQueueItemByPath(filePath: string): Promise<QueueItem | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare(
-      'SELECT * FROM index_queue WHERE file_path = ?',
-    ).get(filePath) as QueueItemRow | undefined;
+    const row = read(
+      this.db!.prepare('SELECT * FROM index_queue WHERE file_path = ?').get(
+        filePath,
+      ),
+      optional(isQueueItemRow),
+    );
 
     if (!row) return null;
     return this.rowToQueueItem(row);
@@ -1696,18 +1816,34 @@ export class LibSQLStorage implements StorageAdapter {
   async getQueueStatus(): Promise<QueueStatus> {
     this.ensureReady();
 
-    const statusRows = this.db!.prepare(
-      `
+    const statusRows = read(
+      this.db!.prepare(
+        `
       SELECT status, COUNT(*) as count FROM index_queue GROUP BY status
     `,
-    ).all() as Array<{ status: string; count: number }>;
+      ).all(),
+      arrayOf(
+        objectOf<{ status: string; count: number }>({
+          status: isString,
+          count: isNumber,
+        }),
+      ),
+    );
 
-    const priorityRows = this.db!.prepare(
-      `
+    const priorityRows = read(
+      this.db!.prepare(
+        `
       SELECT priority, COUNT(*) as count FROM index_queue
       WHERE status = 'pending' GROUP BY priority
     `,
-    ).all() as Array<{ priority: string; count: number }>;
+      ).all(),
+      arrayOf(
+        objectOf<{ priority: string; count: number }>({
+          priority: isString,
+          count: isNumber,
+        }),
+      ),
+    );
 
     const statusCounts: Record<string, number> = {};
     for (const row of statusRows) {
@@ -1723,7 +1859,7 @@ export class LibSQLStorage implements StorageAdapter {
       deferred: 0,
     };
     for (const row of priorityRows) {
-      priorityCounts[row.priority as QueuePriority] = row.count;
+      priorityCounts[read(row.priority, isQueuePriority)] = row.count;
     }
 
     const total = Object.values(statusCounts).reduce((a, b) => a + b, 0);
@@ -1744,14 +1880,22 @@ export class LibSQLStorage implements StorageAdapter {
     const base = await this.getQueueStatus();
     const deferredByReason = emptyDeferReasonCounts();
 
-    const rows = this.db!.prepare(
-      `
+    const rows = read(
+      this.db!.prepare(
+        `
       SELECT last_error, COUNT(*) as count
       FROM index_queue
       WHERE status = 'pending' AND priority = 'deferred'
       GROUP BY last_error
     `,
-    ).all() as Array<{ last_error: string | null; count: number }>;
+      ).all(),
+      arrayOf(
+        objectOf<{ last_error: string | null; count: number }>({
+          last_error: nullable(isString),
+          count: isNumber,
+        }),
+      ),
+    );
 
     for (const row of rows) {
       const parsedReason = parseDeferReasonFromLastError(row.last_error);
@@ -1792,12 +1936,15 @@ export class LibSQLStorage implements StorageAdapter {
   async getFileHashes(): Promise<Map<string, string>> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(
-      'SELECT file_path, file_hash FROM documents',
-    ).all() as Array<{
-      file_path: string;
-      file_hash: string;
-    }>;
+    const rows = read(
+      this.db!.prepare('SELECT file_path, file_hash FROM documents').all(),
+      arrayOf(
+        objectOf<{
+          file_path: string;
+          file_hash: string;
+        }>({ file_path: isString, file_hash: isString }),
+      ),
+    );
 
     const map = new Map<string, string>();
     for (const row of rows) {
@@ -1809,9 +1956,12 @@ export class LibSQLStorage implements StorageAdapter {
   async getDocumentsModifiedSince(date: Date): Promise<Document[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(
-      'SELECT * FROM documents WHERE file_modified_at > ? ORDER BY file_path',
-    ).all(date.toISOString()) as DocumentRow[];
+    const rows = read(
+      this.db!.prepare(
+        'SELECT * FROM documents WHERE file_modified_at > ? ORDER BY file_path',
+      ).all(date.toISOString()),
+      arrayOf(isDocumentRow),
+    );
 
     return rows.map((row) => this.rowToDocument(row));
   }
@@ -1823,28 +1973,33 @@ export class LibSQLStorage implements StorageAdapter {
   async getStats(): Promise<SearchStats> {
     this.ensureReady();
 
-    const docStats = this.db!.prepare(
-      `
+    const docStats = read(
+      this.db!.prepare(
+        `
       SELECT
         COUNT(*) as total_documents,
-        SUM(CASE WHEN status = 'indexed' THEN 1 ELSE 0 END) as indexed_documents,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_documents,
-        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_documents,
-        SUM(CASE WHEN ocr_status = 'pending' THEN 1 ELSE 0 END) as ocr_pending,
+        COALESCE(SUM(CASE WHEN status = 'indexed' THEN 1 ELSE 0 END), 0) as indexed_documents,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) as pending_documents,
+        COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed_documents,
+        COALESCE(SUM(CASE WHEN ocr_status = 'pending' THEN 1 ELSE 0 END), 0) as ocr_pending,
         COALESCE(SUM(file_size), 0) as total_file_size
       FROM documents
     `,
-    ).get() as StatsRow;
+      ).get(),
+      isStatsRow,
+    );
 
-    const chunkCount = (
-      this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get() as {
+    const chunkCount = read(
+      this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get(),
+      objectOf<{
         count: number;
-      }
+      }>({ count: isNumber }),
     ).count;
-    const tagCount = (
-      this.db!.prepare('SELECT COUNT(*) as count FROM tags').get() as {
+    const tagCount = read(
+      this.db!.prepare('SELECT COUNT(*) as count FROM tags').get(),
+      objectOf<{
         count: number;
-      }
+      }>({ count: isNumber }),
     ).count;
 
     return {
@@ -1866,12 +2021,17 @@ export class LibSQLStorage implements StorageAdapter {
   async getConfigValue<T>(key: string): Promise<T | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare(
-      'SELECT value FROM search_config WHERE key = ?',
-    ).get(key) as { value: string } | undefined;
+    const row = read(
+      this.db!.prepare('SELECT value FROM search_config WHERE key = ?').get(
+        key,
+      ),
+      optional(objectOf<{ value: string }>({ value: isString })),
+    );
 
     if (!row) return null;
-    return JSON.parse(row.value) as T;
+    // The value is written by setConfigValue<T>; its schema belongs to the caller.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    return parseJson(row.value) as T;
   }
 
   async setConfigValue<T>(key: string, value: T): Promise<void> {
@@ -1895,6 +2055,8 @@ export class LibSQLStorage implements StorageAdapter {
 
   async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
     this.ensureReady();
+    // Like PGlite.query<T>, raw SQL callers own their result schema.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     return this.db!.prepare(sql).all(...(params ?? [])) as T[];
   }
 
@@ -1911,12 +2073,21 @@ export class LibSQLStorage implements StorageAdapter {
   async recoverStuckDocuments(): Promise<number> {
     this.ensureReady();
 
-    const stuckDocs = this.db!.prepare(
-      `
+    const stuckDocs = read(
+      this.db!.prepare(
+        `
       SELECT id, file_path, status FROM documents
       WHERE status IN ('parsing', 'chunking', 'embedding')
     `,
-    ).all() as Array<{ id: string; file_path: string; status: string }>;
+      ).all(),
+      arrayOf(
+        objectOf<{ id: string; file_path: string; status: string }>({
+          id: isString,
+          file_path: isString,
+          status: isString,
+        }),
+      ),
+    );
 
     if (stuckDocs.length === 0) return 0;
 
@@ -2003,13 +2174,13 @@ export class LibSQLStorage implements StorageAdapter {
       author: row.author,
       language: row.language,
       pageCount: row.page_count,
-      status: row.status as Document['status'],
-      ocrStatus: row.ocr_status as Document['ocrStatus'],
+      status: read(row.status, isDocumentStatus),
+      ocrStatus: read(row.ocr_status, isOcrStatus),
       indexedAt: toDate(row.indexed_at),
       fileModifiedAt: toDate(row.file_modified_at)!,
       createdAt: toDate(row.created_at)!,
       updatedAt: toDate(row.updated_at)!,
-      metadata: JSON.parse(row.metadata || '{}'),
+      metadata: readJsonRecord(row.metadata || '{}'),
       tags: [],
     };
   }
@@ -2039,8 +2210,8 @@ export class LibSQLStorage implements StorageAdapter {
       id: row.id,
       filePath: row.file_path,
       fileSize: row.file_size,
-      priority: row.priority as QueuePriority,
-      status: row.status as QueueItem['status'],
+      priority: read(row.priority, isQueuePriority),
+      status: read(row.status, isQueueStatus),
       attempts: row.attempts,
       lastError: row.last_error,
       deferReason,
@@ -2058,7 +2229,7 @@ export class LibSQLStorage implements StorageAdapter {
       fileName: row.file_name,
       chunkText: row.highlighted_text ?? row.chunk_text,
       score: Number(row.score) || 0,
-      matchType: row.match_type as SearchResult['matchType'],
+      matchType: read(row.match_type, isMatchType),
       highlights: [],
       metadata: {
         page: row.page,

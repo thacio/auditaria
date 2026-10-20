@@ -35,7 +35,14 @@ describe.each(['pglite', 'libsql', 'sqlite', 'lancedb'] as const)(
       const directory = await mkdtemp(
         join(tmpdir(), `search-replacement-${backend}-`),
       );
-      cleanups.push(() => rm(directory, { recursive: true, force: true }));
+      cleanups.push(() =>
+        rm(directory, {
+          recursive: true,
+          force: true,
+          maxRetries: 5,
+          retryDelay: 100,
+        }),
+      );
       const storage = await createStorage(
         {
           backend,

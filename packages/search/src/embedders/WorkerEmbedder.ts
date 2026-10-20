@@ -42,8 +42,8 @@ const EMBED_TIMEOUT_MS = 300000; // 5 minutes
 // Types
 // ============================================================================
 
-interface PendingRequest<T = unknown> {
-  resolve: (value: T) => void;
+interface PendingRequest {
+  resolve: (value: WorkerResponse) => void;
   reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
 }
@@ -182,6 +182,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
         },
       },
       this.config.initTimeout ?? INIT_TIMEOUT_MS,
+      (value): value is InitializedResponse => value.type === 'initialized',
     );
 
     if (!response.success) {
@@ -236,7 +237,11 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
 
     try {
       // Send dispose request to clean up embedder in worker
-      await this.sendRequest({ type: 'dispose' }, 5000).catch(() => {
+      await this.sendRequest(
+        { type: 'dispose' },
+        5000,
+        (value): value is WorkerResponse => value.type === 'disposed',
+      ).catch(() => {
         // Ignore errors during dispose
       });
     } finally {
@@ -258,6 +263,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     const response = await this.sendRequest<EmbeddingResponse>(
       { type: 'embed', text },
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
+      (value): value is EmbeddingResponse => value.type === 'embedding',
     );
 
     return response.result;
@@ -280,6 +286,8 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     const response = await this.sendRequest<EmbeddingBatchResponse>(
       { type: 'embedBatch', texts },
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
+      (value): value is EmbeddingBatchResponse =>
+        value.type === 'embeddingBatch',
     );
 
     log.endTimer(timerKey, 'embedBatch:complete', {
@@ -306,6 +314,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     const response = await this.sendRequest<EmbeddingResponse>(
       { type: 'embedQuery', query },
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
+      (value): value is EmbeddingResponse => value.type === 'embedding',
     );
 
     log.endTimer(timerKey, 'embedQuery:complete', {
@@ -325,6 +334,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     const response = await this.sendRequest<EmbeddingResponse>(
       { type: 'embedDocument', text },
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
+      (value): value is EmbeddingResponse => value.type === 'embedding',
     );
 
     return response.result;
@@ -351,6 +361,8 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     const response = await this.sendRequest<EmbeddingBatchResponse>(
       { type: 'embedBatchDocuments', texts },
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
+      (value): value is EmbeddingBatchResponse =>
+        value.type === 'embeddingBatch',
     );
 
     log.endTimer(timerKey, 'embedBatchDocuments:complete', {
@@ -382,6 +394,8 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
       const response = await this.sendRequest<EmbeddingBatchResponse>(
         { type: 'embedBatchDocuments', texts: batch },
         this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
+        (value): value is EmbeddingBatchResponse =>
+          value.type === 'embeddingBatch',
       );
       yield { startIndex: i, embeddings: response.result };
     }
@@ -522,6 +536,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
   private sendRequest<T extends WorkerResponse>(
     request: { type: string } & Record<string, unknown>,
     timeoutMs: number,
+    guard: (value: WorkerResponse) => value is T,
   ): Promise<T> {
     if (!this.worker) {
       return Promise.reject(new Error('Worker not initialized'));
@@ -538,7 +553,8 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
       this.pendingRequests.set(id, {
         resolve: (value) => {
           clearTimeout(timeout);
-          resolve(value as T);
+          if (guard(value)) resolve(value);
+          else reject(new Error('Unexpected embedding worker response'));
         },
         reject: (error) => {
           clearTimeout(timeout);
@@ -569,10 +585,8 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     }
 
     // Handle worker memory reports (for debugging)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((message as any).type === 'worker_memory') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const m = message as any;
+    if (message.type === 'worker_memory') {
+      const m = message;
       log.info('workerMemory', {
         context: m.context,
         batch: m.batch,

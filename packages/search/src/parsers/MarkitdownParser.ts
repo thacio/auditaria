@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Document parser using markitdown-js.
  * Supports many formats: PDF, DOCX, PPTX, XLSX, HTML, images, audio, video, etc.
  */

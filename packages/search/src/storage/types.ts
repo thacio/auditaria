@@ -130,6 +130,12 @@ export interface KeywordSearchOptions {
  * Implementations can use PGlite, SQLite, or other backends.
  */
 export interface StorageAdapter {
+  updateMetadataEmbeddings?(
+    config: import('./metadata.js').MetadataEmbeddings,
+  ): void;
+  createBackup?(): Promise<boolean>;
+  ensureVectorIndex?(): Promise<boolean>;
+  refresh?(): Promise<void>;
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------

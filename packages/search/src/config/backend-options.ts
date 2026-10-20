@@ -210,23 +210,12 @@ export function mergeBackendOptions(
 export function getTypedBackendOptions<B extends StorageBackend>(
   options: BackendOptions | undefined,
   backend: B,
-):
-  | (B extends 'libsql'
-      ? LibSQLBackendOptions
-      : B extends 'pglite'
-        ? PGLiteBackendOptions
-        : B extends 'sqlite'
-          ? SQLiteBackendOptions
-          : B extends 'lancedb'
-            ? LanceDBBackendOptions
-            : never)
-  | undefined {
-  if (!options || options.backend !== backend) {
-    return undefined;
-  }
-  // TypeScript can't fully narrow here, but runtime check ensures correctness
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return options as any;
+): Extract<BackendOptions, { backend: B }> | undefined {
+  const matches = (
+    value: BackendOptions,
+  ): value is Extract<BackendOptions, { backend: B }> =>
+    value.backend === backend;
+  return options && matches(options) ? options : undefined;
 }
 
 /**

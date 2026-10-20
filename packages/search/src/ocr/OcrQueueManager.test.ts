@@ -5,8 +5,11 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { OcrQueueManager } from './OcrQueueManager.js';
-import { createOcrQueueManager } from './OcrQueueManager.js';
+import {
+  type OcrQueueManager,
+  createOcrQueueManager,
+} from './OcrQueueManager.js';
+
 import { OcrRegistry } from './OcrRegistry.js';
 import type { OcrProvider, OcrResult } from './types.js';
 import type { StorageAdapter } from '../storage/types.js';

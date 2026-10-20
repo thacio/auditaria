@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Document parser using officeparser.
  * Specialized for Office documents (DOCX, PPTX, XLSX, ODT, ODP, ODS).
  * Higher priority than MarkitdownParser for these file types.
@@ -111,7 +117,7 @@ export class OfficeParserAdapter implements DocumentParser {
     try {
       // Read file as buffer to avoid officeparser's case-sensitive extension check
       // (e.g., .DOCX is rejected while .docx works)
-      const { readFile } = await import('fs/promises');
+      const { readFile } = await import('node:fs/promises');
       const buffer = await readFile(filePath);
       const text = await this.parseOfficeAsync!(buffer);
 

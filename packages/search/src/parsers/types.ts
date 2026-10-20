@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Types and interfaces for document parsers.
  * Parsers convert various file formats into plain text for indexing.
  */

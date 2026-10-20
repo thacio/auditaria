@@ -8,7 +8,6 @@ import {
   tokenize,
   convertToFTS5Query,
   validateFTS5Query,
-  type Token,
 } from './web-search-parser.js';
 
 describe('web-search-parser', () => {
@@ -62,7 +61,9 @@ describe('web-search-parser', () => {
 
     it('should NOT treat OR as operator when part of a word', () => {
       const tokens = tokenize('ORder');
-      expect(tokens).toEqual([{ type: 'TERM', value: 'ORder', negated: false }]);
+      expect(tokens).toEqual([
+        { type: 'TERM', value: 'ORder', negated: false },
+      ]);
     });
 
     it('should tokenize negated terms', () => {
@@ -171,9 +172,7 @@ describe('web-search-parser', () => {
       });
 
       it('should convert negated phrases to NOT', () => {
-        expect(convertToFTS5Query('-"hello world"')).toBe(
-          'NOT "hello world"',
-        );
+        expect(convertToFTS5Query('-"hello world"')).toBe('NOT "hello world"');
         expect(convertToFTS5Query('foo -"hello world"')).toBe(
           'foo NOT "hello world"',
         );
@@ -298,9 +297,9 @@ describe('web-search-parser', () => {
 
     it('should handle technical searches', () => {
       expect(convertToFTS5Query('error handling')).toBe('error AND handling');
-      expect(convertToFTS5Query('"null pointer" OR "undefined reference"')).toBe(
-        '"null pointer" OR "undefined reference"',
-      );
+      expect(
+        convertToFTS5Query('"null pointer" OR "undefined reference"'),
+      ).toBe('"null pointer" OR "undefined reference"');
       expect(convertToFTS5Query('typescript -javascript')).toBe(
         'typescript NOT javascript',
       );
@@ -313,9 +312,9 @@ describe('web-search-parser', () => {
 
   describe('complex nested queries', () => {
     it('should handle multiple phrases with multiple operators', () => {
-      expect(
-        convertToFTS5Query('"hello world" "foo bar" OR "baz qux"'),
-      ).toBe('"hello world" AND "foo bar" OR "baz qux"');
+      expect(convertToFTS5Query('"hello world" "foo bar" OR "baz qux"')).toBe(
+        '"hello world" AND "foo bar" OR "baz qux"',
+      );
     });
 
     it('should handle phrases mixed with negations and OR', () => {
@@ -704,13 +703,17 @@ describe('web-search-parser', () => {
     });
 
     it('should handle all negations with OR', () => {
-      expect(convertToFTS5Query('-a OR -b OR -c')).toBe('NOT a OR NOT b OR NOT c');
+      expect(convertToFTS5Query('-a OR -b OR -c')).toBe(
+        'NOT a OR NOT b OR NOT c',
+      );
     });
   });
 
   describe('tokenize complex scenarios', () => {
     it('should tokenize complex query with all features', () => {
-      const tokens = tokenize('"phrase one" term -excluded OR "alt phrase" -"neg phrase"');
+      const tokens = tokenize(
+        '"phrase one" term -excluded OR "alt phrase" -"neg phrase"',
+      );
       expect(tokens).toEqual([
         { type: 'PHRASE', value: 'phrase one', negated: false },
         { type: 'TERM', value: 'term', negated: false },

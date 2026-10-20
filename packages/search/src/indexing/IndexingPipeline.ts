@@ -28,8 +28,11 @@ import type {
   SyncOptions,
   SyncChanges,
 } from './types.js';
-import type { FilePriorityClassifier } from './FilePriorityClassifier.js';
-import { createFilePriorityClassifier } from './FilePriorityClassifier.js';
+import {
+  type FilePriorityClassifier,
+  createFilePriorityClassifier,
+} from './FilePriorityClassifier.js';
+
 import { createModuleLogger } from '../core/Logger.js';
 import { join, isAbsolute, relative, basename, extname } from 'node:path';
 import { stat } from 'node:fs/promises';

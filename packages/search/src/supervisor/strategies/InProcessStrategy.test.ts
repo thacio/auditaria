@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -98,7 +98,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
       expect(strategy.isReady()).toBe(true);
     }, 60000);
@@ -107,7 +112,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
       const memoryMb = strategy.getMemoryUsageMb();
       expect(memoryMb).toBeGreaterThan(0);
@@ -125,9 +135,17 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
-      const stats = await strategy.call<{ documentCount: number }>('getStats', []);
+      const stats = await strategy.call<{ documentCount: number }>(
+        'getStats',
+        [],
+      );
       expect(stats).toHaveProperty('totalDocuments');
     }, 60000);
 
@@ -135,7 +153,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
       await expect(strategy.call('nonExistentMethod', [])).rejects.toThrow(
         'Unknown method: nonExistentMethod',
@@ -148,7 +171,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
       const events: unknown[] = [];
       const unsubscribe = strategy.onEvent('indexing:progress', (data) => {
@@ -163,7 +191,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
       const events: unknown[] = [];
       const unsubscribe = strategy.onEvent('indexing:progress', (data) => {
@@ -189,9 +222,14 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
-      const memoryBefore = strategy.getMemoryUsageMb();
+      const _memoryBefore = strategy.getMemoryUsageMb();
 
       await strategy.restart('test restart');
 
@@ -206,7 +244,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
       const events: unknown[] = [];
       strategy.onEvent('indexing:completed', (data) => {
@@ -229,7 +272,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
       expect(strategy.isReady()).toBe(true);
 
       await strategy.dispose();
@@ -241,7 +289,12 @@ describe('InProcessStrategy', () => {
       const config = createTestConfig();
       const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
-      await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
+      await strategy.initialize(
+        testDir,
+        databasePath,
+        config,
+        DEFAULT_SUPERVISOR_CONFIG,
+      );
 
       await strategy.dispose();
       await expect(strategy.dispose()).resolves.not.toThrow();

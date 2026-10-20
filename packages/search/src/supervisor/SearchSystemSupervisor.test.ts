@@ -10,8 +10,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 
-import type { SearchSystemSupervisor } from './SearchSystemSupervisor.js';
-import { createSearchSystemSupervisor } from './SearchSystemSupervisor.js';
+import {
+  type SearchSystemSupervisor,
+  createSearchSystemSupervisor,
+} from './SearchSystemSupervisor.js';
+
 import type { DeepPartial, SearchSystemConfig } from '../config.js';
 
 // ============================================================================
@@ -549,7 +552,7 @@ describe('SearchSystemSupervisor events', () => {
   });
 
   it('should emit supervisor:ready on initialization', async () => {
-    const readyEvents: unknown[] = [];
+    const _readyEvents: unknown[] = [];
 
     // Can't subscribe before create, so we verify state instead
     supervisor = await createSearchSystemSupervisor({

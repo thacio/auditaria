@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Shared utilities for OCR providers.
  *
  * This module provides common functionality used by both
@@ -8,6 +14,7 @@
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
+// eslint-disable-next-line no-restricted-imports -- search is independent of cli-core; importing core creates a dependency cycle
 import * as os from 'node:os';
 
 // ============================================================================

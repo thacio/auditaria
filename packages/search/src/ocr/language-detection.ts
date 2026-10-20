@@ -1,9 +1,17 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Shared language and script detection utilities for OCR providers.
  *
  * This module provides common language mapping and script detection
  * functionality used by both TesseractJsProvider and ScribeJsProvider.
  */
+
+import type { Worker as TesseractWorker } from 'tesseract.js';
 
 import { readFile } from 'node:fs/promises';
 
@@ -149,21 +157,6 @@ export interface ScriptDetectionProgress {
 // Tesseract Types for Script Detection
 // ============================================================================
 
-interface TesseractWorker {
-  detect(image: Buffer | string): Promise<TesseractDetectResult>;
-  terminate(): Promise<void>;
-}
-
-interface TesseractDetectResult {
-  data: {
-    script: string;
-    script_confidence: number;
-    orientation: number;
-    orientation_degrees: number;
-    orientation_confidence: number;
-  };
-}
-
 // ============================================================================
 // Script Detection Implementation
 // ============================================================================
@@ -237,11 +230,7 @@ export async function detectScript(
       },
     } as Record<string, unknown>;
 
-    worker = (await tesseract.createWorker(
-      'osd',
-      0,
-      workerOptions,
-    )) as unknown as TesseractWorker;
+    worker = await tesseract.createWorker('osd', 0, workerOptions);
 
     progressCallback?.({
       stage: 'processing',
@@ -263,15 +252,16 @@ export async function detectScript(
       message: 'Detection complete',
     });
 
+    if (!result.data) throw new Error('Script detection returned no data');
     const detectedScript = result.data.script || 'Unknown';
     const suggestedLanguages = SCRIPT_TO_LANGUAGES[detectedScript] || ['eng'];
 
     return {
       script: detectedScript,
-      confidence: result.data.script_confidence / 100,
+      confidence: (result.data.script_confidence ?? 0) / 100,
       suggestedLanguages,
-      orientationDegrees: result.data.orientation_degrees,
-      orientationConfidence: result.data.orientation_confidence / 100,
+      orientationDegrees: result.data.orientation_degrees ?? 0,
+      orientationConfidence: (result.data.orientation_confidence ?? 0) / 100,
     };
   } finally {
     if (worker) {

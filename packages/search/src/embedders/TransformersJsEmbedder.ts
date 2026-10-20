@@ -5,6 +5,12 @@
  */
 
 import type {
+  FeatureExtractionPipeline,
+  ProgressInfo as TransformersProgressInfo,
+} from '@huggingface/transformers';
+import { read, arrayOf, isNumber } from '../core/validation.js';
+
+import type {
   TextEmbedder,
   TransformersJsEmbedderConfig,
   ProgressCallback,
@@ -86,9 +92,16 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   readonly quantization: EmbedderQuantization;
 
   private config: Required<
-    Omit<TransformersJsEmbedderFullConfig, 'onWarning' | 'workerHeapSizeMb'>
-  > & { onWarning?: WarningCallback };
-  private pipeline: unknown = null;
+    Omit<
+      TransformersJsEmbedderFullConfig,
+      'onWarning' | 'workerHeapSizeMb' | 'cacheDir' | 'pooling'
+    >
+  > & {
+    onWarning?: WarningCallback;
+    cacheDir?: string;
+    pooling: 'mean' | 'cls';
+  };
+  private pipeline: FeatureExtractionPipeline | null = null;
   private ready = false;
   private initializingPromise: Promise<void> | null = null;
   private currentBatchSize: number;
@@ -96,11 +109,13 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   private timerCounter = 0; // Counter for unique timer keys in concurrent operations
 
   constructor(config?: TransformersJsEmbedderFullConfig) {
+    if (config?.pooling === 'max')
+      throw new Error('Transformers.js supports mean or cls pooling, not max');
     this.config = {
       modelId: config?.modelId ?? DEFAULT_MODEL_ID,
       quantization: config?.quantization ?? 'q8',
       device: config?.device ?? 'cpu',
-      cacheDir: config?.cacheDir ?? (undefined as unknown as string),
+      cacheDir: config?.cacheDir,
       normalize: config?.normalize ?? true,
       pooling: config?.pooling ?? 'mean',
       maxLength: config?.maxLength ?? DEFAULT_MAX_TOKENS,
@@ -210,16 +225,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
         device: deviceName,
         // Data type / quantization: 'fp32', 'fp16', 'q8', 'q4'
         dtype: dtypeName,
-        progress_callback: (progressData: unknown) => {
-          const data = progressData as {
-            status?: string;
-            progress?: number;
-            file?: string;
-            loaded?: number;
-            total?: number;
-            name?: string;
-          };
-
+        progress_callback: (data: TransformersProgressInfo) => {
           // 'initiate' fires for each file, 'progress' fires during loading
           // The library fires progress events for BOTH network downloads AND cache loads
           // We use 'Loading' instead of 'Downloading' since files are usually cached
@@ -237,7 +243,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
         },
       } as Parameters<typeof transformers.pipeline>[2];
 
-      this.pipeline = await transformers.pipeline(
+      this.pipeline = await transformers.pipeline<'feature-extraction'>(
         'feature-extraction',
         this.modelId,
         pipelineOptions,
@@ -279,7 +285,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   async dispose(): Promise<void> {
     if (this.pipeline) {
       // Dispose the pipeline to release ONNX session and model weights
-      const p = this.pipeline as { dispose?: () => Promise<void> };
+      const p = this.pipeline;
       await p.dispose?.();
       this.pipeline = null;
     }
@@ -296,17 +302,15 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   async embed(text: string): Promise<number[]> {
     this.ensureReady();
 
-    const pipelineFn = this.pipeline as (
-      texts: string | string[],
-      options?: { pooling?: string; normalize?: boolean },
-    ) => Promise<{ tolist: () => number[][]; dispose?: () => void }>;
+    const pipelineFn = this.pipeline;
+    if (!pipelineFn) throw new Error('Embedder not initialized');
 
     const result = await pipelineFn(text, {
       pooling: this.config.pooling,
       normalize: this.config.normalize,
     });
 
-    const embedding = result.tolist()[0];
+    const embedding = read(result.tolist(), arrayOf(arrayOf(isNumber)))[0];
     // Dispose tensor to free WASM memory
     result.dispose?.();
     return embedding;
@@ -357,10 +361,8 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
    * Fails loudly when batch size 1 also fails.
    */
   private async processBatchWithFallback(texts: string[]): Promise<number[][]> {
-    const pipelineFn = this.pipeline as (
-      texts: string | string[],
-      options?: { pooling?: string; normalize?: boolean },
-    ) => Promise<{ tolist: () => number[][]; dispose?: () => void }>;
+    const pipelineFn = this.pipeline;
+    if (!pipelineFn) throw new Error('Embedder not initialized');
 
     const currentBatch = texts;
     let localBatchSize = this.currentBatchSize;
@@ -373,7 +375,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
           normalize: this.config.normalize,
         });
 
-        const embeddings = result.tolist();
+        const embeddings = read(result.tolist(), arrayOf(arrayOf(isNumber)));
         // Dispose tensor to free WASM memory
         result.dispose?.();
         return embeddings;
@@ -782,7 +784,7 @@ export class MockEmbedder implements TextEmbedder, Embedder {
    * Generate a deterministic mock embedding based on text hash.
    */
   private generateMockEmbedding(text: string): number[] {
-    const embedding: number[] = new Array(this.dimensions);
+    const embedding: number[] = new Array<number>(this.dimensions);
 
     // Simple hash-based generation for determinism
     let hash = 0;

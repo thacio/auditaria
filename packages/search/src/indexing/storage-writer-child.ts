@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isStorageWriterRequest } from './storage-writer-validation.js';
+import { read, readJsonRecord, isRecord } from '../core/validation.js';
+
 /**
  * Thin storage writer child process.
  *
@@ -23,16 +26,13 @@
  * cause memory to grow exponentially.
  */
 
-import type { Interface } from 'node:readline';
-import { createInterface } from 'node:readline';
-import type {
-  StorageWriterRequest,
-  StorageWriterResponse,
-  StorageInitMessage,
-  WriteDocumentMessage,
-  UpdateDocumentStatusMessage,
-} from './storage-writer-types.js';
+import { type Interface, createInterface } from 'node:readline';
+
 import {
+  type StorageWriterResponse,
+  type StorageInitMessage,
+  type WriteDocumentMessage,
+  type UpdateDocumentStatusMessage,
   getMemoryUsageMb,
   serializeStorageMessage,
 } from './storage-writer-types.js';
@@ -359,7 +359,7 @@ async function handleShutdown(id: string): Promise<void> {
 
     const closePromise = (async () => {
       try {
-        await storage!.close();
+        await storage.close();
         closeCompleted = true;
         log('info', 'Storage closed successfully');
       } catch (error) {
@@ -415,7 +415,15 @@ async function main(): Promise<void> {
     if (isShuttingDown) return;
 
     try {
-      const msg: StorageWriterRequest = JSON.parse(line);
+      const raw = readJsonRecord(line);
+      if (
+        raw.type === 'write_document' &&
+        isRecord(raw.document) &&
+        typeof raw.document.fileModifiedAt === 'string'
+      ) {
+        raw.document.fileModifiedAt = new Date(raw.document.fileModifiedAt);
+      }
+      const msg = read(raw, isStorageWriterRequest, 'storage request');
 
       switch (msg.type) {
         case 'init':

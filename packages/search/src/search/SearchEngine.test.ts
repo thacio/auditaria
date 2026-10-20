@@ -399,11 +399,11 @@ describe('SearchEngine', () => {
     // This prevents misleading results when a search strategy fails.
 
     it('should throw if embedder initialization fails during hybrid search', async () => {
-      const failingEmbedder = {
-        ...mockEmbedder,
-        isReady: () => false,
-        initialize: vi.fn().mockRejectedValue(new Error('Embedder failed')),
-      } as unknown as MockEmbedder;
+      const failingEmbedder = new MockEmbedder();
+      vi.spyOn(failingEmbedder, 'isReady').mockReturnValue(false);
+      vi.spyOn(failingEmbedder, 'initialize').mockRejectedValue(
+        new Error('Embedder failed'),
+      );
 
       const failingEngine = new SearchEngine(mockStorage, failingEmbedder);
 

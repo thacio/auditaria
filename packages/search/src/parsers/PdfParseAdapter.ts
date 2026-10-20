@@ -83,15 +83,8 @@ export class PdfParseAdapter implements DocumentParser {
   private async initialize(): Promise<void> {
     try {
       // pdf-parse exports the function directly
-      const pdfParseModule = (await import('pdf-parse')) as unknown as {
-        default?: (buffer: Uint8Array) => Promise<PdfParseResult>;
-      };
-      // Handle both default and named exports
-      this.pdfParse =
-        pdfParseModule.default ||
-        (pdfParseModule as unknown as (
-          buffer: Uint8Array,
-        ) => Promise<PdfParseResult>);
+      const pdfParseModule = await import('pdf-parse');
+      this.pdfParse = pdfParseModule.default;
     } catch (error) {
       throw new Error(
         `Failed to initialize pdf-parse: ${error instanceof Error ? error.message : String(error)}`,

@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * ImageParser - Parser for image files.
  * Images don't have text content, so this parser returns minimal metadata
  * and marks them as requiring OCR.

@@ -3,4 +3,6 @@
  * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-declare module 'vectorlite';
+declare module 'vectorlite' {
+  export function vectorlitePath(): string;
+}

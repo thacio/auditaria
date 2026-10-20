@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Embedders module.
  * Provides text embedding capabilities for semantic search.
  */
@@ -23,9 +29,17 @@ export {
 } from './EmbedderRegistry.js';
 
 // Implementations
-export { EmbeddingGemmaEmbedder, EMBEDDING_GEMMA_MODEL } from './EmbeddingGemmaEmbedder.js';
+export {
+  EmbeddingGemmaEmbedder,
+  EMBEDDING_GEMMA_MODEL,
+} from './EmbeddingGemmaEmbedder.js';
 export type { EmbeddingGemmaConfig } from './EmbeddingGemmaEmbedder.js';
-export type { MediaEmbeddingCapability, MediaSource, MediaDocument, MediaChunk } from './media.js';
+export type {
+  MediaEmbeddingCapability,
+  MediaSource,
+  MediaDocument,
+  MediaChunk,
+} from './media.js';
 export {
   TransformersJsEmbedder,
   createTransformersJsEmbedder,

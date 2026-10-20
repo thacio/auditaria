@@ -1,10 +1,15 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Tests for MockEmbedder.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MockEmbedder } from './TransformersJsEmbedder.js';
-import type { WarningInfo } from './TransformersJsEmbedder.js';
+import { MockEmbedder, type WarningInfo } from './TransformersJsEmbedder.js';
 
 describe('MockEmbedder', () => {
   let embedder: MockEmbedder;

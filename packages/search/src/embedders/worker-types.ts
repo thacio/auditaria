@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Shared types for worker thread communication.
  * Used by both WorkerEmbedder (main thread) and embedder-worker (worker thread).
  */
@@ -147,7 +153,19 @@ export interface WarningResponse {
   };
 }
 
+export interface WorkerMemoryResponse {
+  type: 'worker_memory';
+  context: string;
+  batch: number;
+  memory: {
+    heapUsed: string;
+    heapTotal: string;
+    external: string;
+    rss: string;
+  };
+}
 export type WorkerResponse =
+  | WorkerMemoryResponse
   | InitializedResponse
   | ProgressResponse
   | EmbeddingResponse

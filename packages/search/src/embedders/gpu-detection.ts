@@ -1,9 +1,18 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * GPU Detection and Configuration Resolution.
  *
  * Provides utilities for detecting GPU availability and resolving
  * optimal device/quantization settings for embeddings.
  */
+
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('gpu-detection');
 
 import type { EmbedderDevice, EmbedderQuantization } from './types.js';
 
@@ -21,7 +30,7 @@ const DEBUG =
  */
 export function debugLog(message: string): void {
   if (DEBUG) {
-    console.log(`[Embedder] ${message}`);
+    log.info(`[Embedder] ${message}`);
   }
 }
 

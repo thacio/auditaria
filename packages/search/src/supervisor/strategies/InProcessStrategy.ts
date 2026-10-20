@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getProperty } from '../../core/validation.js';
+
 // AUDITARIA_FEATURE: In-Process Restart Strategy
 // Manages SearchSystem lifecycle within the same process.
 // Restart involves close() -> GC -> setTimeout -> initialize().
@@ -12,8 +14,12 @@
 
 import type { RestartStrategy } from './RestartStrategy.js';
 import type { SearchSystemConfig, DeepPartial } from '../../config.js';
-import type { SupervisorConfig, SupervisorEvents } from '../types.js';
-import { getMemoryUsageMb } from '../types.js';
+import {
+  type SupervisorConfig,
+  type SupervisorEvents,
+  getMemoryUsageMb,
+} from '../types.js';
+
 import { SearchSystem } from '../../core/SearchSystem.js';
 import { globalLogger, LogLevel } from '../../core/Logger.js';
 
@@ -84,12 +90,12 @@ export class InProcessStrategy implements RestartStrategy {
     return this.ready && this.searchSystem !== null;
   }
 
-  async restart(reason: string): Promise<void> {
+  async restart(_reason: string): Promise<void> {
     if (!this.searchSystem) {
       throw new Error('Cannot restart: SearchSystem not initialized');
     }
 
-    const memoryBefore = getMemoryUsageMb();
+    const _memoryBefore = getMemoryUsageMb();
     // console.log(`[InProcessStrategy] Restarting: ${reason} (memory: ${memoryBefore}MB)`);
 
     this.ready = false;
@@ -133,15 +139,16 @@ export class InProcessStrategy implements RestartStrategy {
     }
 
     // Get the method from SearchSystem
-    const fn = (this.searchSystem as unknown as Record<string, unknown>)[
-      method
-    ];
+    const fn = getProperty(this.searchSystem, method);
     if (typeof fn !== 'function') {
       throw new Error(`Unknown method: ${method}`);
     }
 
     // Call the method
-    return fn.apply(this.searchSystem, args) as T;
+    const result: unknown = await fn.apply(this.searchSystem, args);
+    // RestartStrategy.call<T> is a typed facade over the same SearchSystem method.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    return result as T;
   }
 
   onEvent<K extends keyof SupervisorEvents>(
@@ -149,16 +156,16 @@ export class InProcessStrategy implements RestartStrategy {
     handler: (data: SupervisorEvents[K]) => void,
   ): () => void {
     // Store handler for resubscription after restart
-    if (!this.eventHandlers.has(event as string)) {
-      this.eventHandlers.set(event as string, new Set());
+    if (!this.eventHandlers.has(String(event))) {
+      this.eventHandlers.set(String(event), new Set());
     }
     this.eventHandlers
-      .get(event as string)!
+      .get(String(event))!
       .add(handler as (data: unknown) => void);
 
     // Return unsubscribe function
     return () => {
-      const handlers = this.eventHandlers.get(event as string);
+      const handlers = this.eventHandlers.get(String(event));
       if (handlers) {
         handlers.delete(handler as (data: unknown) => void);
       }

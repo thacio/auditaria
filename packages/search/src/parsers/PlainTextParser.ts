@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Simple plain text parser as a fallback.
  * Handles any text-based file by reading it directly.
  */

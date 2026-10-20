@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Types for text chunkers.
  * Chunkers split documents into smaller pieces for embedding and search.
  */

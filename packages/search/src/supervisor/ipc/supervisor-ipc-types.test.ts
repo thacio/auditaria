@@ -12,10 +12,8 @@ import {
   parseMessage,
   generateMessageId,
   createPendingCall,
-} from './supervisor-ipc-types.js';
-import type {
-  SupervisorCallMessage,
-  SupervisorResultMessage,
+  type SupervisorCallMessage,
+  type SupervisorResultMessage,
 } from './supervisor-ipc-types.js';
 
 describe('Supervisor IPC Types', () => {
@@ -76,7 +74,12 @@ describe('Supervisor IPC Types', () => {
         type: 'supervisor_call',
         id: 'test-id',
         method: 'search',
-        args: [{ query: 'test', options: { limit: 10, filters: { tags: ['a', 'b'] } } }],
+        args: [
+          {
+            query: 'test',
+            options: { limit: 10, filters: { tags: ['a', 'b'] } },
+          },
+        ],
       };
 
       const serialized = serializeMessage(msg);
@@ -142,13 +145,13 @@ describe('Supervisor IPC Types', () => {
 
   describe('createPendingCall()', () => {
     it('should create pending call with promise', () => {
-      let timeoutCalled = false;
+      let _timeoutCalled = false;
       const { pendingCall, promise } = createPendingCall(
         'test-id',
         'getStats',
         1000,
         () => {
-          timeoutCalled = true;
+          _timeoutCalled = true;
         },
       );
 
@@ -184,7 +187,12 @@ describe('Supervisor IPC Types', () => {
 
     it('should track start time', () => {
       const before = Date.now();
-      const { pendingCall } = createPendingCall('test-id', 'getStats', 1000, () => {});
+      const { pendingCall } = createPendingCall(
+        'test-id',
+        'getStats',
+        1000,
+        () => {},
+      );
       const after = Date.now();
 
       expect(pendingCall.startTime).toBeGreaterThanOrEqual(before);

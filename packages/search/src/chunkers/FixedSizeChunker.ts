@@ -1,15 +1,21 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Fixed-size text chunker.
  * Simple chunker that splits text into fixed-size pieces with overlap.
  */
 
-import type {
-  Chunk,
-  ChunkMetadata,
-  ChunkerOptions,
-  DocumentChunker,
+import {
+  type Chunk,
+  type ChunkMetadata,
+  type ChunkerOptions,
+  type DocumentChunker,
+  DEFAULT_CHUNKER_OPTIONS,
 } from './types.js';
-import { DEFAULT_CHUNKER_OPTIONS } from './types.js';
 
 // ============================================================================
 // FixedSizeChunker Implementation

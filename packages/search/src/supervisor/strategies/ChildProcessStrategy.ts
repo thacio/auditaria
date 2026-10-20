@@ -4,29 +4,42 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isChildToMainMessage } from '../ipc/supervisor-ipc-validation.js';
+import {
+  read,
+  parseJson,
+  readJsonRecord,
+  isRecord,
+} from '../../core/validation.js';
+
 // AUDITARIA_FEATURE: Child Process Restart Strategy
 // Runs SearchSystem in a child process for complete memory isolation.
 // On restart, the child process is killed and a new one is spawned.
 
 /* eslint-disable no-console */
 
-import type { ChildProcess } from 'node:child_process';
-import { fork } from 'node:child_process';
-import type { Interface } from 'node:readline';
-import { createInterface } from 'node:readline';
+import { type ChildProcess, fork } from 'node:child_process';
+
+import { type Interface, createInterface } from 'node:readline';
+
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import type { RestartStrategy } from './RestartStrategy.js';
 import type { SearchSystemConfig, DeepPartial } from '../../config.js';
-import type { SupervisorConfig, SupervisorEvents } from '../types.js';
-import { getMemoryUsageMb } from '../types.js';
-import type {
-  MainToChildMessage,
-  ChildToMainMessage,
-  PendingCall,
+import {
+  type SupervisorConfig,
+  type SupervisorEvents,
+  getMemoryUsageMb,
+} from '../types.js';
+
+import {
+  type MainToChildMessage,
+  type ChildToMainMessage,
+  type PendingCall,
+  generateMessageId,
+  serializeMessage,
 } from '../ipc/supervisor-ipc-types.js';
-import { generateMessageId, serializeMessage } from '../ipc/supervisor-ipc-types.js';
 
 // ============================================================================
 // ChildProcessStrategy Implementation
@@ -82,7 +95,7 @@ export class ChildProcessStrategy implements RestartStrategy {
     return this.ready && this.child !== null && !this.child.killed;
   }
 
-  async restart(reason: string): Promise<void> {
+  async restart(_reason: string): Promise<void> {
     // console.log(`[ChildProcessStrategy] Restarting: ${reason}`);
 
     this.ready = false;
@@ -117,7 +130,11 @@ export class ChildProcessStrategy implements RestartStrategy {
       const pendingCall: PendingCall = {
         id,
         method,
-        resolve: resolve as (value: unknown) => void,
+        resolve: (value) => {
+          // The supervisor facade supplies T for the requested SearchSystem method.
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+          resolve(value as T);
+        },
         reject,
         timeout,
         startTime: Date.now(),
@@ -138,13 +155,15 @@ export class ChildProcessStrategy implements RestartStrategy {
     event: K,
     handler: (data: SupervisorEvents[K]) => void,
   ): () => void {
-    if (!this.eventHandlers.has(event as string)) {
-      this.eventHandlers.set(event as string, new Set());
+    if (!this.eventHandlers.has(String(event))) {
+      this.eventHandlers.set(String(event), new Set());
     }
-    this.eventHandlers.get(event as string)!.add(handler as (data: unknown) => void);
+    this.eventHandlers
+      .get(String(event))!
+      .add(handler as (data: unknown) => void);
 
     return () => {
-      const handlers = this.eventHandlers.get(event as string);
+      const handlers = this.eventHandlers.get(String(event));
       if (handlers) {
         handlers.delete(handler as (data: unknown) => void);
       }
@@ -197,11 +216,26 @@ export class ChildProcessStrategy implements RestartStrategy {
 
       if (currentDir.includes('src') && !currentDir.includes('dist')) {
         // Running from TypeScript source (e.g., vitest), use dist directory
-        const projectRoot = currentDir.replace(/[/\\]src[/\\]supervisor[/\\]strategies$/, '');
-        workerPath = join(projectRoot, 'dist', 'src', 'supervisor', 'ipc', 'supervisor-child-worker.js');
+        const projectRoot = currentDir.replace(
+          /[/\\]src[/\\]supervisor[/\\]strategies$/,
+          '',
+        );
+        workerPath = join(
+          projectRoot,
+          'dist',
+          'src',
+          'supervisor',
+          'ipc',
+          'supervisor-child-worker.js',
+        );
       } else {
         // Running from compiled JavaScript in dist, use relative path
-        workerPath = join(currentDir, '..', 'ipc', 'supervisor-child-worker.js');
+        workerPath = join(
+          currentDir,
+          '..',
+          'ipc',
+          'supervisor-child-worker.js',
+        );
       }
 
       // console.log('[ChildProcessStrategy] Spawning child process', { workerPath });
@@ -229,9 +263,12 @@ export class ChildProcessStrategy implements RestartStrategy {
       // Handle child stderr logs - only forward errors
       this.stderrReader.on('line', (line) => {
         try {
-          const logEntry = JSON.parse(line);
+          const logEntry = readJsonRecord(line);
           if (logEntry.level === 'error') {
-            console.error(`[Child:${logEntry.level}] ${logEntry.message}`, logEntry.data);
+            console.error(
+              `[Child:${logEntry.level}] ${logEntry.message}`,
+              read(logEntry.data ?? {}, isRecord),
+            );
           }
           // Suppress info/debug/warn logs from child
         } catch {
@@ -241,7 +278,11 @@ export class ChildProcessStrategy implements RestartStrategy {
 
       // Set up timeouts
       const startupTimeout = setTimeout(() => {
-        reject(new Error(`Child process startup timed out after ${this.supervisorConfig?.startupTimeoutMs ?? 120000}ms`));
+        reject(
+          new Error(
+            `Child process startup timed out after ${this.supervisorConfig?.startupTimeoutMs ?? 120000}ms`,
+          ),
+        );
         this.cleanup();
       }, this.supervisorConfig?.startupTimeoutMs ?? 120000);
 
@@ -250,7 +291,11 @@ export class ChildProcessStrategy implements RestartStrategy {
       // Handle messages from child
       this.readline.on('line', (line) => {
         try {
-          const msg: ChildToMainMessage = JSON.parse(line);
+          const msg: ChildToMainMessage = read(
+            parseJson(line),
+            isChildToMainMessage,
+            'IPC message',
+          );
           this.handleChildMessage(msg, {
             onReady: () => {
               if (!initSent) {
@@ -283,13 +328,15 @@ export class ChildProcessStrategy implements RestartStrategy {
       });
 
       // Handle child exit
-      this.child.on('exit', (code, signal) => {
+      this.child.on('exit', (code, _signal) => {
         // console.log(`[ChildProcessStrategy] Child exited with code ${code}, signal ${signal}`);
         this.cleanup();
 
         if (!this.ready) {
           clearTimeout(startupTimeout);
-          reject(new Error(`Child process exited unexpectedly with code ${code}`));
+          reject(
+            new Error(`Child process exited unexpectedly with code ${code}`),
+          );
         }
       });
 
@@ -341,7 +388,9 @@ export class ChildProcessStrategy implements RestartStrategy {
         break;
 
       case 'supervisor_error':
-        console.error(`[ChildProcessStrategy] Child error: ${msg.error} (fatal: ${msg.fatal})`);
+        console.error(
+          `[ChildProcessStrategy] Child error: ${msg.error} (fatal: ${msg.fatal})`,
+        );
         callbacks.onError(msg.error, msg.fatal);
         break;
 
@@ -354,7 +403,7 @@ export class ChildProcessStrategy implements RestartStrategy {
         break;
 
       default:
-        // console.warn('[ChildProcessStrategy] Unknown message type:', (msg as Record<string, unknown>).type);
+      // console.warn('[ChildProcessStrategy] Unknown message type:', (msg as Record<string, unknown>).type);
     }
   }
 
@@ -368,7 +417,10 @@ export class ChildProcessStrategy implements RestartStrategy {
         try {
           handler(data);
         } catch (error) {
-          console.error(`[ChildProcessStrategy] Error in event handler for ${event}:`, error);
+          console.error(
+            `[ChildProcessStrategy] Error in event handler for ${event}:`,
+            error,
+          );
         }
       }
     }

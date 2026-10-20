@@ -1,10 +1,19 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Embedder Worker Script.
  * Runs TransformersJsEmbedder in a worker thread to avoid blocking the main thread.
  *
  * This script is spawned by WorkerEmbedder and handles embedding requests
  * via message passing.
  */
+
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('embedder-worker');
 
 import { parentPort } from 'node:worker_threads';
 import { TransformersJsEmbedder } from './TransformersJsEmbedder.js';
@@ -304,7 +313,7 @@ if (parentPort) {
   parentPort.on('message', (request: WorkerRequest) => {
     handleMessage(request).catch((error) => {
       // Catch any unhandled errors in the message handler
-      console.error('[EmbedderWorker] Unhandled error:', error);
+      log.error('[EmbedderWorker] Unhandled error:', { details: [error] });
       sendError(request.id, error);
     });
   });
@@ -312,7 +321,7 @@ if (parentPort) {
   // Signal that worker is ready to receive messages
   parentPort.postMessage({ type: 'worker_ready' });
 } else {
-  console.error(
+  log.error(
     '[EmbedderWorker] No parentPort available - not running as worker thread',
   );
 }

@@ -6,6 +6,9 @@
  * @license
  */
 
+import { isUserConfigFile } from './user-config-validation.js';
+import { read, parseJson } from '../core/validation.js';
+
 /* eslint-disable no-console */
 
 /**
@@ -25,6 +28,7 @@ import {
   type SearchSystemConfig,
   type DeepPartial,
   createConfig,
+  deepMerge,
   validateConfig,
 } from '../config.js';
 import {
@@ -128,26 +132,25 @@ function stripMetadataKeys<T>(obj: T, prefix = '', removed: string[] = []): T {
     return obj;
   }
 
+  const result = { ...obj };
   if (Array.isArray(obj)) {
-    return obj.map((value: unknown) =>
-      stripMetadataKeys(value, prefix, removed),
-    ) as T;
+    // Array values are settings, not metadata keys. Preserve their type and order.
+    return obj;
   }
-
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    // Skip keys starting with _ or $ (metadata/documentation)
+  for (const key in result) {
+    const setting = prefix ? prefix + '.' + key : key;
     if (key.startsWith('_') || key.startsWith('$')) {
+      delete result[key];
       continue;
     }
-    const setting = `${prefix}.${key}`;
     if (OBSOLETE_SETTINGS.has(setting)) {
       removed.push(setting);
+      delete result[key];
       continue;
     }
-    result[key] = stripMetadataKeys(value, setting, removed);
+    result[key] = stripMetadataKeys(result[key], setting, removed);
   }
-  return result as T;
+  return result;
 }
 
 /**
@@ -165,15 +168,11 @@ export function loadUserConfig(auditariaDir: string): UserConfigFile | null {
 
   try {
     const content = fs.readFileSync(configPath, 'utf-8');
-    const parsed = JSON.parse(content) as UserConfigFile;
-
-    // Basic validation
-    if (typeof parsed !== 'object' || parsed === null) {
-      console.warn(
-        `[search] Invalid user config (not an object): ${configPath}`,
-      );
-      return null;
-    }
+    const parsed = read(
+      parseJson(content),
+      isUserConfigFile,
+      'knowledge base configuration',
+    );
 
     // Strip metadata keys like _docs, $schema, $version from nested config
     // but preserve $version at root level for compatibility checking
@@ -304,42 +303,6 @@ export function dbMetadataToPartialConfig(
 // ============================================================================
 // Merge Functions
 // ============================================================================
-
-/**
- * Deep merge function that preserves the structure of nested objects.
- * Source values override target values at each level.
- *
- * @param target - Base object to merge into
- * @param source - Object with overrides
- * @returns New merged object (does not mutate inputs)
- */
-function deepMerge<T extends object>(target: T, source: DeepPartial<T>): T {
-  const result = { ...target };
-
-  for (const key of Object.keys(source) as Array<keyof T>) {
-    const sourceValue = source[key];
-    const targetValue = target[key];
-
-    if (
-      sourceValue !== undefined &&
-      typeof sourceValue === 'object' &&
-      sourceValue !== null &&
-      !Array.isArray(sourceValue) &&
-      typeof targetValue === 'object' &&
-      targetValue !== null &&
-      !Array.isArray(targetValue)
-    ) {
-      result[key] = deepMerge(
-        targetValue,
-        sourceValue as DeepPartial<T[keyof T] & object>,
-      );
-    } else if (sourceValue !== undefined) {
-      result[key] = sourceValue as T[keyof T];
-    }
-  }
-
-  return result;
-}
 
 /**
  * Load and merge all configuration layers.

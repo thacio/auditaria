@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * OCR module for the search package.
  * Provides optical character recognition capabilities for scanned documents.
  *

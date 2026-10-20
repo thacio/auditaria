@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isStorageWriterResponse } from './storage-writer-validation.js';
+import { read, parseJson } from '../core/validation.js';
+
 /**
  * IPC message types for the thin storage writer child process.
  *
@@ -20,7 +23,6 @@
 import type {
   CreateDocumentInput,
   CreateChunkInput,
-  UpdateChunkEmbeddingInput,
 } from '../storage/types.js';
 import type { DeepPartial, SearchSystemConfig } from '../config.js';
 
@@ -63,7 +65,13 @@ export interface UpdateDocumentStatusMessage {
   type: 'update_document_status';
   id: string;
   documentId: string;
-  status: 'pending' | 'parsing' | 'chunking' | 'embedding' | 'indexed' | 'failed';
+  status:
+    | 'pending'
+    | 'parsing'
+    | 'chunking'
+    | 'embedding'
+    | 'indexed'
+    | 'failed';
   indexedAt?: string; // ISO date string
   metadata?: Record<string, unknown>;
 }
@@ -217,7 +225,7 @@ export function serializeStorageMessage(
  * Parse a JSONL message.
  */
 export function parseStorageMessage(line: string): StorageWriterResponse {
-  return JSON.parse(line) as StorageWriterResponse;
+  return read(parseJson(line), isStorageWriterResponse, 'IPC message');
 }
 
 // ============================================================================

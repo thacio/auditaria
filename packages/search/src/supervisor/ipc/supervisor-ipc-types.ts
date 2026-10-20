@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isChildToMainMessage } from './supervisor-ipc-validation.js';
+import { read, parseJson } from '../../core/validation.js';
+
 // AUDITARIA_FEATURE: Supervisor IPC Protocol Types
 // Defines message types for communication between main process and child process.
 // Uses JSONL (JSON Lines) protocol over stdin/stdout.
@@ -174,7 +177,9 @@ export function getDetailedMemoryUsage(): {
 /**
  * Serialize a message to JSON string for IPC.
  */
-export function serializeMessage(msg: MainToChildMessage | ChildToMainMessage): string {
+export function serializeMessage(
+  msg: MainToChildMessage | ChildToMainMessage,
+): string {
   return JSON.stringify(msg);
 }
 
@@ -183,7 +188,7 @@ export function serializeMessage(msg: MainToChildMessage | ChildToMainMessage): 
  */
 export function parseMessage(line: string): ChildToMainMessage | null {
   try {
-    return JSON.parse(line) as ChildToMainMessage;
+    return read(parseJson(line), isChildToMainMessage, 'IPC message');
   } catch {
     return null;
   }

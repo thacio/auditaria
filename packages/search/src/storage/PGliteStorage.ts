@@ -6,6 +6,19 @@
  * @license
  */
 
+import {
+  parseJson,
+  arrayOf,
+  isNumber,
+  read,
+  isQueuePriority,
+  isDocumentStatus,
+  isOcrStatus,
+  isQueueStatus,
+  isMatchType,
+  readJsonRecord,
+} from '../core/validation.js';
+
 import type {
   StorageAdapter,
   CreateDocumentInput,
@@ -42,17 +55,21 @@ import {
   writeMetadata,
   createMetadata,
   validateCompatibility,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  updateMetadataStats,
   type DatabaseMetadata,
-  type MetadataVectorIndex,
   type MetadataEmbeddings,
 } from './metadata.js';
-import type { DatabaseConfig, VectorIndexConfig } from '../config.js';
-import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
+import {
+  type DatabaseConfig,
+  type VectorIndexConfig,
+  DEFAULT_VECTOR_INDEX_CONFIG,
+} from '../config.js';
+
 import { createModuleLogger } from '../core/Logger.js';
-import type { PGLiteBackendOptions } from '../config/backend-options.js';
-import { DEFAULT_PGLITE_OPTIONS } from '../config/backend-options.js';
+import {
+  type PGLiteBackendOptions,
+  DEFAULT_PGLITE_OPTIONS,
+} from '../config/backend-options.js';
+
 import { openSearchDatabase, type SearchDatabase } from './pglite-runtime.js';
 import {
   emptyDeferReasonCounts,
@@ -516,11 +533,7 @@ export class PGliteStorage implements StorageAdapter {
       if (existingMetadata) {
         // Existing database - use stored config (metadata is authoritative)
         // This allows sharing databases between users with different default configs
-        const { compatible, errors } = validateCompatibility(
-          existingMetadata,
-          {} as MetadataVectorIndex, // Not used anymore
-          {} as MetadataEmbeddings, // Not used anymore
-        );
+        const { compatible, errors } = validateCompatibility(existingMetadata);
 
         if (!compatible) {
           throw new Error(
@@ -2498,7 +2511,10 @@ export class PGliteStorage implements StorageAdapter {
       deferred: 0,
     };
     for (const row of priorityResult.rows) {
-      priorityCounts[row.priority as QueuePriority] = parseInt(row.count, 10);
+      priorityCounts[read(row.priority, isQueuePriority)] = parseInt(
+        row.count,
+        10,
+      );
     }
 
     const total = Object.values(statusCounts).reduce((a, b) => a + b, 0);
@@ -2822,15 +2838,15 @@ export class PGliteStorage implements StorageAdapter {
       author: row.author,
       language: row.language,
       pageCount: row.page_count,
-      status: row.status as Document['status'],
-      ocrStatus: row.ocr_status as Document['ocrStatus'],
+      status: read(row.status, isDocumentStatus),
+      ocrStatus: read(row.ocr_status, isOcrStatus),
       indexedAt: toDate(row.indexed_at),
       fileModifiedAt: toDate(row.file_modified_at)!,
       createdAt: toDate(row.created_at)!,
       updatedAt: toDate(row.updated_at)!,
       metadata:
         typeof row.metadata === 'string'
-          ? JSON.parse(row.metadata)
+          ? readJsonRecord(row.metadata)
           : row.metadata,
       tags: [], // Tags loaded separately if needed
     };
@@ -2843,7 +2859,7 @@ export class PGliteStorage implements StorageAdapter {
       chunkIndex: row.chunk_index,
       text: row.text,
       embedding: row.embedding
-        ? JSON.parse(row.embedding.replace(/^\[/, '[').replace(/\]$/, ']'))
+        ? read(parseJson(row.embedding), arrayOf(isNumber))
         : null,
       startOffset: row.start_offset,
       endOffset: row.end_offset,
@@ -2866,8 +2882,8 @@ export class PGliteStorage implements StorageAdapter {
         typeof row.file_size === 'string'
           ? parseInt(row.file_size, 10)
           : row.file_size,
-      priority: row.priority as QueuePriority,
-      status: row.status as QueueItem['status'],
+      priority: read(row.priority, isQueuePriority),
+      status: read(row.status, isQueueStatus),
       attempts: row.attempts,
       lastError: row.last_error,
       deferReason,
@@ -2887,7 +2903,7 @@ export class PGliteStorage implements StorageAdapter {
       // otherwise use the original chunk text (semantic search)
       chunkText: row.highlighted_text ?? row.chunk_text,
       score: Number(row.score) || 0,
-      matchType: row.match_type as SearchResult['matchType'],
+      matchType: read(row.match_type, isMatchType),
       highlights: [],
       metadata: {
         page: row.page,

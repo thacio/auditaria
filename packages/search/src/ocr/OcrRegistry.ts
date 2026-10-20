@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('OcrRegistry');
+
 /**
  * OcrRegistry - Registry for OCR providers.
  * Manages multiple OCR providers and selects the best one for a given task.
@@ -197,10 +200,9 @@ export class OcrRegistry {
           });
         });
       } catch (error) {
-        console.warn(
-          `Failed to initialize OCR provider ${provider.name}:`,
-          error,
-        );
+        log.warn(`Failed to initialize OCR provider ${provider.name}:`, {
+          details: [error],
+        });
       }
     }
 
@@ -310,16 +312,9 @@ export class OcrRegistry {
     }
 
     // Check if provider supports auto-detect
-    if ('recognizeWithAutoDetect' in provider) {
+    if (provider.recognizeWithAutoDetect) {
       // Use the provider's auto-detect method
-      return (
-        provider as OcrProvider & {
-          recognizeWithAutoDetect: (
-            image: Buffer | string,
-            options?: OcrOptions,
-          ) => Promise<OcrResult>;
-        }
-      ).recognizeWithAutoDetect(filePath, {
+      return provider.recognizeWithAutoDetect(filePath, {
         ...this.defaultOptions,
         ...options,
       });
@@ -343,7 +338,9 @@ export class OcrRegistry {
       try {
         await provider.dispose();
       } catch (error) {
-        console.warn(`Failed to dispose OCR provider ${provider.name}:`, error);
+        log.warn(`Failed to dispose OCR provider ${provider.name}:`, {
+          details: [error],
+        });
       }
     }
     this.providers.clear();

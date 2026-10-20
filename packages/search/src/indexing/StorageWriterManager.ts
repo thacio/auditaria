@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isStorageWriterResponse } from './storage-writer-validation.js';
+import {
+  read,
+  parseJson,
+  readJsonRecord,
+  isRecord,
+} from '../core/validation.js';
+
 /**
  * StorageWriterManager - Manages the thin storage writer child process.
  *
@@ -17,10 +25,10 @@
  * This manager handles storage writes via the child.
  */
 
-import type { ChildProcess } from 'node:child_process';
-import { fork } from 'node:child_process';
-import type { Interface } from 'node:readline';
-import { createInterface } from 'node:readline';
+import { type ChildProcess, fork } from 'node:child_process';
+
+import { type Interface, createInterface } from 'node:readline';
+
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { EventEmitter } from '../core/EventEmitter.js';
@@ -183,7 +191,7 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
 
     // Send write command
     const id = crypto.randomUUID();
-    const response = await this.sendAndWait<StorageWriterResponse>({
+    const response = await this.sendAndWait({
       type: 'write_document',
       id,
       document: prepared.document,
@@ -265,7 +273,7 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
     }
 
     const id = crypto.randomUUID();
-    const response = await this.sendAndWait<StorageWriterResponse>({
+    const response = await this.sendAndWait({
       type: 'stats',
       id,
     });
@@ -407,13 +415,22 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
     // Handle stderr logs
     this.stderrReader.on('line', (line) => {
       try {
-        const logEntry = JSON.parse(line);
+        const logEntry = readJsonRecord(line);
         if (logEntry.level === 'error') {
-          log.error(`child:${logEntry.message}`, logEntry.data);
+          log.error(
+            `child:${logEntry.message}`,
+            read(logEntry.data ?? {}, isRecord),
+          );
         } else if (logEntry.level === 'warn') {
-          log.warn(`child:${logEntry.message}`, logEntry.data);
+          log.warn(
+            `child:${logEntry.message}`,
+            read(logEntry.data ?? {}, isRecord),
+          );
         } else {
-          log.debug(`child:${logEntry.message}`, logEntry.data);
+          log.debug(
+            `child:${logEntry.message}`,
+            read(logEntry.data ?? {}, isRecord),
+          );
         }
       } catch {
         if (line.trim()) {
@@ -472,7 +489,11 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
 
       const handler = (line: string) => {
         try {
-          const msg: StorageWriterResponse = JSON.parse(line);
+          const msg: StorageWriterResponse = read(
+            parseJson(line),
+            isStorageWriterResponse,
+            'IPC message',
+          );
           if (msg.type === 'ready') {
             clearTimeout(timeout);
             this.readline?.off('line', handler);
@@ -493,7 +514,7 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
    */
   private async initializeStorage(): Promise<void> {
     const id = crypto.randomUUID();
-    const response = await this.sendAndWait<StorageWriterResponse>({
+    const response = await this.sendAndWait({
       type: 'init',
       id,
       databasePath: this.databasePath,
@@ -515,8 +536,7 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
     }
 
     log.info('storage:initialized', {
-      memoryMb:
-        response.type === 'init_complete' ? response.memoryUsageMb : 0,
+      memoryMb: response.type === 'init_complete' ? response.memoryUsageMb : 0,
     });
   }
 
@@ -578,19 +598,21 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
   /**
    * Send a message and wait for response.
    */
-  private sendAndWait<T extends StorageWriterResponse>(
+  private sendAndWait(
     msg: StorageWriterRequest,
-  ): Promise<T> {
+  ): Promise<StorageWriterResponse> {
     return new Promise((resolve, reject) => {
       const id = 'id' in msg ? msg.id : crypto.randomUUID();
 
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
-        reject(new Error(`Request timeout after ${this.config.writeTimeoutMs}ms`));
+        reject(
+          new Error(`Request timeout after ${this.config.writeTimeoutMs}ms`),
+        );
       }, this.config.writeTimeoutMs);
 
       this.pendingRequests.set(id, {
-        resolve: resolve as (response: StorageWriterResponse) => void,
+        resolve,
         reject,
         timeout,
       });
@@ -604,10 +626,14 @@ export class StorageWriterManager extends EventEmitter<StorageWriterEvents> {
    */
   private handleResponse(line: string): void {
     try {
-      const msg: StorageWriterResponse = JSON.parse(line);
+      const msg: StorageWriterResponse = read(
+        parseJson(line),
+        isStorageWriterResponse,
+        'IPC message',
+      );
 
       // Get request ID from response
-      const id = 'id' in msg ? (msg as { id: string }).id : undefined;
+      const id = 'id' in msg ? msg.id : undefined;
 
       if (id && this.pendingRequests.has(id)) {
         const pending = this.pendingRequests.get(id)!;

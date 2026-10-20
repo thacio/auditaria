@@ -1,10 +1,16 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Tests for OcrRegistry.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { OcrRegistry} from './OcrRegistry.js';
-import { createOcrRegistry } from './OcrRegistry.js';
+import { type OcrRegistry, createOcrRegistry } from './OcrRegistry.js';
+
 import type { OcrProvider, OcrResult, OcrOptions } from './types.js';
 import type { OcrRegion } from '../parsers/types.js';
 

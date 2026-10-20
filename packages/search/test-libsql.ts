@@ -1,12 +1,20 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Test script for LibSQLStorage functionality.
  * Run with: npx tsx test-libsql.ts
  */
 
 import { LibSQLStorage } from './src/storage/LibSQLStorage.js';
-import type { CreateDocumentInput, CreateChunkInput } from './src/storage/types.js';
+import type {
+  CreateDocumentInput,
+  CreateChunkInput,
+} from './src/storage/types.js';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 
 const TEST_DB_PATH = './test-libsql-storage.db';
 
@@ -20,7 +28,7 @@ function generateMockEmbedding(seed: number): number[] {
   }
   // Normalize
   const magnitude = Math.sqrt(embedding.reduce((sum, v) => sum + v * v, 0));
-  return embedding.map(v => v / magnitude);
+  return embedding.map((v) => v / magnitude);
 }
 
 async function cleanUp() {
@@ -105,7 +113,10 @@ async function testDocumentOperations(storage: LibSQLStorage): Promise<string> {
   return doc.id;
 }
 
-async function testChunkOperations(storage: LibSQLStorage, documentId: string): Promise<void> {
+async function testChunkOperations(
+  storage: LibSQLStorage,
+  documentId: string,
+): Promise<void> {
   console.log('\n=== Test: Chunk Operations ===');
 
   // Create chunks
@@ -165,11 +176,17 @@ async function testKeywordSearch(storage: LibSQLStorage): Promise<void> {
   console.log(`  Search "fox": ${results1.length} results`);
   if (results1.length > 0) {
     console.log(`    First result score: ${results1[0].score}`);
-    console.log(`    Text preview: ${results1[0].chunkText.substring(0, 50)}...`);
+    console.log(
+      `    Text preview: ${results1[0].chunkText.substring(0, 50)}...`,
+    );
   }
 
   // Search for "machine learning"
-  const results2 = await storage.searchKeyword('machine learning', undefined, 10);
+  const results2 = await storage.searchKeyword(
+    'machine learning',
+    undefined,
+    10,
+  );
   console.log(`  Search "machine learning": ${results2.length} results`);
 
   // Search for "programming"
@@ -189,16 +206,22 @@ async function testSemanticSearch(storage: LibSQLStorage): Promise<void> {
   // Search with embedding similar to chunk 0 (animals)
   const queryEmbedding0 = generateMockEmbedding(0);
   const results1 = await storage.searchSemantic(queryEmbedding0, undefined, 10);
-  console.log(`  Semantic search (similar to chunk 0): ${results1.length} results`);
+  console.log(
+    `  Semantic search (similar to chunk 0): ${results1.length} results`,
+  );
   if (results1.length > 0) {
     console.log(`    First result score: ${results1[0].score.toFixed(4)}`);
-    console.log(`    Text preview: ${results1[0].chunkText.substring(0, 50)}...`);
+    console.log(
+      `    Text preview: ${results1[0].chunkText.substring(0, 50)}...`,
+    );
   }
 
   // Search with embedding similar to chunk 1 (ML/AI)
   const queryEmbedding1 = generateMockEmbedding(1);
   const results2 = await storage.searchSemantic(queryEmbedding1, undefined, 10);
-  console.log(`  Semantic search (similar to chunk 1): ${results2.length} results`);
+  console.log(
+    `  Semantic search (similar to chunk 1): ${results2.length} results`,
+  );
   if (results2.length > 0) {
     console.log(`    First result score: ${results2[0].score.toFixed(4)}`);
   }
@@ -206,7 +229,9 @@ async function testSemanticSearch(storage: LibSQLStorage): Promise<void> {
   // Search with random embedding
   const randomEmbedding = generateMockEmbedding(999);
   const results3 = await storage.searchSemantic(randomEmbedding, undefined, 10);
-  console.log(`  Semantic search (random embedding): ${results3.length} results`);
+  console.log(
+    `  Semantic search (random embedding): ${results3.length} results`,
+  );
 
   console.log('  ✓ Semantic search test passed');
 }
@@ -227,7 +252,9 @@ async function testHybridSearch(storage: LibSQLStorage): Promise<void> {
 
   console.log(`  Hybrid search "programming": ${results.length} results`);
   for (const result of results) {
-    console.log(`    - [${result.matchType}] score: ${result.score.toFixed(4)} - ${result.chunkText.substring(0, 40)}...`);
+    console.log(
+      `    - [${result.matchType}] score: ${result.score.toFixed(4)} - ${result.chunkText.substring(0, 40)}...`,
+    );
   }
 
   console.log('  ✓ Hybrid search test passed');
@@ -252,14 +279,18 @@ async function testQueueOperations(storage: LibSQLStorage): Promise<void> {
 
   // Get queue status
   const status = await storage.getQueueStatus();
-  console.log(`  Queue status: ${status.pending} pending, ${status.total} total`);
+  console.log(
+    `  Queue status: ${status.pending} pending, ${status.total} total`,
+  );
 
   // Dequeue item (should get text priority first)
   const dequeued = await storage.dequeueItem();
   if (!dequeued) {
     throw new Error('Dequeue failed');
   }
-  console.log(`  ✓ Dequeued item: ${dequeued.filePath} (priority: ${dequeued.priority})`);
+  console.log(
+    `  ✓ Dequeued item: ${dequeued.filePath} (priority: ${dequeued.priority})`,
+  );
 
   // Update queue item
   await storage.updateQueueItem(dequeued.id, {
@@ -278,7 +309,10 @@ async function testQueueOperations(storage: LibSQLStorage): Promise<void> {
   console.log(`  ✓ Cleared queue. Final count: ${finalStatus.total}`);
 }
 
-async function testTagOperations(storage: LibSQLStorage, documentId: string): Promise<void> {
+async function testTagOperations(
+  storage: LibSQLStorage,
+  documentId: string,
+): Promise<void> {
   console.log('\n=== Test: Tag Operations ===');
 
   // Add tags
@@ -294,14 +328,18 @@ async function testTagOperations(storage: LibSQLStorage, documentId: string): Pr
 
   // Get all tags
   const allTags = await storage.getAllTags();
-  console.log(`  All tags: ${allTags.map(t => `${t.tag}(${t.count})`).join(', ')}`);
+  console.log(
+    `  All tags: ${allTags.map((t) => `${t.tag}(${t.count})`).join(', ')}`,
+  );
 
   // Remove tag
   await storage.removeTags(documentId, ['test']);
   const remainingTags = await storage.getDocumentTags(documentId);
   console.log(`  After removal: ${remainingTags.join(', ')}`);
   if (remainingTags.length !== 2) {
-    throw new Error(`Expected 2 tags after removal, got ${remainingTags.length}`);
+    throw new Error(
+      `Expected 2 tags after removal, got ${remainingTags.length}`,
+    );
   }
 
   console.log('  ✓ Tag operations test passed');
@@ -316,7 +354,10 @@ async function testStatsAndConfig(storage: LibSQLStorage): Promise<void> {
 
   // Set and get config
   await storage.setConfigValue('test_key', { foo: 'bar', num: 42 });
-  const configValue = await storage.getConfigValue<{ foo: string; num: number }>('test_key');
+  const configValue = await storage.getConfigValue<{
+    foo: string;
+    num: number;
+  }>('test_key');
   console.log('  Config value:', configValue);
   if (!configValue || configValue.foo !== 'bar') {
     throw new Error('Config storage failed');
@@ -341,7 +382,9 @@ async function testReconnect(storage: LibSQLStorage): Promise<void> {
   console.log(`  Chunks after reconnect: ${countAfter}`);
 
   if (countBefore !== countAfter) {
-    throw new Error(`Data lost after reconnect: ${countBefore} -> ${countAfter}`);
+    throw new Error(
+      `Data lost after reconnect: ${countBefore} -> ${countAfter}`,
+    );
   }
 
   // Test search still works after reconnect

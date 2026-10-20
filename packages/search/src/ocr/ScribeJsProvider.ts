@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * ScribeJsProvider - OCR provider using scribe.js-ocr.
  * Provides PDF OCR capabilities that tesseract.js cannot handle directly.
  *
@@ -11,6 +17,9 @@
  *
  * For image OCR, use TesseractJsProvider instead (faster for images).
  */
+
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('ScribeJsProvider');
 
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -187,11 +196,7 @@ export class ScribeJsProvider implements OcrProvider {
 
       // Use extractText for simple OCR
       // API: extractText(files, langs, outputFormat, options)
-      const text = await this.scribe!.extractText(
-        [inputData as Buffer],
-        langs,
-        'txt',
-      );
+      const text = await this.scribe!.extractText([inputData], langs, 'txt');
 
       return {
         text: text.trim(),
@@ -231,7 +236,7 @@ export class ScribeJsProvider implements OcrProvider {
           languages: region.language ? [region.language] : options?.languages,
         });
         results.push(result);
-      } catch (_error) {
+      } catch {
         results.push({
           text: '',
           confidence: 0,
@@ -293,10 +298,7 @@ export class ScribeJsProvider implements OcrProvider {
 
     // Read the PDF file
     const pdfBuffer = await readFile(pdfPath);
-    const pdfArrayBuffer = pdfBuffer.buffer.slice(
-      pdfBuffer.byteOffset,
-      pdfBuffer.byteOffset + pdfBuffer.byteLength,
-    );
+    const pdfArrayBuffer = new Uint8Array(pdfBuffer).buffer;
 
     progressCallback?.({
       stage: 'processing',
@@ -306,7 +308,7 @@ export class ScribeJsProvider implements OcrProvider {
 
     // Open the PDF using Scribe's internal ImageCache
     const imageCache = this.scribe!.data.image;
-    await imageCache.openMainPDF(pdfArrayBuffer as ArrayBuffer);
+    await imageCache.openMainPDF(pdfArrayBuffer);
 
     progressCallback?.({
       stage: 'processing',
@@ -400,7 +402,7 @@ export class ScribeJsProvider implements OcrProvider {
         });
       } catch (error) {
         // If PDF rendering fails, fall back to default languages
-        console.warn(
+        log.warn(
           `PDF page rendering failed, using default languages: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
@@ -444,8 +446,7 @@ export class ScribeJsProvider implements OcrProvider {
 
       // For PDFs, use file path directly (Scribe.js handles PDF parsing)
       // For images, use buffer
-      const files =
-        isPdf && typeof input === 'string' ? [input] : [inputData as Buffer];
+      const files = isPdf && typeof input === 'string' ? [input] : [inputData];
 
       // API: extractText(files, langs, outputFormat, options)
       const text = await this.scribe!.extractText(files, langs, 'txt');

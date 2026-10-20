@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getProperty, read, parseJson } from '../../core/validation.js';
+import { isMainToChildMessage } from './supervisor-ipc-validation.js';
+
 // AUDITARIA_FEATURE: Supervisor Child Worker
 // Entry point for child process that runs the full SearchSystem.
 // Receives commands via stdin (JSONL), sends responses via stdout.
@@ -13,13 +16,11 @@
 import { createInterface } from 'node:readline';
 import { SearchSystem } from '../../core/SearchSystem.js';
 import { globalLogger, LogLevel } from '../../core/Logger.js';
-import type {
-  MainToChildMessage,
-  ChildToMainMessage,
-  SupervisorInitMessage,
-  SupervisorCallMessage,
-} from './supervisor-ipc-types.js';
 import {
+  type MainToChildMessage,
+  type ChildToMainMessage,
+  type SupervisorInitMessage,
+  type SupervisorCallMessage,
   getMemoryUsageMb,
   getDetailedMemoryUsage,
   serializeMessage,
@@ -30,13 +31,13 @@ import {
 // ============================================================================
 
 // Save original stdout for our IPC messages
-const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+const _originalStdoutWrite = process.stdout.write.bind(process.stdout);
 
 // Redirect console.log/info/warn/error to stderr so they don't corrupt IPC
-const originalConsoleLog = console.log;
-const originalConsoleInfo = console.info;
-const originalConsoleWarn = console.warn;
-const originalConsoleError = console.error;
+const _originalConsoleLog = console.log;
+const _originalConsoleInfo = console.info;
+const _originalConsoleWarn = console.warn;
+const _originalConsoleError = console.error;
 
 console.log = (...args: unknown[]) => {
   process.stderr.write(args.map(String).join(' ') + '\n');
@@ -170,13 +171,13 @@ async function handleCall(msg: SupervisorCallMessage): Promise<void> {
 
   try {
     // Get the method from SearchSystem
-    const fn = (searchSystem as unknown as Record<string, unknown>)[msg.method];
+    const fn = getProperty(searchSystem, msg.method);
     if (typeof fn !== 'function') {
       throw new Error(`Unknown method: ${msg.method}`);
     }
 
     // Call the method
-    const result = await fn.apply(searchSystem, msg.args);
+    const result: unknown = await fn.apply(searchSystem, msg.args);
 
     send({
       type: 'supervisor_result',
@@ -185,7 +186,9 @@ async function handleCall(msg: SupervisorCallMessage): Promise<void> {
       result,
     });
 
-    log('debug', `Method ${msg.method} completed`, { memoryMb: getMemoryUsageMb() });
+    log('debug', `Method ${msg.method} completed`, {
+      memoryMb: getMemoryUsageMb(),
+    });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     log('error', `Method ${msg.method} failed`, { error: errorMsg });
@@ -249,7 +252,7 @@ function subscribeToEvents(): void {
   ];
 
   for (const event of events) {
-    searchSystem.on(event as keyof typeof searchSystem extends never ? never : string, (data: unknown) => {
+    searchSystem.on(event, (data: unknown) => {
       send({
         type: 'supervisor_event',
         event,
@@ -352,7 +355,11 @@ async function main(): Promise<void> {
     if (isShuttingDown) return;
 
     try {
-      const msg: MainToChildMessage = JSON.parse(line);
+      const msg: MainToChildMessage = read(
+        parseJson(line),
+        isMainToChildMessage,
+        'IPC message',
+      );
 
       switch (msg.type) {
         case 'supervisor_init':
@@ -372,7 +379,9 @@ async function main(): Promise<void> {
           break;
 
         default:
-          log('warn', 'Unknown message type', { type: (msg as Record<string, unknown>).type });
+          log('warn', 'Unknown message type', {
+            type: (msg as Record<string, unknown>).type,
+          });
       }
     } catch (error) {
       log('error', 'Failed to parse message', {

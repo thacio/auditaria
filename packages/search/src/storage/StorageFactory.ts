@@ -19,12 +19,12 @@ import { LibSQLStorage } from './LibSQLStorage.js';
 // when not in use. This allows `npm install -g` to work without optional deps.
 import { readMetadata, metadataExists } from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
-import type {
-  BackendOptions,
-  BackendOptionsMap,
-  LibSQLBackendOptions,
+import {
+  type BackendOptions,
+  type BackendOptionsMap,
+  type LibSQLBackendOptions,
+  mergeBackendOptions,
 } from '../config/backend-options.js';
-import { mergeBackendOptions } from '../config/backend-options.js';
 
 const log = createModuleLogger('StorageFactory');
 

@@ -6,6 +6,9 @@
  * @license
  */
 
+import { isDatabaseMetadata } from './metadata-validation.js';
+import { read, readJsonRecord } from '../core/validation.js';
+
 /**
  * Database metadata management.
  *
@@ -206,7 +209,12 @@ export function readMetadata(dbPath: string): DatabaseMetadata | null {
 
   try {
     const content = fs.readFileSync(metaPath, 'utf-8');
-    const metadata = JSON.parse(content) as DatabaseMetadata;
+    const raw = readJsonRecord(content);
+    const metadata = read(
+      { ...raw, backend: raw.backend ?? 'pglite' },
+      isDatabaseMetadata,
+      'database metadata',
+    );
 
     // Basic validation
     if (!metadata.version || !metadata.vectorIndex || !metadata.embeddings) {
@@ -330,8 +338,8 @@ export function deleteMetadata(dbPath: string): void {
  */
 export function validateCompatibility(
   metadata: DatabaseMetadata,
-  _currentVectorIndex: MetadataVectorIndex,
-  _currentEmbeddings: MetadataEmbeddings,
+  _currentVectorIndex?: MetadataVectorIndex,
+  _currentEmbeddings?: MetadataEmbeddings,
 ): {
   compatible: boolean;
   warnings: string[];

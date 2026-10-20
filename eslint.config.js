@@ -91,6 +91,11 @@ export default tseslint.config(
       'import/resolver': {
         node: true,
       },
+      // The generated PGlite WASM loader overflows the import plugin parser.
+      // TypeScript checks its published declarations instead.
+      'import/ignore': [
+        'node_modules[/\\\\]@electric-sql[/\\\\]pglite[/\\\\]dist[/\\\\]index\\.js$',
+      ],
     },
     languageOptions: {
       parser: tseslint.parser,

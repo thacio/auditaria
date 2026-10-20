@@ -1,9 +1,18 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Tests for PythonEmbedder.
  *
  * Note: Integration tests require Python 3.8+ with required packages installed.
  * Tests will be skipped if Python is not available.
  */
+
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('PythonEmbedder.test');
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { PythonEmbedder, createPythonEmbedder } from './PythonEmbedder.js';
@@ -108,7 +117,7 @@ describe('PythonEmbedder Integration', () => {
   describe('lifecycle', () => {
     it('should be ready after initialization', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -120,7 +129,7 @@ describe('PythonEmbedder Integration', () => {
 
     it('should not be ready after disposal', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -135,7 +144,7 @@ describe('PythonEmbedder Integration', () => {
   describe('embed', () => {
     it('should generate embedding with correct dimensions', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -150,7 +159,7 @@ describe('PythonEmbedder Integration', () => {
 
     it('should generate normalized embeddings', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -168,7 +177,7 @@ describe('PythonEmbedder Integration', () => {
 
     it('should generate deterministic embeddings for same text', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -189,7 +198,7 @@ describe('PythonEmbedder Integration', () => {
   describe('embedBatch', () => {
     it('should return empty array for empty input', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -203,7 +212,7 @@ describe('PythonEmbedder Integration', () => {
 
     it('should generate embeddings for multiple texts', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -223,7 +232,7 @@ describe('PythonEmbedder Integration', () => {
   describe('embedQuery and embedDocument', () => {
     it('should add E5 prefixes', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 
@@ -249,7 +258,7 @@ describe('PythonEmbedder Integration', () => {
   describe('embedWithDetails', () => {
     it('should return embedding with metadata', async () => {
       if (!pythonAvailable) {
-        console.log(`Skipping: ${skipReason}`);
+        log.info(`Skipping: ${skipReason}`);
         return;
       }
 

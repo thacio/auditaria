@@ -1,4 +1,10 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * PythonEmbedder - TypeScript bridge for the Python ONNX embedder.
  *
  * Spawns a Python process and communicates via JSONL protocol.
@@ -11,6 +17,18 @@
  * - Automatic process management and cleanup
  * - Graceful shutdown
  */
+
+import {
+  type Guard,
+  read,
+  parseJson,
+  objectOf,
+  isString,
+  isNumber,
+  optional,
+  oneOf,
+  arrayOf,
+} from '../core/validation.js';
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createInterface, type Interface } from 'node:readline';
@@ -72,6 +90,20 @@ interface PythonResponse {
   progress?: number;
   error?: string;
 }
+
+const isPythonResponse = objectOf<PythonResponse>({
+  type: isString,
+  id: optional(isString),
+  embedding: optional(arrayOf(isNumber)),
+  embeddings: optional(arrayOf(arrayOf(isNumber))),
+  dimensions: optional(isNumber),
+  model: optional(isString),
+  quantization: optional(isString),
+  message: optional(isString),
+  stage: optional(oneOf('download', 'load', 'ready')),
+  progress: optional(isNumber),
+  error: optional(isString),
+});
 
 // ============================================================================
 // Constants
@@ -142,6 +174,7 @@ export class PythonEmbedder
   private process: ChildProcess | null = null;
   private readline: Interface | null = null;
   private ready = false;
+  private cancelInit?: () => void;
   private initializingPromise: Promise<void> | null = null;
   private pendingRequests = new Map<string, PendingRequest>();
   private requestCounter = 0;
@@ -231,7 +264,7 @@ export class PythonEmbedder
     });
 
     // Handle stderr (debug logs)
-    this.process.stderr?.on('data', (data) => {
+    this.process.stderr?.on('data', (data: Buffer) => {
       const message = data.toString().trim();
       if (message) {
         debugLog(`[PythonEmbedder:stderr] ${message}`);
@@ -285,71 +318,41 @@ export class PythonEmbedder
         batch_size: this.config.batchSize,
       };
 
-      // Set up temporary handler for init response
-      const initHandler = (line: string) => {
-        try {
-          const response: PythonResponse = JSON.parse(line);
-
-          if (response.type === 'progress' && onProgress) {
-            const stage = (response.stage ?? 'load') as
-              | 'download'
-              | 'load'
-              | 'ready';
-            onProgress({
-              stage,
-              progress: response.progress ?? 50,
-              message: response.message ?? 'Loading...',
-            });
-          } else if (response.type === 'ready') {
-            debugLog(
-              `[PythonEmbedder] Ready: dimensions=${response.dimensions}`,
-            );
-            resolve();
-          } else if (response.type === 'error') {
-            reject(new Error(response.message ?? 'Unknown error'));
-          }
-        } catch {
-          // Ignore parse errors during init (could be debug output)
-        }
-      };
-
-      // Temporarily add listener
-      this.readline?.on('line', initHandler);
-
-      // Set timeout for initialization
-      const timeout = setTimeout(() => {
-        this.readline?.removeListener('line', initHandler);
-        reject(new Error('Python embedder initialization timeout'));
-      }, 120000); // 2 minutes timeout for model download
-
-      // Clean up handler on completion
+      const timeout = setTimeout(
+        () =>
+          wrappedReject(new Error('Python embedder initialization timeout')),
+        120000,
+      );
       const cleanup = () => {
         clearTimeout(timeout);
-        this.readline?.removeListener('line', initHandler);
+        this.readline?.removeListener('line', finalHandler);
+        this.cancelInit = undefined;
       };
-
-      // Wrap resolve/reject to clean up
       const wrappedResolve = () => {
         cleanup();
         resolve();
       };
-
-      const wrappedReject = (err: Error) => {
+      const wrappedReject = (error: Error) => {
         cleanup();
-        reject(err);
+        reject(error);
       };
-
-      // Re-assign handler with cleanup
-      this.readline?.removeListener('line', initHandler);
+      this.cancelInit = () =>
+        wrappedReject(
+          new Error('Python embedder disposed during initialization'),
+        );
       const finalHandler = (line: string) => {
         try {
-          const response: PythonResponse = JSON.parse(line);
+          const response: PythonResponse = read(
+            parseJson(line),
+            isPythonResponse,
+            'Python embedder response',
+          );
 
           if (response.type === 'progress' && onProgress) {
-            const stage = (response.stage ?? 'load') as
-              | 'download'
-              | 'load'
-              | 'ready';
+            const stage = read(
+              response.stage ?? 'load',
+              oneOf('download', 'load', 'ready'),
+            );
             onProgress({
               stage,
               progress: response.progress ?? 50,
@@ -370,12 +373,6 @@ export class PythonEmbedder
 
       this.readline?.on('line', finalHandler);
 
-      // Store cleanup for later
-      (this as unknown as { _initCleanup: () => void })._initCleanup = () => {
-        cleanup();
-        this.readline?.removeListener('line', finalHandler);
-      };
-
       // Send the init command
       this.sendRequest(request);
     });
@@ -392,6 +389,7 @@ export class PythonEmbedder
    * Dispose of the embedder and release resources.
    */
   async dispose(): Promise<void> {
+    this.cancelInit?.();
     if (this.process) {
       // Send shutdown command
       try {
@@ -454,13 +452,20 @@ export class PythonEmbedder
   private async sendRequestWithResponse<T>(
     request: Record<string, unknown>,
     type: string,
+    guard: Guard<T>,
   ): Promise<T> {
     const id = `req_${++this.requestCounter}`;
     request.id = id;
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, {
-        resolve: resolve as (value: unknown) => void,
+        resolve: (value) => {
+          try {
+            resolve(read(value, guard, 'embedding'));
+          } catch (error) {
+            reject(error);
+          }
+        },
         reject,
         type,
       });
@@ -489,7 +494,11 @@ export class PythonEmbedder
     let response: PythonResponse;
 
     try {
-      response = JSON.parse(line);
+      response = read(
+        parseJson(line),
+        isPythonResponse,
+        'Python embedder response',
+      );
     } catch {
       debugLog(`[PythonEmbedder] Invalid JSON: ${line}`);
       return;
@@ -555,6 +564,7 @@ export class PythonEmbedder
     return this.sendRequestWithResponse<number[]>(
       { type: 'embed', text },
       'embed',
+      arrayOf(isNumber),
     );
   }
 
@@ -573,6 +583,7 @@ export class PythonEmbedder
       const batchResults = await this.sendRequestWithResponse<number[][]>(
         { type: 'embed_batch', texts: batch },
         'embed_batch',
+        arrayOf(arrayOf(isNumber)),
       );
       results.push(...batchResults);
     }
@@ -590,6 +601,7 @@ export class PythonEmbedder
     return this.sendRequestWithResponse<number[]>(
       { type: 'embed_query', text: query },
       'embed_query',
+      arrayOf(isNumber),
     );
   }
 
@@ -603,6 +615,7 @@ export class PythonEmbedder
     return this.sendRequestWithResponse<number[]>(
       { type: 'embed_document', text },
       'embed_document',
+      arrayOf(isNumber),
     );
   }
 
@@ -622,6 +635,7 @@ export class PythonEmbedder
       const batchResults = await this.sendRequestWithResponse<number[][]>(
         { type: 'embed_batch_documents', texts: batch },
         'embed_batch_documents',
+        arrayOf(arrayOf(isNumber)),
       );
       results.push(...batchResults);
     }
@@ -650,6 +664,7 @@ export class PythonEmbedder
       const embeddings = await this.sendRequestWithResponse<number[][]>(
         { type: 'embed_batch_documents', texts: batch },
         'embed_batch_documents',
+        arrayOf(arrayOf(isNumber)),
       );
       yield { startIndex: i, embeddings };
     }

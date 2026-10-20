@@ -520,10 +520,11 @@ export const DEFAULT_CONFIG: SearchSystemConfig = {
  * Deep merge two objects, with source values overriding target values.
  * Arrays are replaced, not merged.
  */
-export function deepMerge<T>(target: T, source: Partial<T>): T {
+export function deepMerge<T extends object>(target: T, source: Partial<T>): T {
   const result = { ...target };
 
-  for (const key of Object.keys(source) as Array<keyof T>) {
+  for (const key in source) {
+    if (!Object.hasOwn(source, key)) continue;
     const sourceValue = source[key];
     const targetValue = target[key];
 
@@ -536,9 +537,12 @@ export function deepMerge<T>(target: T, source: Partial<T>): T {
       targetValue !== null &&
       !Array.isArray(targetValue)
     ) {
-      result[key] = deepMerge(targetValue, sourceValue as Partial<T[keyof T]>);
+      result[key] = deepMerge(
+        targetValue,
+        sourceValue as Partial<typeof targetValue>,
+      );
     } else if (sourceValue !== undefined) {
-      result[key] = sourceValue as T[keyof T];
+      Object.assign(result, { [key]: sourceValue });
     }
   }
 
@@ -556,33 +560,15 @@ export function createConfig(
   }
 
   const config = {
-    database: deepMerge(
-      DEFAULT_DATABASE_CONFIG,
-      (partial.database ?? {}) as Partial<DatabaseConfig>,
-    ),
-    indexing: deepMerge(
-      DEFAULT_INDEXING_CONFIG,
-      (partial.indexing ?? {}) as Partial<IndexingConfig>,
-    ),
-    chunking: deepMerge(
-      DEFAULT_CHUNKING_CONFIG,
-      (partial.chunking ?? {}) as Partial<ChunkingConfig>,
-    ),
-    embeddings: deepMerge(
-      DEFAULT_EMBEDDINGS_CONFIG,
-      (partial.embeddings ?? {}) as Partial<EmbeddingsConfig>,
-    ),
-    search: deepMerge(
-      DEFAULT_SEARCH_CONFIG,
-      (partial.search ?? {}) as Partial<SearchConfig>,
-    ),
-    ocr: deepMerge(
-      DEFAULT_OCR_CONFIG,
-      (partial.ocr ?? {}) as Partial<OcrConfig>,
-    ),
+    database: deepMerge(DEFAULT_DATABASE_CONFIG, partial.database ?? {}),
+    indexing: deepMerge(DEFAULT_INDEXING_CONFIG, partial.indexing ?? {}),
+    chunking: deepMerge(DEFAULT_CHUNKING_CONFIG, partial.chunking ?? {}),
+    embeddings: deepMerge(DEFAULT_EMBEDDINGS_CONFIG, partial.embeddings ?? {}),
+    search: deepMerge(DEFAULT_SEARCH_CONFIG, partial.search ?? {}),
+    ocr: deepMerge(DEFAULT_OCR_CONFIG, partial.ocr ?? {}),
     vectorIndex: deepMerge(
       DEFAULT_VECTOR_INDEX_CONFIG,
-      (partial.vectorIndex ?? {}) as Partial<VectorIndexConfig>,
+      partial.vectorIndex ?? {},
     ),
   };
 
@@ -624,7 +610,11 @@ export function createConfig(
  * Deep partial type for nested partial objects.
  */
 export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+  [P in keyof T]?: T[P] extends unknown[]
+    ? T[P]
+    : T[P] extends object
+      ? DeepPartial<T[P]>
+      : T[P];
 };
 
 /**

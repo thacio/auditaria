@@ -6,6 +6,8 @@
  * @license
  */
 
+import { read, objectOf, isNumber } from '../core/validation.js';
+
 // AUDITARIA_FEATURE: SearchSystem Supervisor
 // Main supervisor class that wraps SearchSystem with automatic restart capabilities.
 // Provides the same API as SearchSystem, delegating to a restart strategy.
@@ -14,17 +16,16 @@
 
 import { join } from 'node:path';
 import { EventEmitter } from '../core/EventEmitter.js';
-import type {
-  SearchSystemConfig,
-  DeepPartial,
-  SupervisorStrategy,
-} from '../config.js';
 import {
+  type SearchSystemConfig,
+  type DeepPartial,
+  type SupervisorStrategy,
   createConfig,
   loadMergedConfig,
   loadUserConfig,
   deepMerge,
 } from '../config.js';
+
 import type {
   SearchOptions,
   SearchResponse,
@@ -40,19 +41,18 @@ import type {
 } from '../types.js';
 import type { OcrQueueStatus } from '../ocr/OcrQueueManager.js';
 import type { SearchSystemState } from '../core/SearchSystem.js';
-import type {
-  SupervisorConfig,
-  SupervisorState,
-  SupervisorEvents,
-  IndexAllResult,
-  IndexAllOptions,
-  SupervisorInitOptions,
-} from './types.js';
 import {
+  type SupervisorConfig,
+  type SupervisorState,
+  type SupervisorEvents,
+  type IndexAllResult,
+  type IndexAllOptions,
+  type SupervisorInitOptions,
   INITIAL_SUPERVISOR_STATE,
   createSupervisorConfig,
   getMemoryUsageMb,
 } from './types.js';
+
 import type { RestartStrategy } from './strategies/RestartStrategy.js';
 import { InProcessStrategy } from './strategies/InProcessStrategy.js';
 import { ChildProcessStrategy } from './strategies/ChildProcessStrategy.js';
@@ -598,7 +598,10 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
       this.strategy.onEvent(event, (data) => {
         // Track document progress for restart threshold
         if (event === 'indexing:progress') {
-          const progress = data as { current: number; total: number };
+          const progress = read(
+            data,
+            objectOf({ current: isNumber, total: isNumber }),
+          );
           const delta = progress.current - this.lastProgressCurrent;
 
           if (delta > 0) {

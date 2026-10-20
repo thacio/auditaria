@@ -1,6 +1,15 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Tests for Python detection utility.
  */
+
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('python-detection.test');
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -129,14 +138,16 @@ describe('Python Detection - Integration', () => {
     const result = await detectPython();
 
     // Log the result for debugging in CI environments
-    console.log('Python detection result:', JSON.stringify(result, null, 2));
+    log.info('Python detection result:', {
+      details: [JSON.stringify(result, null, 2)],
+    });
 
     // This test documents the actual state rather than asserting
     // Python must be available - it could legitimately be missing
     if (result.available) {
-      console.log(`Python ${result.version} found at: ${result.command}`);
+      log.info(`Python ${result.version} found at: ${result.command}`);
     } else {
-      console.log(`Python not available: ${result.error}`);
+      log.info(`Python not available: ${result.error}`);
     }
   });
 

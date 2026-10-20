@@ -7,14 +7,11 @@
 // AUDITARIA_FEATURE: SearchSystem Supervisor for automatic memory management
 // This module provides automatic restart capabilities to prevent memory bloat.
 
-import type { SupervisorStrategy, SearchSystemConfig, DeepPartial } from '../config.js';
 import type {
-  SearchOptions,
-  SearchResponse,
-  SearchStats,
-  QueueStatus,
-  DiscoveredFile,
-} from '../types.js';
+  SupervisorStrategy,
+  SearchSystemConfig,
+  DeepPartial,
+} from '../config.js';
 
 // ============================================================================
 // Supervisor Configuration
@@ -152,7 +149,10 @@ export interface SupervisorEvents {
     memoryAfterMb: number;
   };
   'supervisor:stopping': { reason: string };
-  'supervisor:stopped': { totalDocumentsProcessed: number; restartCount: number };
+  'supervisor:stopped': {
+    totalDocumentsProcessed: number;
+    restartCount: number;
+  };
   'supervisor:error': { error: string; fatal: boolean };
   'supervisor:memory:warning': { currentMb: number; thresholdMb: number };
 }
@@ -230,7 +230,8 @@ export function createSupervisorConfig(
 ): SupervisorConfig {
   return {
     ...DEFAULT_SUPERVISOR_CONFIG,
-    strategy: indexingConfig.supervisorStrategy ?? DEFAULT_SUPERVISOR_CONFIG.strategy,
+    strategy:
+      indexingConfig.supervisorStrategy ?? DEFAULT_SUPERVISOR_CONFIG.strategy,
     restartThreshold:
       indexingConfig.supervisorRestartThreshold ??
       DEFAULT_SUPERVISOR_CONFIG.restartThreshold,

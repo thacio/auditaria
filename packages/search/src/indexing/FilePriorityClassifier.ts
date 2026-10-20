@@ -251,19 +251,16 @@ export class FilePriorityClassifier {
   private async quickPdfTextCheck(filePath: string): Promise<boolean> {
     try {
       // Dynamic import with proper ESM/CJS handling
-      const pdfParseModule = (await import('pdf-parse')) as unknown as {
-        default?: (
-          buffer: Buffer,
-          options?: { max?: number },
-        ) => Promise<{ text: string; numpages: number }>;
-      };
+      const pdfParseModule = await import('pdf-parse');
       const pdfParse = pdfParseModule.default;
       if (!pdfParse) {
         // Module doesn't have default export, can't parse
         return false;
       }
       const buffer = await readFile(filePath);
-      const pdf = await pdfParse(buffer, { max: this.pdfMaxScanPages });
+      const pdf = await pdfParse(new Uint8Array(buffer), {
+        max: this.pdfMaxScanPages,
+      });
       const pageCount = pdf.numpages || 1;
       const charsPerPage = pdf.text.length / pageCount;
       return charsPerPage > this.pdfTextThreshold;

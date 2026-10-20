@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('LanceDBExploration.test');
+
 /**
  * LanceDB Exploration Test
  *
@@ -373,7 +376,7 @@ describe('LanceDB Exploration', () => {
         expect(results.length).toBe(5);
       } catch (error) {
         // Index creation might fail with small datasets
-        console.log('Index creation note:', error);
+        log.info('Index creation note:', { details: [error] });
       }
     });
   });
@@ -618,7 +621,7 @@ describe('LanceDB Exploration', () => {
       await table.add(batch);
       const duration = Date.now() - startTime;
 
-      console.log(`Batch insert of ${batchSize} rows took ${duration}ms`);
+      log.info(`Batch insert of ${batchSize} rows took ${duration}ms`);
 
       const count = await table.countRows();
       expect(count).toBe(batchSize + 1);

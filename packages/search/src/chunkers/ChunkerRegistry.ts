@@ -1,16 +1,23 @@
 /**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
  * Registry for text chunkers.
  * Manages chunker registration and provides unified chunking interface.
  */
 
 import { Registry } from '../core/Registry.js';
-import type {
-  Chunk,
-  ChunkerOptions,
-  ChunkerRegistryOptions,
-  DocumentChunker,
+import {
+  type Chunk,
+  type ChunkerOptions,
+  type ChunkerRegistryOptions,
+  type DocumentChunker,
+  DEFAULT_CHUNKER_OPTIONS,
 } from './types.js';
-import { DEFAULT_CHUNKER_OPTIONS } from './types.js';
+
 import { RecursiveChunker } from './RecursiveChunker.js';
 import { FixedSizeChunker } from './FixedSizeChunker.js';
 

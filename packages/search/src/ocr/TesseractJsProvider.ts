@@ -4,6 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type {
+  Worker as TesseractWorker,
+  RecognizeResult as TesseractRecognizeResult,
+  Block as TesseractBlock,
+} from 'tesseract.js';
+
+import { createModuleLogger } from '../core/Logger.js';
+const log = createModuleLogger('TesseractJsProvider');
+
 /**
  * TesseractJsProvider - OCR provider using tesseract.js.
  * Provides local OCR capabilities for images without requiring external services.
@@ -35,62 +44,6 @@ import {
 // ============================================================================
 // Tesseract.js Types (minimal subset we need)
 // ============================================================================
-
-interface TesseractWorker {
-  load(): Promise<void>;
-  loadLanguage(lang: string): Promise<void>;
-  initialize(lang: string): Promise<void>;
-  recognize(
-    image: Buffer | string,
-    options?: Record<string, unknown>,
-  ): Promise<TesseractRecognizeResult>;
-  detect(image: Buffer | string): Promise<TesseractDetectResult>;
-  terminate(): Promise<void>;
-  setParameters(params: Record<string, unknown>): Promise<void>;
-}
-
-interface TesseractDetectResult {
-  data: {
-    script: string;
-    script_confidence: number;
-    orientation: number;
-    orientation_degrees: number;
-    orientation_confidence: number;
-  };
-}
-
-interface TesseractRecognizeResult {
-  data: {
-    text: string;
-    confidence: number;
-    blocks: TesseractBlock[];
-  };
-}
-
-interface TesseractBlock {
-  text: string;
-  confidence: number;
-  bbox: { x0: number; y0: number; x1: number; y1: number };
-  paragraphs: TesseractParagraph[];
-}
-
-interface TesseractParagraph {
-  text: string;
-  confidence: number;
-  lines: TesseractLine[];
-}
-
-interface TesseractLine {
-  text: string;
-  confidence: number;
-  words: TesseractWord[];
-}
-
-interface TesseractWord {
-  text: string;
-  confidence: number;
-  bbox: { x0: number; y0: number; x1: number; y1: number };
-}
 
 // ============================================================================
 // Configuration
@@ -236,11 +189,11 @@ export class TesseractJsProvider implements OcrProvider {
       }
 
       // Create worker with language string (tesseract.js 5.x API)
-      this.worker = (await tesseract.createWorker(
+      this.worker = await tesseract.createWorker(
         langString,
         1, // OEM_LSTM_ONLY
         workerOptions,
-      )) as unknown as TesseractWorker;
+      );
 
       progressCallback?.({
         stage: 'loading',
@@ -327,7 +280,7 @@ export class TesseractJsProvider implements OcrProvider {
           languages: region.language ? [region.language] : options?.languages,
         });
         results.push(result);
-      } catch (_error) {
+      } catch {
         // Return empty result for failed regions
         results.push({
           text: '',
@@ -446,11 +399,11 @@ export class TesseractJsProvider implements OcrProvider {
       },
     } as Record<string, unknown>;
 
-    const worker = (await tesseract.createWorker(
+    const worker = await tesseract.createWorker(
       langString,
       1, // OEM_LSTM_ONLY
       workerOptions,
-    )) as unknown as TesseractWorker;
+    );
 
     try {
       progressCallback?.({
@@ -500,7 +453,7 @@ export class TesseractJsProvider implements OcrProvider {
     );
 
     if (notLoaded.length > 0) {
-      console.warn(
+      log.warn(
         `[TesseractJsProvider] Requested languages not loaded: ${notLoaded.join(', ')}. ` +
           `Using: ${Array.from(this.loadedLanguages).join(', ')}. ` +
           `To use different languages, reinitialize with the desired languages.`,
@@ -514,7 +467,7 @@ export class TesseractJsProvider implements OcrProvider {
   private convertResult(result: TesseractRecognizeResult): OcrResult {
     const { data } = result;
 
-    const regions: OcrTextRegion[] = data.blocks.map((block) => ({
+    const regions: OcrTextRegion[] = (data.blocks ?? []).map((block) => ({
       text: block.text.trim(),
       bounds: {
         x: block.bbox.x0,

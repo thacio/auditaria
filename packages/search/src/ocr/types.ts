@@ -83,6 +83,10 @@ export interface OcrOptions {
  * Implementations can use different OCR engines (Tesseract.js, cloud APIs, etc.)
  */
 export interface OcrProvider {
+  recognizeWithAutoDetect?(
+    image: Buffer | string,
+    options?: OcrOptions,
+  ): Promise<OcrResult>;
   /** Unique name for this provider */
   readonly name: string;
   /** Supported languages (ISO 639-1 codes) */

@@ -372,7 +372,7 @@ export class SearchResponseFormatter {
 
     // Include additional sources from semantic deduplication
     if (chunk.additionalSources && chunk.additionalSources.length > 0) {
-      passage.additional_sources = chunk.additionalSources.map(src => ({
+      passage.additional_sources = chunk.additionalSources.map((src) => ({
         file_path: src.filePath,
         file_name: src.fileName,
         document_id: src.documentId,
@@ -419,7 +419,7 @@ export class SearchResponseFormatter {
 
         // Include additional sources from semantic deduplication
         if (result.additionalSources && result.additionalSources.length > 0) {
-          output.additional_sources = result.additionalSources.map(src => ({
+          output.additional_sources = result.additionalSources.map((src) => ({
             file_path: src.filePath,
             file_name: src.fileName,
             document_id: src.documentId,
@@ -866,10 +866,18 @@ export class SearchResponseFormatter {
         : '';
     content += `Found ${meta.total_hits} result(s) for "${meta.query}" in ${meta.took_ms}ms${paginationInfo}:\n\n`;
 
-    if (this.options.groupByDocument) {
-      content += this.formatGroupedMarkdown(results as GroupedDocumentOutput[]);
-    } else {
-      content += this.formatFlatMarkdown(results as FlatResultOutput[]);
+    if (
+      results.every(
+        (result): result is GroupedDocumentOutput => 'passages' in result,
+      )
+    ) {
+      content += this.formatGroupedMarkdown(results);
+    } else if (
+      results.every(
+        (result): result is FlatResultOutput => 'chunk_id' in result,
+      )
+    ) {
+      content += this.formatFlatMarkdown(results);
     }
 
     return {
@@ -906,8 +914,13 @@ export class SearchResponseFormatter {
         }
 
         // Show "Also found in:" for deduplicated passages
-        if (passage.additional_sources && passage.additional_sources.length > 0) {
-          const alsoIn = this.formatAdditionalSources(passage.additional_sources);
+        if (
+          passage.additional_sources &&
+          passage.additional_sources.length > 0
+        ) {
+          const alsoIn = this.formatAdditionalSources(
+            passage.additional_sources,
+          );
           content += `   ${alsoIn}\n`;
         }
 
@@ -932,7 +945,9 @@ export class SearchResponseFormatter {
 
         // Show "Also found in:" for deduplicated passages
         if (result.additional_sources && result.additional_sources.length > 0) {
-          const alsoIn = this.formatAdditionalSources(result.additional_sources);
+          const alsoIn = this.formatAdditionalSources(
+            result.additional_sources,
+          );
           content += `   ${alsoIn}\n`;
         }
 
@@ -965,7 +980,7 @@ export class SearchResponseFormatter {
     }
 
     const maxDisplay = 3; // Show up to 3 file paths
-    const displayPaths = sources.slice(0, maxDisplay).map(s => s.file_path);
+    const displayPaths = sources.slice(0, maxDisplay).map((s) => s.file_path);
     const remaining = sources.length - maxDisplay;
 
     let result = `Also found in: ${displayPaths.join(', ')}`;

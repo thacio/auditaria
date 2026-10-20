@@ -42,7 +42,7 @@ export interface Token {
  * when they appear in search terms (not as operators)
  * Note: Don't use global flag with .test() to avoid lastIndex issues
  */
-const FTS5_SPECIAL_CHARS = /[*+:^(){}\[\]]/;
+const FTS5_SPECIAL_CHARS = /[*+:^(){}[\]]/;
 
 /**
  * Escape special FTS5 characters in a term
@@ -135,7 +135,11 @@ export function tokenize(query: string): Token[] {
       } else {
         // It's part of a word, treat as term
         let term = '';
-        while (pos < query.length && !/\s/.test(query[pos]) && query[pos] !== '"') {
+        while (
+          pos < query.length &&
+          !/\s/.test(query[pos]) &&
+          query[pos] !== '"'
+        ) {
           term += query[pos];
           pos++;
         }
@@ -147,7 +151,11 @@ export function tokenize(query: string): Token[] {
     // Regular term
     else if (/\S/.test(currentChar)) {
       let term = '';
-      while (pos < query.length && !/\s/.test(query[pos]) && query[pos] !== '"') {
+      while (
+        pos < query.length &&
+        !/\s/.test(query[pos]) &&
+        query[pos] !== '"'
+      ) {
         term += query[pos];
         pos++;
       }
