@@ -26,6 +26,12 @@ describe('PGliteStorage', () => {
   });
 
   describe('lifecycle', () => {
+    it('preserves in-memory data during a maintenance reconnect', async () => {
+      await storage.execute('CREATE TABLE reconnect_probe (value int)');
+      await storage.execute('INSERT INTO reconnect_probe VALUES (42)');
+      await storage.reconnect();
+      expect(await storage.query('SELECT value FROM reconnect_probe')).toEqual([{ value: 42 }]);
+    });
     it('should initialize successfully', () => {
       expect(storage.isInitialized()).toBe(true);
     });

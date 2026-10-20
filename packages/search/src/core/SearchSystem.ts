@@ -25,14 +25,11 @@ const IMAGE_EXTENSIONS_FOR_OCR = new Set([
 ]);
 
 import { EventEmitter } from './EventEmitter.js';
-import type {
-  SearchSystemConfig,
-  DeepPartial,
-  DatabaseConfig,
-} from '../config.js';
 import {
+  type SearchSystemConfig,
+  type DeepPartial,
+  type DatabaseConfig,
   createConfig,
-  validateConfig,
   loadUserConfig,
   loadMergedConfig,
   deepMerge,
@@ -61,7 +58,7 @@ import {
 import { createParserRegistry } from '../parsers/index.js';
 import { createChunkerRegistry } from '../chunkers/index.js';
 import { MockEmbedder, createEmbedders, getModelDimensions } from '../embedders/index.js';
-import type { TextEmbedder } from '../embedders/types.js';
+import type { TextEmbedder, EmbedderQuantization } from '../embedders/types.js';
 import type { ResolvedEmbedderConfig } from '../embedders/gpu-detection.js';
 import { IndexingPipeline } from '../indexing/index.js';
 import { IndexingChildManager } from '../indexing/IndexingChildManager.js';
@@ -82,7 +79,6 @@ import {
   type OcrResult,
 } from '../ocr/index.js';
 
-import type { EmbedderQuantization } from '../embedders/types.js';
 import { globalLogger, LogLevel } from './Logger.js';
 
 // ============================================================================
@@ -259,20 +255,21 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     // Compute the database path to check for existing database
     // First load user config to determine the configured path
     const userConfig = loadUserConfig(auditariaDir);
-    const prelimConfig = createConfig(userConfig?.config);
+    const prelimConfig = createConfig(
+      deepMerge<DeepPartial<SearchSystemConfig>>(
+        userConfig?.config ?? {},
+        options.config ?? {},
+      ),
+    );
     const dbPath = join(rootPath, prelimConfig.database.path);
 
     // Load merged config with proper priority:
     // database metadata (schema fields) > user config (knowledge-base.config.json) > code defaults
-    const merged = loadMergedConfig(auditariaDir, dbPath);
+    const merged = loadMergedConfig(auditariaDir, dbPath, options.config);
 
     // Apply programmatic overrides on top (for non-schema runtime preferences)
     // Note: For existing databases, schema fields are already locked by db metadata
-    let config = merged.config;
-    if (options.config) {
-      config = deepMerge(config, options.config as Partial<SearchSystemConfig>);
-      validateConfig(config);
-    }
+    const config = merged.config;
 
     // Get the user backend options for new databases
     // For existing databases, createStorage() will use stored options from metadata
@@ -311,7 +308,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
     // First load user config to determine the configured database path
     const userConfig = loadUserConfig(auditariaDir);
-    const prelimConfig = createConfig(userConfig?.config);
+    const prelimConfig = createConfig(
+      deepMerge<DeepPartial<SearchSystemConfig>>(
+        userConfig?.config ?? {},
+        options.config ?? {},
+      ),
+    );
     const dbPath = join(resolvedRoot, prelimConfig.database.path);
 
     // Check if database exists
@@ -321,15 +323,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
     // Load merged config with proper priority:
     // database metadata (schema fields) > user config (knowledge-base.config.json) > code defaults
-    const merged = loadMergedConfig(auditariaDir, dbPath);
+    const merged = loadMergedConfig(auditariaDir, dbPath, options.config);
 
     // Apply programmatic overrides on top (for non-schema runtime preferences)
     // Note: Schema fields are already locked by database metadata
-    let config = merged.config;
-    if (options.config) {
-      config = deepMerge(config, options.config as Partial<SearchSystemConfig>);
-      validateConfig(config);
-    }
+    const config = merged.config;
 
     // For existing databases, createStorage() will read backend options from metadata
     const system = new SearchSystem(
@@ -476,6 +474,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
             workerHeapSizeMb: this.config.embeddings.workerHeapSizeMb,
             preferPythonEmbedder: this.config.embeddings.preferPythonEmbedder,
             cacheDir: this.config.embeddings.cacheDir, // Use consistent path across runtimes
+            pythonCommand: this.config.embeddings.pythonCommand,
+            multimodal: this.config.embeddings.multimodal,
           },
           (progress) => {
             // Show progress for model loading (files are usually cached locally)
@@ -550,7 +550,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
       console.log(
         `[SearchSystem] Embedders ready: indexing=${gpuStatus}, ` +
-          `search=CPU, dtype=${resolvedConfig.quantization}`,
+          `search=${indexingEmbedder === searchEmbedder ? gpuStatus : 'CPU'}, dtype=${resolvedConfig.quantization}`,
       );
     }
 
@@ -1076,7 +1076,10 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
           // Directly enqueue image files for OCR (bypass parser's requiresOcr flag)
           if (this.ocrQueueManager && this.config.ocr.enabled) {
             const ext = extname(event.filePath).toLowerCase();
-            if (IMAGE_EXTENSIONS_FOR_OCR.has(ext)) {
+            if (
+              IMAGE_EXTENSIONS_FOR_OCR.has(ext) &&
+              !this.indexingEmbedder?.canEmbedMedia?.(event.filePath)
+            ) {
               this.ocrQueueManager
                 .enqueue(event.documentId, event.filePath, [])
                 .catch((err) => {
@@ -1674,7 +1677,10 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     for (const doc of allDocs) {
       // Check if it's an image file
       const ext = doc.fileExtension.toLowerCase();
-      if (!IMAGE_EXTENSIONS_FOR_OCR.has(ext)) {
+      if (
+        !IMAGE_EXTENSIONS_FOR_OCR.has(ext) ||
+        this.indexingEmbedder?.canEmbedMedia?.(doc.filePath)
+      ) {
         continue;
       }
 

@@ -3,6 +3,8 @@
  * Embedders generate vector representations of text for semantic search.
  */
 
+import type { MediaEmbeddingCapability } from './media.js';
+
 // ============================================================================
 // Embedding Result
 // ============================================================================
@@ -34,7 +36,7 @@ export { type Embedder } from '../indexing/types.js';
 /**
  * Extended embedder interface with additional capabilities.
  */
-export interface TextEmbedder {
+export interface TextEmbedder extends MediaEmbeddingCapability {
   /** Unique name for this embedder */
   readonly name: string;
   /** Model identifier */

@@ -59,6 +59,8 @@ try {
     'vectorlite',  // SQLite vector extension (native)
     'better-sqlite3',  // SQLite native bindings
     '@electric-sql/pglite',  // PGlite embedded postgres
+    '@electric-sql/pglite-pgvector',
+    '@electric-sql/pglite-pg17',
     '@lancedb/lancedb',  // LanceDB vector storage
   ].map(e => `--external:${e}`).join(' ');
 
@@ -113,36 +115,11 @@ if (fs.existsSync(LOCALE_PATH)) {
   console.warn('   ⚠️  Locale directory not found, translations may not work');
 }
 
-// === PGLITE ASSETS EMBEDDING === (DISABLED - Bun only supports libsql backend)
-// PGlite is not needed since we use libsql for the Bun executable
-// console.log('\n📦 Embedding PGlite assets...');
-// const PGLITE_DIST_PATH = path.join(__dirname, '..', 'node_modules', '@electric-sql', 'pglite', 'dist');
-let pgliteAssets = {}; // Keep empty - not used in Bun executable
-/*
-try {
-  const wasmPath = path.join(PGLITE_DIST_PATH, 'pglite.wasm');
-  const dataPath = path.join(PGLITE_DIST_PATH, 'pglite.data');
-  const vectorPath = path.join(PGLITE_DIST_PATH, 'vector.tar.gz');
-
-  if (fs.existsSync(wasmPath) && fs.existsSync(dataPath) && fs.existsSync(vectorPath)) {
-    pgliteAssets = {
-      wasm: fs.readFileSync(wasmPath, 'base64'),
-      data: fs.readFileSync(dataPath, 'base64'),
-      vector: fs.readFileSync(vectorPath, 'base64'),
-    };
-    const totalSize = (pgliteAssets.wasm.length + pgliteAssets.data.length + pgliteAssets.vector.length) / 1024 / 1024 * 0.75; // Approx original size
-    console.log(`   ✓ Embedded pglite.wasm (${(fs.statSync(wasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
-    console.log(`   ✓ Embedded pglite.data (${(fs.statSync(dataPath).size / 1024 / 1024).toFixed(2)} MB)`);
-    console.log(`   ✓ Embedded vector.tar.gz (${(fs.statSync(vectorPath).size / 1024).toFixed(1)} KB)`);
-    console.log(`   ✓ Total PGlite assets: ~${totalSize.toFixed(2)} MB`);
-  } else {
-    console.warn('   ⚠️  PGlite assets not found, knowledge search will not work in executable');
-    console.warn(`      Looked for: ${wasmPath}`);
-  }
-} catch (error) {
-  console.warn('   ⚠️  Failed to embed PGlite assets:', error.message);
-}
-*/
+// Include both runtimes so existing PG17 indexes remain readable.
+const { collectPGliteAssets } = require('./pglite-assets.cjs');
+const pgliteAssets = collectPGliteAssets();
+const { collectPythonWorkerAssets } = require('./python-worker-assets.cjs');
+const searchPythonAssets = collectPythonWorkerAssets();
 
 // === TREE-SITTER WASM EMBEDDING === (for shell parsing in Bun executable)
 console.log('\n📦 Embedding tree-sitter WASM assets...');
@@ -966,6 +943,7 @@ const conditionalUnifiedBunServer = `
   // Embedded PGlite assets for Bun executable (for knowledge search)
   if (typeof globalThis.__PGLITE_EMBEDDED_ASSETS === 'undefined') {
     globalThis.__PGLITE_EMBEDDED_ASSETS = ${Object.keys(pgliteAssets).length > 0 ? JSON.stringify(pgliteAssets) : 'null'};
+    globalThis.__SEARCH_PYTHON_ASSETS = ${JSON.stringify(searchPythonAssets)};
   }
 
   // Embedded tree-sitter WASM assets for Bun executable (for shell parsing)

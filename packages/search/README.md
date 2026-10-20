@@ -2,13 +2,16 @@
 
 A powerful, local-first search system that provides **keyword**, **semantic**,
 and **hybrid** search capabilities across your working directory. Supports
-multiple storage backends with LibSQL as the default.
+multiple storage backends with PGlite as the default.
+
+See [Multimodal knowledge search](MULTIMODAL.md) for EmbeddingGemma 2 setup,
+OCR-free media retrieval, PGlite version compatibility, and test results.
 
 ## Features
 
 - **Hybrid Search**: Combines keyword (BM25/FTS) and semantic (vector) search
   using Reciprocal Rank Fusion (RRF)
-- **Multiple Storage Backends**: LibSQL (default), SQLite+Vectorlite, PGlite,
+- **Multiple Storage Backends**: PGlite (default), SQLite+Vectorlite, LibSQL,
   and LanceDB
 - **Local Embeddings**: Uses ONNX models via Transformers.js or Python (no
   external API calls)
@@ -245,9 +248,9 @@ packages/search/src/
 │   ├── user-config.ts          # Load/save knowledge-base.config.json
 │   └── backend-options.ts      # Backend-specific storage options
 ├── storage/           # Storage backends
-│   ├── LibSQLStorage.ts        # Default backend
+│   ├── LibSQLStorage.ts
 │   ├── SQLiteVectorliteStorage.ts
-│   ├── PGliteStorage.ts
+│   ├── PGliteStorage.ts        # Default backend
 │   ├── LanceDBStorage.ts
 │   ├── StorageFactory.ts       # Backend selection logic
 │   ├── metadata.ts             # Database metadata (db-config.json)
@@ -780,12 +783,12 @@ detects existing databases to prevent backend switching corruption.
 
 | Backend                 | Library                           | Default | Best For                        |
 | ----------------------- | --------------------------------- | ------- | ------------------------------- |
-| **LibSQLStorage**       | `libsql` (Turso)                  | **Yes** | General use, crash-safe vectors |
+| LibSQLStorage           | `libsql` (Turso)                  | No      | General use, crash-safe vectors |
 | SQLiteVectorliteStorage | `better-sqlite3` + `vectorlite`   | No      | Native performance, single-user |
-| PGliteStorage           | `@electric-sql/pglite` + pgvector | No      | PostgreSQL compatibility        |
+| **PGliteStorage**       | `@electric-sql/pglite` + pgvector | **Yes** | PostgreSQL compatibility        |
 | LanceDBStorage          | `@lancedb/lancedb`                | No      | Vector-heavy workloads          |
 
-### LibSQLStorage (Default)
+### LibSQLStorage
 
 - SQLite fork from Turso with native vector support
 - Vectors stored directly in the database file (crash-safe)
@@ -800,7 +803,7 @@ detects existing databases to prevent backend switching corruption.
 - Cross-platform, excellent performance
 - Same Google-style web search parser as LibSQLStorage
 
-### PGliteStorage (Legacy)
+### PGliteStorage (Default)
 
 - PostgreSQL compiled to WASM
 - pgvector extension for vector operations
@@ -1232,12 +1235,12 @@ interface SearchResult {
 2. **Use Python embedder** for additional memory isolation (runs in separate
    process)
 3. **Keep `useWorkerThread: true`** to maintain CLI responsiveness during search
-4. **Use `q8` quantization** (2.2x faster than fp16 with same quality)
+4. **Use `q8` quantization for E5 models**; use `fp32` for EmbeddingGemma 2
 5. **Use CPU for small models** (6.5x faster than GPU due to transfer overhead)
 6. **Adjust `prepareWorkers`** for parallel parsing on multi-core systems
 7. **Use hybrid search** for best results (combines keyword precision + semantic
    understanding)
-8. **LibSQL backend** (default) provides crash-safe vectors with good
+8. **LibSQL backend** provides crash-safe vectors with good
    performance
 
 ---

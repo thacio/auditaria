@@ -14,7 +14,7 @@
   "config": {
     "database": {
       "_docs": "Database storage configuration",
-      "backend": "libsql",
+      "backend": "pglite",
       "inMemory": false,
       "backupEnabled": true
     },
@@ -52,7 +52,7 @@
     },
 
     "embeddings": {
-      "_docs": "Embedding model configuration. Dimensions are auto-derived from the model name.",
+      "_docs": "Embedding model configuration. Dimensions are auto-derived. For google/embeddinggemma-2 use fp32, optionally pythonCommand and multimodal; see packages/search/MULTIMODAL.md.",
       "model": "Xenova/multilingual-e5-small",
       "batchSize": 2,
       "queryPrefix": "query: ",
@@ -125,8 +125,8 @@
 
   "_reference": {
     "backends": {
-      "libsql": "LibSQL (Turso) - Default, crash-safe vectors stored inside DB, DiskANN index",
-      "pglite": "PGLite - WASM PostgreSQL with pgvector extension",
+      "libsql": "LibSQL (Turso) - vectors stored inside DB, DiskANN index",
+      "pglite": "PGLite - Default, WASM PostgreSQL with pgvector extension",
       "sqlite": "SQLite - Native SQLite with vectorlite extension",
       "lancedb": "LanceDB - Columnar vector database with Tantivy FTS"
     },
@@ -153,7 +153,8 @@
     "embeddingModels": {
       "Xenova/multilingual-e5-small": "384 dimensions, fastest, good for most use cases",
       "Xenova/multilingual-e5-base": "768 dimensions, balanced",
-      "Xenova/multilingual-e5-large": "1024 dimensions, best quality, slower"
+      "Xenova/multilingual-e5-large": "1024 dimensions, best quality, slower",
+      "google/embeddinggemma-2": "768 dimensions, local text/image/PDF/audio/video embeddings; requires the optional Python runtime and fp32"
     },
     "quantization": {
       "fp32": "Full precision (slowest, most accurate)",

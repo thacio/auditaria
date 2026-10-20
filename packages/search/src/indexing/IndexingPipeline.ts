@@ -29,6 +29,8 @@ import type { FilePriorityClassifier } from './FilePriorityClassifier.js';
 import { createFilePriorityClassifier } from './FilePriorityClassifier.js';
 import { createModuleLogger, globalLogger } from '../core/Logger.js';
 import { join, isAbsolute, relative } from 'node:path';
+import { prepareMediaContent } from './media-content.js';
+import { isMediaFile, type MediaSource } from '../embedders/media.js';
 
 // Module logger for IndexingPipeline
 const log = createModuleLogger('IndexingPipeline');
@@ -199,6 +201,7 @@ interface PreparedFile {
   filePath: string;
   /** Chunk texts extracted for embedding - NOT full Chunk objects to save memory */
   chunkTexts: string[];
+  mediaSources?: MediaSource[];
   chunkIds: string[];
   chunkCount: number;
   isNew: boolean;
@@ -542,6 +545,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    */
   start(): void {
     if (this.state === 'running') return;
+    if (this.state === 'paused') {
+      this.resume();
+      return;
+    }
 
     this.state = 'running';
     this.abortController = new AbortController();
@@ -578,11 +585,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.state = 'running';
     void this.emit('pipeline:resumed', undefined);
 
-    // Restart workers
-    for (let i = 0; i < this.options.prepareWorkers; i++) {
-      void this.prepareLoop();
-    }
-    void this.embedLoop();
+    // Paused workers retain their buffers and continue on the next iteration.
   }
 
   /**
@@ -781,10 +784,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       });
 
       // Parse the document (using absolute path for file I/O)
-      const parsed = await this.parserRegistry.parse(
-        absolutePath,
-        this.options.parserOptions,
-      );
+      const media = await prepareMediaContent(this.embedder, absolutePath);
+      const parsed =
+        media?.parsed ??
+        (await this.parserRegistry.parse(
+          absolutePath,
+          this.options.parserOptions,
+        ));
 
       log.debug('processFile:parsed', {
         filePath: relativePath,
@@ -818,10 +824,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       });
 
       // Chunk the text
-      const chunks = await this.chunkerRegistry.chunk(
-        parsed.text,
-        this.options.chunkerOptions,
-      );
+      const chunks =
+        media?.chunks ??
+        (await this.chunkerRegistry.chunk(
+          parsed.text,
+          this.options.chunkerOptions,
+        ));
 
       log.debug('processFile:chunked', {
         filePath: relativePath,
@@ -870,10 +878,17 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       if (this.embedder.isReady()) {
         const embTimerKey = `embeddings-${documentId}`;
         log.startTimer(embTimerKey, true);
-        await this.generateEmbeddings(
-          createdChunks.map((c) => c.id),
-          chunks,
-        );
+        if (media) {
+          await this.generateMediaEmbeddings(
+            createdChunks.map((c) => c.id),
+            media.sources,
+          );
+        } else {
+          await this.generateEmbeddings(
+            createdChunks.map((c) => c.id),
+            chunks,
+          );
+        }
         log.endTimer(embTimerKey, 'processFile:embeddingsGenerated', {
           filePath: relativePath,
           chunkCount: chunks.length,
@@ -1016,7 +1031,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     // AUDITARIA: Pre-parse garbage detection — only for text-priority files
     // Markup (.docx, .xlsx), PDFs, and images are binary by design — their parsers extract text.
     // Only plain text files (.txt, .md, .json, .csv) should be checked for binary content.
-    if (this.options.enableGarbageDetection && queuePriority === 'text') {
+    if (
+      this.options.enableGarbageDetection &&
+      queuePriority === 'text' &&
+      !(this.embedder.prepareMedia && isMediaFile(absolutePath))
+    ) {
       try {
         const { isBinaryFile } = await import('isbinaryfile');
         const isBinary = await isBinaryFile(absolutePath);
@@ -1028,8 +1047,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         // isBinaryFile failed (e.g., permission error) — continue with parsing
         log.warn('prepareFile:binaryCheckFailed', {
           filePath: relativePath,
-          error:
-            error instanceof Error ? error.message : String(error),
+          error: error instanceof Error ? error.message : String(error),
         });
       }
     }
@@ -1066,9 +1084,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     // Parse the document (using absolute path for file I/O).
     // Deferred items get a hard timeout to avoid infinite reprocessing loops.
     let parsed: Awaited<ReturnType<ParserRegistry['parse']>>;
+    const media = await prepareMediaContent(this.embedder, absolutePath);
     try {
       parsed =
-        queuePriority === 'deferred'
+        media?.parsed ??
+        (queuePriority === 'deferred'
           ? await withTimeout(
               this.parserRegistry.parse(
                 absolutePath,
@@ -1084,7 +1104,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
           : await this.parserRegistry.parse(
               absolutePath,
               this.options.parserOptions,
-            );
+            ));
     } catch (error) {
       if (error instanceof DeferredRetryParseTimeoutError) {
         await this.storage.updateDocument(documentId, {
@@ -1156,10 +1176,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     });
 
     // Chunk the text
-    const chunks = await this.chunkerRegistry.chunk(
-      parsed.text,
-      this.options.chunkerOptions,
-    );
+    const chunks =
+      media?.chunks ??
+      (await this.chunkerRegistry.chunk(
+        parsed.text,
+        this.options.chunkerOptions,
+      ));
 
     log.debug('prepareFile:chunked', {
       filePath: relativePath,
@@ -1203,6 +1225,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       documentId,
       filePath: relativePath,
       chunkTexts,
+      mediaSources: media?.sources,
       chunkIds: createdChunks.map((c) => c.id),
       chunkCount,
       isNew,
@@ -1234,7 +1257,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       const embTimerKey = `embeddings-${documentId}`;
       log.startTimer(embTimerKey, true);
       // Pass prepared to enable progressive clearing of chunkTexts for memory efficiency
-      await this.generateEmbeddingsFromTexts(chunkIds, chunkTexts, prepared);
+      if (prepared.mediaSources) {
+        await this.generateMediaEmbeddings(chunkIds, prepared.mediaSources);
+        prepared.mediaSources = undefined;
+      } else {
+        await this.generateEmbeddingsFromTexts(chunkIds, chunkTexts, prepared);
+      }
       log.endTimer(embTimerKey, 'embedFile:embeddingsGenerated', {
         filePath,
         chunkCount,
@@ -1265,7 +1293,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.prepareWorkersRunning++;
 
     try {
-      while (this.state === 'running') {
+      while (this.state === 'running' || this.state === 'paused') {
+        if (this.state === 'paused') {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          continue;
+        }
         // Backpressure: wait if buffer is full
         if (this.preparedBuffer.length >= this.options.preparedBufferSize) {
           await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1281,7 +1313,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         }
         await this.waitForMaintenance();
 
-        if (this.state !== 'running') break;
+        if (this.state !== 'running') continue;
 
         // Dequeue next item
         const item = await this.storage.dequeueItem();
@@ -1354,7 +1386,15 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.embedLoopRunning = true;
 
     try {
-      while (this.state === 'running' || this.preparedBuffer.length > 0) {
+      while (
+        this.state === 'running' ||
+        this.state === 'paused' ||
+        this.preparedBuffer.length > 0
+      ) {
+        if (this.state === 'paused') {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          continue;
+        }
         // Wait if buffer is empty but prepare workers still running
         if (this.preparedBuffer.length === 0) {
           if (this.prepareWorkersRunning === 0) {
@@ -1435,7 +1475,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       ) {
         // IMPORTANT: Final reconnect to persist any remaining vectors
         // Without this, the last batch (up to MAINTENANCE_INTERVAL files) would be lost
-        if (this.storage.reconnect && this.processedCount > this.lastMaintenanceAt) {
+        if (
+          this.storage.reconnect &&
+          this.processedCount > this.lastMaintenanceAt
+        ) {
           log.info('embedLoop:finalReconnect', {
             processedCount: this.processedCount,
             lastMaintenanceAt: this.lastMaintenanceAt,
@@ -1616,7 +1659,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     } catch (storageError) {
       log.warn('handleEmbedError:storageUnavailable', {
         filePath: prepared.filePath,
-        storageError: storageError instanceof Error ? storageError.message : String(storageError),
+        storageError:
+          storageError instanceof Error
+            ? storageError.message
+            : String(storageError),
       });
     }
 
@@ -1633,14 +1679,28 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   // Private Helper Methods
   // -------------------------------------------------------------------------
 
-  /**
-   * Generate embeddings for chunks in batches.
-   * Uses embedBatchDocuments if available (for proper E5 prefix handling),
-   * otherwise falls back to embedBatch.
-   *
-   * The embedder handles batch size fallback internally - if a batch fails,
-   * it halves the batch size and retries until success or minimum batch size.
-   */
+  /** Embed each media source independently to bound decoded media memory. */
+  private async generateMediaEmbeddings(
+    chunkIds: string[],
+    sources: MediaSource[],
+  ): Promise<void> {
+    if (!this.embedder.embedMedia)
+      throw new Error('Media embedding is not supported');
+    if (chunkIds.length !== sources.length)
+      throw new Error('Media chunk count mismatch');
+    // One source at a time bounds decoded raster/audio memory and gives queries a turn.
+    for (let index = 0; index < sources.length; index++) {
+      const embeddings = await this.embedder.embedMedia([sources[index]]);
+      if (embeddings.length !== 1)
+        throw new Error('Media embedder returned the wrong number of vectors');
+      await this.storage.updateChunkEmbeddings([
+        { id: chunkIds[index], embedding: embeddings[0] },
+      ]);
+      await yieldToEventLoop();
+    }
+  }
+
+  /** Generate text embeddings with the model's document task prefix. */
   private async generateEmbeddings(
     chunkIds: string[],
     chunks: Chunk[],

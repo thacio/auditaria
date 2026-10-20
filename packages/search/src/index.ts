@@ -290,6 +290,8 @@ export {
   isGpuDevice,
   getModelDimensions,
   MODEL_DIMENSIONS,
+  EmbeddingGemmaEmbedder,
+  EMBEDDING_GEMMA_MODEL,
 } from './embedders/index.js';
 
 export type {
@@ -306,6 +308,11 @@ export type {
   EmbedderFactoryResult,
   ResolvedEmbedderConfig,
   GpuDetectionResult,
+  EmbeddingGemmaConfig,
+  MediaEmbeddingCapability,
+  MediaSource,
+  MediaDocument,
+  MediaChunk,
 } from './embedders/index.js';
 
 // ============================================================================

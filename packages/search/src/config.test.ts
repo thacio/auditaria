@@ -27,6 +27,7 @@ describe('Configuration', () => {
     });
 
     it('should have valid default database config', () => {
+      expect(DEFAULT_DATABASE_CONFIG.backend).toBe('pglite');
       expect(DEFAULT_DATABASE_CONFIG.path).toBe('.auditaria/knowledge-base.db');
       expect(DEFAULT_DATABASE_CONFIG.inMemory).toBe(false);
     });
@@ -48,9 +49,9 @@ describe('Configuration', () => {
 
     it('should have valid default embeddings config', () => {
       expect(DEFAULT_EMBEDDINGS_CONFIG.model).toBe(
-        'Xenova/multilingual-e5-base',
+        'Xenova/multilingual-e5-small',
       );
-      expect(DEFAULT_EMBEDDINGS_CONFIG.dimensions).toBe(768);
+      expect(DEFAULT_EMBEDDINGS_CONFIG.dimensions).toBe(384);
       expect(DEFAULT_EMBEDDINGS_CONFIG.batchSize).toBeGreaterThan(0);
     });
 
@@ -111,9 +112,7 @@ describe('Configuration', () => {
       });
 
       expect(config.embeddings.model).toBe('Xenova/multilingual-e5-base');
-      expect(config.embeddings.dimensions).toBe(
-        DEFAULT_EMBEDDINGS_CONFIG.dimensions,
-      );
+      expect(config.embeddings.dimensions).toBe(768);
     });
 
     it('should merge partial search config', () => {
@@ -432,8 +431,8 @@ describe('Configuration', () => {
     it('should have correct default supervisor config values', () => {
       const config = createConfig();
 
-      expect(config.indexing.supervisorStrategy).toBe('in-process');
-      expect(config.indexing.supervisorRestartThreshold).toBe(2000);
+      expect(config.indexing.supervisorStrategy).toBe('none');
+      expect(config.indexing.supervisorRestartThreshold).toBe(0);
       expect(config.indexing.supervisorMemoryThresholdMb).toBe(4000);
     });
 

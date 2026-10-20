@@ -652,7 +652,7 @@ describe('IndexingPipeline configuration', () => {
     }
   });
 
-  it('should use default prepareWorkers of 1', async () => {
+  it('should use default prepareWorkers of 2', async () => {
     testDir = await createTestDirectory(1);
     const { pipeline, cleanup } = await createTestPipeline(testDir);
 
@@ -661,7 +661,7 @@ describe('IndexingPipeline configuration', () => {
       const options = (
         pipeline as unknown as { options: { prepareWorkers: number } }
       ).options;
-      expect(options.prepareWorkers).toBe(1);
+      expect(options.prepareWorkers).toBe(2);
     } finally {
       await cleanup();
     }

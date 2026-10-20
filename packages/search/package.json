@@ -14,12 +14,20 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:ci": "vitest run",
+    "test:multimodal": "tsx scripts/test-multimodal.ts",
     "typecheck": "tsc --noEmit"
   },
   "files": [
-    "dist"
+    "dist",
+    "python/*.py",
+    "python/*.txt",
+    "python/README.md",
+    "MULTIMODAL.md"
   ],
   "dependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "@electric-sql/pglite-pgvector": "0.0.11",
+    "@electric-sql/pglite-pg17": "npm:@electric-sql/pglite@0.3.16",
     "@huggingface/transformers": "^3.8.1",
     "libsql": "^0.5.0",
     "officeparser": "^5.2.2",
@@ -38,7 +46,6 @@
     "@lancedb/lancedb": "^0.17.0",
     "better-sqlite3": "^11.0.0",
     "vectorlite": "^0.2.0",
-    "@electric-sql/pglite": "^0.3.14",
     "typescript": "^5.3.3",
     "vitest": "^3.1.1",
     "@types/pdf-parse": "^1.1.4"
@@ -50,8 +57,7 @@
     "@google/gemini-cli-core": "*",
     "@lancedb/lancedb": "^0.17.0",
     "better-sqlite3": "^11.0.0",
-    "vectorlite": "^0.2.0",
-    "@electric-sql/pglite": "^0.3.14"
+    "vectorlite": "^0.2.0"
   },
   "peerDependenciesMeta": {
     "@google/gemini-cli-core": {
@@ -64,9 +70,6 @@
       "optional": true
     },
     "vectorlite": {
-      "optional": true
-    },
-    "@electric-sql/pglite": {
       "optional": true
     }
   }

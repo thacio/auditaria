@@ -9,6 +9,7 @@
 
 /** Known model dimensions by model ID */
 export const MODEL_DIMENSIONS: Record<string, number> = {
+  'google/embeddinggemma-2': 768,
   'Xenova/multilingual-e5-small': 384,
   'Xenova/multilingual-e5-base': 768,
   'Xenova/multilingual-e5-large': 1024,

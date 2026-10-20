@@ -17,6 +17,10 @@ import type {
 import { TransformersJsEmbedder } from './TransformersJsEmbedder.js';
 import { WorkerEmbedder } from './WorkerEmbedder.js';
 import { PythonEmbedder } from './PythonEmbedder.js';
+import {
+  EmbeddingGemmaEmbedder,
+  EMBEDDING_GEMMA_MODEL,
+} from './EmbeddingGemmaEmbedder.js';
 import { detectPython } from './python-detection.js';
 import {
   debugLog,
@@ -48,7 +52,11 @@ function isRunningInBunExecutable(): boolean {
   // Check for Bun's virtual filesystem path patterns
   try {
     const metaUrl = import.meta.url;
-    if (metaUrl.includes('/$bunfs/') || metaUrl.includes('/~BUN/') || metaUrl.includes('%7EBUN')) {
+    if (
+      metaUrl.includes('/$bunfs/') ||
+      metaUrl.includes('/~BUN/') ||
+      metaUrl.includes('%7EBUN')
+    ) {
       return true;
     }
   } catch {
@@ -66,6 +74,10 @@ function isRunningInBunExecutable(): boolean {
  * Configuration for the embedder factory.
  */
 export interface EmbedderFactoryConfig {
+  /** Python executable for the optional EmbeddingGemma runtime. */
+  pythonCommand?: string;
+  /** Enable direct image, PDF, audio, and video indexing with EmbeddingGemma. */
+  multimodal?: boolean;
   /** Model ID (e.g., 'Xenova/multilingual-e5-small') */
   model: string;
   /** Device selection ('auto', 'cpu', 'dml', 'cuda') */
@@ -97,7 +109,7 @@ export interface EmbedderFactoryConfig {
 export interface EmbedderFactoryResult {
   /** Embedder for indexing operations (may use GPU) */
   indexingEmbedder: TextEmbedder;
-  /** Embedder for search operations (always CPU, same dtype) */
+  /** Embedder for search operations; Gemma shares its indexing process and device. */
   searchEmbedder: TextEmbedder;
   /** Resolved configuration showing what was actually used */
   resolvedConfig: ResolvedEmbedderConfig;
@@ -124,6 +136,39 @@ export async function createEmbedders(
   config: EmbedderFactoryConfig,
   onProgress?: ProgressCallback,
 ): Promise<EmbedderFactoryResult> {
+  if (config.model === EMBEDDING_GEMMA_MODEL) {
+    if (!['auto', 'fp32'].includes(config.quantization)) {
+      throw new Error(
+        'EmbeddingGemma 2 requires embeddings.quantization="fp32" (or "auto"). FP16 is unsafe; this runtime does not quantize weights.',
+      );
+    }
+    if (
+      config.device !== 'auto' &&
+      config.device !== 'cpu' &&
+      config.device !== 'cuda'
+    ) {
+      throw new Error('EmbeddingGemma 2 supports auto, cpu, or cuda devices');
+    }
+    const embedder = new EmbeddingGemmaEmbedder({
+      device: config.device,
+      pythonCommand: config.pythonCommand,
+      cacheDir: config.cacheDir,
+      batchSize: config.batchSize,
+      multimodal: config.multimodal,
+    });
+    await embedder.initialize(onProgress);
+    return {
+      indexingEmbedder: embedder,
+      searchEmbedder: embedder,
+      resolvedConfig: {
+        device: embedder.device,
+        quantization: 'fp32',
+        gpuDetected: embedder.device === 'cuda',
+        gpuUsedForIndexing: embedder.device === 'cuda',
+        pythonEmbedder: true,
+      },
+    };
+  }
   // Step 0a: Check if running in Bun executable - disable workers if so
   const isBunExe = isRunningInBunExecutable();
   let effectiveUseWorkerThread = config.useWorkerThread;

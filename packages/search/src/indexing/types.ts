@@ -7,6 +7,7 @@
 import type { QueuePriority, DocumentStatus, OcrStatus } from '../types.js';
 import type { ChunkerOptions } from '../chunkers/types.js';
 import type { ParserOptions } from '../parsers/types.js';
+import type { MediaEmbeddingCapability } from '../embedders/media.js';
 
 // ============================================================================
 // Pipeline Configuration
@@ -66,7 +67,7 @@ export interface IndexingPipelineOptions {
  * Interface for embedding generators.
  * Implementations can use local models (Transformers.js) or API-based services.
  */
-export interface Embedder {
+export interface Embedder extends MediaEmbeddingCapability {
   /** Unique name for this embedder */
   readonly name: string;
   /** Embedding dimension size */

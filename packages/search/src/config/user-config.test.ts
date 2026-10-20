@@ -67,7 +67,9 @@ describe('user-config', () => {
   describe('getUserConfigPath', () => {
     it('should return correct path', () => {
       const result = getUserConfigPath('/test/.auditaria');
-      expect(result).toBe(path.join('/test/.auditaria', 'knowledge-base.config.json'));
+      expect(result).toBe(
+        path.join('/test/.auditaria', 'knowledge-base.config.json'),
+      );
     });
   });
 
@@ -448,6 +450,44 @@ describe('user-config', () => {
   // ==========================================================================
 
   describe('priority order', () => {
+    it('applies Gemma defaults to programmatic model selection', () => {
+      const result = loadMergedConfig(auditariaDir, undefined, {
+        embeddings: { model: 'google/embeddinggemma-2' },
+      });
+      expect(result.config.embeddings.quantization).toBe('fp32');
+      expect(result.config.embeddings.dimensions).toBe(768);
+      expect(result.config.indexing.fileTypes).toContain('.mp4');
+    });
+
+    it('restores Gemma defaults from metadata and protects the stored model from overrides', () => {
+      const dbPath = path.join(auditariaDir, 'gemma.db');
+      fs.mkdirSync(dbPath);
+      const metadata: DatabaseMetadata = {
+        version: '1.0.0',
+        backend: 'pglite',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        vectorIndex: { type: 'hnsw', useHalfVec: true },
+        embeddings: {
+          model: 'google/embeddinggemma-2',
+          dimensions: 768,
+          quantization: 'fp32',
+        },
+      };
+      fs.writeFileSync(
+        path.join(dbPath, 'db-config.json'),
+        JSON.stringify(metadata),
+      );
+      const result = loadMergedConfig(auditariaDir, dbPath, {
+        database: { backend: 'libsql' },
+        embeddings: { model: 'Xenova/multilingual-e5-small' },
+      });
+      expect(result.config.database.backend).toBe('pglite');
+      expect(result.config.embeddings.model).toBe('google/embeddinggemma-2');
+      expect(result.config.embeddings.quantization).toBe('fp32');
+      expect(result.config.indexing.fileTypes).toContain('.mp4');
+    });
+
     it('should prioritize db metadata over user config for schema fields', () => {
       // Create user config with different backend
       const userConfig: UserConfigFile = {

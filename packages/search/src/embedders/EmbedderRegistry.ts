@@ -138,6 +138,9 @@ export class EmbedderRegistry {
     return {
       name: embedder.name,
       dimensions: embedder.dimensions,
+      canEmbedMedia: embedder.canEmbedMedia?.bind(embedder),
+      prepareMedia: embedder.prepareMedia?.bind(embedder),
+      embedMedia: embedder.embedMedia?.bind(embedder),
       initialize: () => embedder.initialize(),
       isReady: () => embedder.isReady(),
       embed: (text: string) => embedder.embed(text),

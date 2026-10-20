@@ -322,12 +322,14 @@ function deepMerge<T extends object>(target: T, source: DeepPartial<T>): T {
 export function loadMergedConfig(
   auditariaDir: string,
   dbPath?: string,
+  overrides: DeepPartial<SearchSystemConfig> = {},
 ): MergedConfigResult {
   // Step 1: Load user config (or empty object)
   const userConfig = loadUserConfig(auditariaDir);
 
   // Step 2: Create base config by merging user config with defaults
-  let config = createConfig(userConfig?.config);
+  const preferences = deepMerge(userConfig?.config ?? {}, overrides);
+  let config = createConfig(preferences);
 
   // Step 3: Check for existing database metadata
   let existingDatabase = false;
@@ -343,7 +345,9 @@ export function loadMergedConfig(
 
     // Override config with database metadata (schema fields only)
     const dbPartial = dbMetadataToPartialConfig(metadata);
-    config = deepMerge(config, dbPartial);
+    // Apply model defaults after selecting the authoritative model. Otherwise a
+    // Gemma index reopened without its original user config inherits E5 defaults.
+    config = createConfig(deepMerge(preferences, dbPartial));
 
     // Use database's backend options if available
     if (metadata.backendOptions) {
@@ -394,7 +398,7 @@ export function createSampleUserConfig(): UserConfigFile {
     $version: USER_CONFIG_VERSION,
     config: {
       database: {
-        // backend: 'libsql',  // 'libsql', 'pglite', 'sqlite', 'lancedb'
+        // backend: 'pglite',  // 'pglite', 'libsql', 'sqlite', 'lancedb'
         // path: '.auditaria/knowledge-base.db',
         // backupEnabled: true,
       },

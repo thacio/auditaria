@@ -13,7 +13,7 @@ import type {
   HybridSearchStrategy,
   StorageBackend,
 } from '../config.js';
-// LibSQL is the default backend - always available
+// LibSQL remains available for existing databases and explicit selection.
 import { LibSQLStorage } from './LibSQLStorage.js';
 // Other backends are dynamically imported to avoid requiring their dependencies
 // when not in use. This allows `npm install -g` to work without optional deps.
@@ -30,7 +30,7 @@ const log = createModuleLogger('StorageFactory');
 
 /**
  * Check if running under Bun runtime.
- * Bun only supports LibSQL backend (native deps like better-sqlite3, pglite don't work).
+ * PGlite and LibSQL support Bun; other native backends require Node.js.
  */
 export function isRunningInBun(): boolean {
   return typeof (globalThis as Record<string, unknown>).Bun !== 'undefined';
@@ -100,14 +100,14 @@ export async function createStorage(
   const existingMetadata = config.inMemory ? null : readMetadata(config.path);
   const existingBackend = existingMetadata?.backend ?? null;
 
-  const backend = existingBackend ?? config.backend ?? 'libsql';
+  const backend = existingBackend ?? config.backend ?? 'pglite';
 
-  // Bun only supports LibSQL (native deps like better-sqlite3, pglite don't work)
-  if (isBun && backend !== 'libsql') {
+  // PGlite's WASM runtime and LibSQL both support Bun; native alternatives do not.
+  if (isBun && backend !== 'libsql' && backend !== 'pglite') {
     throw new Error(
-      `Bun runtime only supports the LibSQL backend. ` +
+      `Bun runtime supports the PGlite and LibSQL backends. ` +
         `Requested backend '${backend}' requires native dependencies that are incompatible with Bun.\n` +
-        `Either use LibSQL (default) or run with Node.js instead of Bun.`,
+        `Use PGlite (default), LibSQL, or run with Node.js instead of Bun.`,
     );
   }
 
@@ -224,7 +224,7 @@ export async function createStorage(
     }
   }
 
-  // LibSQL is the default - always available (statically imported)
+  // LibSQL is always available (statically imported).
   log.info('createStorage:usingLibSQL');
   // Extract LibSQL-specific options from the resolved backend options
   const libsqlOptions: Partial<LibSQLBackendOptions> | undefined =
@@ -246,7 +246,7 @@ export async function createStorage(
 
 /**
  * Check if a storage backend is available.
- * Under Bun runtime, only LibSQL is supported.
+ * Under Bun runtime, PGlite and LibSQL are supported.
  *
  * @param backend - The backend to check ('sqlite', 'pglite', 'lancedb', or 'libsql')
  * @returns true if the backend dependencies are available
@@ -254,8 +254,8 @@ export async function createStorage(
 export async function isBackendAvailable(
   backend: 'sqlite' | 'pglite' | 'lancedb' | 'libsql',
 ): Promise<boolean> {
-  // Bun only supports LibSQL (native deps don't work)
-  if (isRunningInBun() && backend !== 'libsql') {
+  // PGlite and LibSQL support Bun; other native backends require Node.js.
+  if (isRunningInBun() && backend !== 'libsql' && backend !== 'pglite') {
     return false;
   }
 

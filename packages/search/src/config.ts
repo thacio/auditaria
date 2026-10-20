@@ -10,6 +10,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { getModelDimensions } from './embedders/model-dimensions.js';
+import { AUDIO_VIDEO_EXTENSIONS } from './embedders/media.js';
 
 // ============================================================================
 // Configuration Types
@@ -44,11 +45,11 @@ export const SUPERVISOR_STRATEGIES: readonly SupervisorStrategy[] = [
 /**
  * Supported storage backends.
  *
- * - `'sqlite'`: SQLite with vectorlite and FTS5 (default)
+ * - `'sqlite'`: SQLite with vectorlite and FTS5
  *   - Best for: Cross-platform compatibility, native performance
  *   - Uses: better-sqlite3, vectorlite extension, FTS5
  *
- * - `'pglite'`: PostgreSQL-compatible with pgvector
+ * - `'pglite'`: PostgreSQL-compatible with pgvector (default)
  *   - Best for: PostgreSQL compatibility, advanced features
  *   - Uses: PGlite (WASM), pgvector extension
  *
@@ -94,9 +95,9 @@ export const HYBRID_SEARCH_STRATEGIES: readonly HybridSearchStrategy[] = [
 
 export interface DatabaseConfig {
   /**
-   * Storage backend to use. Default: 'sqlite'
-   * - 'sqlite': SQLite with vectorlite and FTS5 (recommended)
-   * - 'pglite': PostgreSQL-compatible with pgvector (legacy)
+   * Storage backend to use. Default: 'pglite'
+   * - 'sqlite': SQLite with vectorlite and FTS5
+   * - 'pglite': PostgreSQL-compatible with pgvector
    */
   backend: StorageBackend;
   /** Path to the database file. Default: .auditaria/knowledge-base.db */
@@ -181,6 +182,10 @@ export interface ChunkingConfig {
 }
 
 export interface EmbeddingsConfig {
+  /** Python executable for EmbeddingGemma (for example, a virtual environment). */
+  pythonCommand?: string;
+  /** Direct media embeddings with EmbeddingGemma. Default: true for that model. */
+  multimodal?: boolean;
   /** Model identifier for Transformers.js. Default: 'Xenova/multilingual-e5-small' */
   model: string;
   /** Batch size for embedding generation. Default: 10 */
@@ -421,7 +426,7 @@ export interface SearchSystemConfig {
 // ============================================================================
 
 export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
-  backend: 'libsql', // pglite, sqlite, lancedb, libsql
+  backend: 'pglite', // pglite, sqlite, lancedb, libsql
   path: '.auditaria/knowledge-base.db',
   inMemory: false,
   backupEnabled: true,
@@ -614,6 +619,23 @@ export function createConfig(
       (partial.vectorIndex ?? {}) as Partial<VectorIndexConfig>,
     ),
   };
+
+  if (config.embeddings.model === 'google/embeddinggemma-2') {
+    // Model-specific defaults apply only when the user did not choose a value.
+    if (partial.embeddings?.quantization === undefined)
+      config.embeddings.quantization = 'fp32';
+    if (partial.embeddings?.device === undefined)
+      config.embeddings.device = 'auto';
+    if (
+      config.embeddings.multimodal !== false &&
+      partial.indexing?.fileTypes === undefined
+    ) {
+      config.indexing.fileTypes = [
+        ...config.indexing.fileTypes,
+        ...AUDIO_VIDEO_EXTENSIONS,
+      ];
+    }
+  }
 
   // Auto-derive dimensions from model name for known models.
   // This prevents silent mismatch between model and dimensions config.

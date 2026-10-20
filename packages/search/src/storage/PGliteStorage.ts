@@ -6,14 +6,6 @@
  * @license
  */
 
-import { PGlite } from '@electric-sql/pglite';
-import { vector } from '@electric-sql/pglite/vector';
-import { amcheck } from '@electric-sql/pglite/contrib/amcheck';
-import type {
-  Extension,
-  ExtensionSetupResult,
-  PGliteInterface,
-} from '@electric-sql/pglite';
 import type {
   StorageAdapter,
   CreateDocumentInput,
@@ -61,6 +53,7 @@ import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
 import type { PGLiteBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_PGLITE_OPTIONS } from '../config/backend-options.js';
+import { openSearchDatabase, type SearchDatabase } from './pglite-runtime.js';
 import {
   emptyDeferReasonCounts,
   encodeDeferReasonInLastError,
@@ -99,178 +92,6 @@ function isLikelyCorruptionError(error: unknown): boolean {
     message.includes('integrity check failed') || // Our proactive check
     (message.includes('Aborted') && message.includes('-sASSERTIONS'))
   );
-}
-
-// ============================================================================
-// Bun Executable Detection and Asset Management
-// ============================================================================
-
-/**
- * Check if we're running inside a Bun compiled executable.
- * In Bun executables, import.meta.url points to the virtual filesystem.
- */
-function isRunningInBunExecutable(): boolean {
-  // Check for Bun runtime
-  if (typeof (globalThis as Record<string, unknown>).Bun === 'undefined') {
-    return false;
-  }
-
-  // Check for embedded assets indicator (set by build script)
-  if ((globalThis as Record<string, unknown>).__PGLITE_EMBEDDED_ASSETS) {
-    return true;
-  }
-
-  // Check for Bun's virtual filesystem path patterns
-  try {
-    const metaUrl = import.meta.url;
-    if (
-      metaUrl.includes('/$bunfs/') ||
-      metaUrl.includes('/~BUN/') ||
-      metaUrl.includes('%7EBUN')
-    ) {
-      return true;
-    }
-  } catch {
-    // Ignore errors
-  }
-
-  return false;
-}
-
-/**
- * Get the path where PGlite assets should be extracted/stored.
- * Uses .auditaria/pglite-assets/ in the user's home directory.
- */
-function getPGliteAssetsPath(): string {
-  const homeDir = process.env.HOME || process.env.USERPROFILE || '.';
-  return path.join(homeDir, '.auditaria', 'pglite-assets');
-}
-
-/**
- * Extract embedded PGlite assets to the filesystem.
- * This is needed for Bun compiled executables where the assets
- * can't be loaded from the virtual filesystem.
- */
-async function extractPGliteAssets(): Promise<{
-  wasmPath: string;
-  dataPath: string;
-  vectorPath: string;
-} | null> {
-  const assetsPath = getPGliteAssetsPath();
-
-  // Check for embedded assets from build script
-  const embeddedAssets = (globalThis as Record<string, unknown>)
-    .__PGLITE_EMBEDDED_ASSETS as
-    | {
-        wasm?: string; // Base64 encoded
-        data?: string; // Base64 encoded
-        vector?: string; // Base64 encoded
-      }
-    | undefined;
-
-  if (!embeddedAssets) {
-    log.warn('extractPGliteAssets:noEmbeddedAssets', {});
-    return null;
-  }
-
-  // Ensure the assets directory exists
-  if (!fs.existsSync(assetsPath)) {
-    fs.mkdirSync(assetsPath, { recursive: true });
-  }
-
-  const wasmPath = path.join(assetsPath, 'pglite.wasm');
-  const dataPath = path.join(assetsPath, 'pglite.data');
-  const vectorPath = path.join(assetsPath, 'vector.tar.gz');
-
-  // Extract assets if they don't exist or are outdated
-  const versionFile = path.join(assetsPath, 'version.txt');
-  const currentVersion = embeddedAssets.wasm?.substring(0, 32) || 'unknown';
-  let needsExtraction = true;
-
-  if (fs.existsSync(versionFile)) {
-    try {
-      const storedVersion = fs.readFileSync(versionFile, 'utf-8').trim();
-      if (
-        storedVersion === currentVersion &&
-        fs.existsSync(wasmPath) &&
-        fs.existsSync(dataPath) &&
-        fs.existsSync(vectorPath)
-      ) {
-        needsExtraction = false;
-        log.debug('extractPGliteAssets:cached', { assetsPath });
-      }
-    } catch {
-      // Ignore errors, will re-extract
-    }
-  }
-
-  if (needsExtraction) {
-    log.info('extractPGliteAssets:extracting', { assetsPath });
-
-    try {
-      if (embeddedAssets.wasm) {
-        fs.writeFileSync(wasmPath, Buffer.from(embeddedAssets.wasm, 'base64'));
-      }
-      if (embeddedAssets.data) {
-        fs.writeFileSync(dataPath, Buffer.from(embeddedAssets.data, 'base64'));
-      }
-      if (embeddedAssets.vector) {
-        fs.writeFileSync(
-          vectorPath,
-          Buffer.from(embeddedAssets.vector, 'base64'),
-        );
-      }
-      fs.writeFileSync(versionFile, currentVersion);
-
-      log.info('extractPGliteAssets:complete', { assetsPath });
-    } catch (error) {
-      log.error('extractPGliteAssets:failed', { error: String(error) });
-      return null;
-    }
-  }
-
-  return { wasmPath, dataPath, vectorPath };
-}
-
-/**
- * Create a custom vector extension that uses an absolute path for the bundle.
- * This is needed for Bun compiled executables.
- */
-function createCustomVectorExtension(bundlePath: string): Extension {
-  const setup = async (
-    _pg: PGliteInterface,
-    emscriptenOpts: unknown,
-  ): Promise<ExtensionSetupResult> => ({
-    emscriptenOpts,
-    bundlePath: new URL(`file://${bundlePath.replace(/\\/g, '/')}`),
-  });
-
-  return {
-    name: 'pgvector',
-    setup,
-  };
-}
-
-/**
- * Load PGlite options for Bun executable environment.
- * Returns wasmModule and fsBundle loaded from extracted assets.
- */
-async function loadPGliteOptionsForBun(assets: {
-  wasmPath: string;
-  dataPath: string;
-}): Promise<{
-  wasmModule: WebAssembly.Module;
-  fsBundle: Blob;
-}> {
-  const [wasmBuffer, dataBuffer] = await Promise.all([
-    fs.promises.readFile(assets.wasmPath),
-    fs.promises.readFile(assets.dataPath),
-  ]);
-
-  const wasmModule = await WebAssembly.compile(new Uint8Array(wasmBuffer));
-  const fsBundle = new Blob([new Uint8Array(dataBuffer)]);
-
-  return { wasmModule, fsBundle };
 }
 
 // ============================================================================
@@ -392,7 +213,7 @@ interface SearchResultRow {
 // ============================================================================
 
 export class PGliteStorage implements StorageAdapter {
-  private db: PGlite | null = null;
+  private db: SearchDatabase | null = null;
   private config: DatabaseConfig;
   private vectorIndexConfig: VectorIndexConfig;
   private embeddingDimensions: number;
@@ -674,47 +495,8 @@ export class PGliteStorage implements StorageAdapter {
    * Create a PGlite instance, handling Bun executable environments.
    * This is a helper method used by both initialize() and reconnect().
    */
-  private async createPGliteInstance(): Promise<PGlite> {
-    const isBunExe = isRunningInBunExecutable();
-
-    if (isBunExe) {
-      log.info('createPGliteInstance:bunExecutableDetected', {});
-
-      // Extract embedded assets
-      const assets = await extractPGliteAssets();
-
-      if (assets) {
-        // Load WASM module and filesystem bundle from extracted files
-        const { wasmModule, fsBundle } = await loadPGliteOptionsForBun(assets);
-
-        // Create custom vector extension with absolute path
-        const customVector = createCustomVectorExtension(assets.vectorPath);
-
-        // Initialize PGlite with custom options for Bun executable
-        // Note: amcheck is included for integrity checks; it may not work in Bun executable
-        // but will gracefully degrade in checkIntegrity()
-        const db = await PGlite.create({
-          dataDir: this.config.inMemory ? undefined : this.config.path,
-          wasmModule,
-          fsBundle,
-          extensions: { vector: customVector, amcheck },
-        });
-
-        log.info('createPGliteInstance:bunExecutableInitialized', {
-          assetsPath: getPGliteAssetsPath(),
-        });
-        return db;
-      } else {
-        // Fallback: Try standard initialization (may fail in Bun executable)
-        log.warn('createPGliteInstance:noEmbeddedAssets:tryingStandard', {});
-      }
-    }
-
-    // Standard initialization for Node.js/development
-    return PGlite.create({
-      dataDir: this.config.inMemory ? undefined : this.config.path,
-      extensions: { vector, amcheck },
-    });
+  private async createPGliteInstance(): Promise<SearchDatabase> {
+    return openSearchDatabase(this.config.inMemory ? undefined : this.config.path);
   }
 
   async initialize(): Promise<void> {
@@ -912,7 +694,7 @@ export class PGliteStorage implements StorageAdapter {
       } catch {
         // Ignore close errors
       }
-      this.db = null as unknown as PGlite;
+      this.db = null;
 
       // Attempt recovery from backup if available
       if (backupPath && fs.existsSync(backupPath)) {
@@ -1603,6 +1385,8 @@ export class PGliteStorage implements StorageAdapter {
    * wait for reconnection to complete before proceeding.
    */
   async reconnect(): Promise<void> {
+    // Closing an in-memory database destroys its only copy, including the schema.
+    if (this.config.inMemory) return;
     if (!this._initialized || !this.db) {
       // Not initialized, nothing to reconnect
       return;

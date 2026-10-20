@@ -1,0 +1,10 @@
+# Optional EmbeddingGemma 2 runtime (Python 3.10+).
+# Install the CUDA build of torch separately if GPU acceleration is desired.
+# Audio/video decoding also requires ffmpeg and ffprobe on PATH.
+torch>=2.10,<3
+torchvision>=0.25,<1
+transformers>=5.20.2,<6
+sentence-transformers>=6.1.0,<7
+numpy>=1.26
+Pillow>=10
+pypdfium2>=4.30

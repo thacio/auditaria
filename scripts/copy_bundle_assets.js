@@ -155,7 +155,7 @@ const pgliteDir = join(root, 'node_modules/@electric-sql/pglite/dist');
 
 if (existsSync(pgliteDir)) {
   // Core PGlite files
-  const pgliteFiles = ['pglite.wasm', 'pglite.data'];
+  const pgliteFiles = ['pglite.wasm', 'pglite.data', 'initdb.wasm'];
   for (const file of pgliteFiles) {
     const srcPath = join(pgliteDir, file);
     if (existsSync(srcPath)) {
@@ -168,7 +168,11 @@ if (existsSync(pgliteDir)) {
   // so we need to copy to project root, not bundle directory
   const extensionFiles = ['vector.tar.gz'];
   for (const file of extensionFiles) {
-    const srcPath = join(pgliteDir, file);
+    const srcPath = join(
+      root,
+      'node_modules/@electric-sql/pglite-pgvector/dist',
+      file,
+    );
     if (existsSync(srcPath)) {
       // Copy to project root (parent of bundleDir)
       copyFileSync(srcPath, join(root, file));
