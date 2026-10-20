@@ -140,7 +140,9 @@ not silently change a running workflow. Auditaria also supports a per-call
 
 Model aliases such as `haiku`, `sonnet`, and `opus` map to the selected
 provider's small, medium, or large model tier. Exact model and reasoning-effort
-support depends on the provider.
+support depends on the provider. Antigravity resolves aliases using its current
+cached model catalog, and explicit Antigravity and Copilot model IDs remain
+unchanged when the provider lists them.
 
 With `schema`, the agent returns the captured, validated object. A plain text
 completion doesn't replace a missing structured result. External agents use

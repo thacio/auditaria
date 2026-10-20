@@ -53,6 +53,7 @@ import type {
 } from '../types.js';
 import { ProviderEventType } from '../types.js';
 import type { AgyDriverConfig, AgyTranscriptEntry } from './types.js';
+import { getCachedAgyModels } from './agyModelCatalog.js';
 
 const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
 function dbg(...args: unknown[]) {
@@ -82,7 +83,11 @@ export const AGY_MODEL_DISPLAY: Readonly<Record<string, string>> = {
 
 export function getAgyModelDisplayName(model?: string): string | undefined {
   if (!model || model === 'auto') return undefined;
-  return AGY_MODEL_DISPLAY[model] ?? model;
+  return (
+    getCachedAgyModels()?.find((entry) => entry.id === model)?.displayName ??
+    AGY_MODEL_DISPLAY[model] ??
+    model
+  );
 }
 
 // agy data layout.
@@ -226,6 +231,8 @@ export function resolveAgyExecutable(): string {
 }
 
 export function classifyAgyFailure(scraped: string): string | undefined {
+  const cliError = scraped.match(/^\s*(?:error|fatal):[^\r\n]+/im)?.[0].trim();
+  if (cliError) return cliError;
   const haystack = scraped + '\n' + readLatestAgyCliLogTail();
   if (
     /not logged in|authentication failed|authentication required|authentication timed out|invalid.?grant|not logged into Antigravity|visit the URL to log in|waiting for authentication|\b401\b/i.test(
@@ -532,21 +539,22 @@ export class AgyCLIDriver implements ProviderDriver {
         await delay(FLUSH_INTERVAL_MS);
       }
 
-      // Transcript yielded nothing. Before scraping the PTY as a "response",
-      // classify it: an expired token makes agy print an OAuth prompt to the
-      // terminal, which must surface as an auth ERROR — never as the answer.
+      // A failed process remains a failed turn even after partial transcript
+      // output. Terminal startup errors must not become response content.
       const cleaned = cleanAgyOutput(rawBuf);
-      if (!emittedAny) {
-        const reason = classifyAgyFailure(cleaned);
-        if (reason) {
+      const reason =
+        !emittedAny || exitCode !== 0 ? classifyAgyFailure(cleaned) : undefined;
+      if (exitCode !== 0 || reason) {
+        emittedAny = true;
+        yield {
+          type: ProviderEventType.Error,
+          message: reason ?? `agy exited with code ${exitCode}.`,
+        };
+      } else if (!emittedAny) {
+        const text = this.extractScrapedResponse(rawBuf);
+        if (text) {
           emittedAny = true;
-          yield { type: ProviderEventType.Error, message: reason };
-        } else {
-          const text = this.extractScrapedResponse(rawBuf);
-          if (text) {
-            emittedAny = true;
-            yield { type: ProviderEventType.Content, text };
-          }
+          yield { type: ProviderEventType.Content, text };
         }
       }
       // Remember this turn's full scrape for the next turn's echo-slice.
@@ -557,9 +565,7 @@ export class AgyCLIDriver implements ProviderDriver {
         yield {
           type: ProviderEventType.Error,
           message:
-            exitCode !== 0
-              ? `agy exited with code ${exitCode} and produced no response.`
-              : 'agy produced no response. It may be unauthenticated or rate-limited; run `agy` interactively to check.',
+            'agy produced no response. It may be unauthenticated or rate-limited; run `agy` interactively to check.',
         };
       }
 

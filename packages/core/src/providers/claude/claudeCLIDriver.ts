@@ -484,10 +484,9 @@ export class ClaudeCLIDriver
     dbg('spawned (persistent)', { pid: pty.pid });
 
     this.writeQueue = new PtyWriteQueue((bytes) => pty.write(bytes));
-    if (this.config.mirrorPty !== false) {
-      this.screenMirror ??= new ProviderScreenMirror(PTY_COLS, PTY_ROWS);
-      this.screenMirror.reset();
-    }
+    // Startup dialogs need a rendered screen even when web mirroring is off.
+    this.screenMirror ??= new ProviderScreenMirror(PTY_COLS, PTY_ROWS);
+    this.screenMirror.reset();
 
     const RECENT_MAX = 128 * 1024;
     pty.onData((data) => {
@@ -1065,8 +1064,8 @@ export class ClaudeCLIDriver
   }
 
   private typePromptIntoPty(pty: MinimalPty, prompt: string): void {
-    // Strategy mirrors smithersai/claude-p: write the body, brief gap, then
-    // CR as a separate event. Ink's bracketed-paste / burst-input heuristics
+    // Write the body, a brief gap, then CR as a separate event.
+    // Ink's bracketed-paste / burst-input heuristics
     // can otherwise drop the CR into the input buffer instead of submitting.
     //
     // AUDITARIA_CLAUDE_PROVIDER: All writes through PtyWriteQueue with the
@@ -1080,7 +1079,11 @@ export class ClaudeCLIDriver
       await this.writeQueue?.writeAtomic('\x1b[I', 'system');
       // Paced chunks, not one burst: a long prompt (e.g. a large delivered
       // hive message) is otherwise dropped to its tail by Ink's input parser.
+      // One bracketed paste keeps the chunks together instead of letting
+      // individual bursts become separate pasted-content blocks mid-word.
+      await this.writeQueue?.writeAtomic('\x1b[200~', 'system');
       await this.writeQueue?.writeChunked(prompt, 'system');
+      await this.writeQueue?.writeAtomic('\x1b[201~', 'system');
       await new Promise<void>((r) => setTimeout(r, PROMPT_TYPE_DELAY_MS));
       await this.writeQueue?.writeAtomic('\r', 'system');
     });
@@ -1270,11 +1273,10 @@ export class ClaudeCLIDriver
         Date.now() - lastTrustScan > TRUST_DIALOG_SCAN_INTERVAL_MS
       ) {
         lastTrustScan = Date.now();
-        // The dialog is drawn with cursor-positioning escapes, so once the
-        // escapes are stripped both options sit on ONE text line — line-based
-        // checks fail. What is reliable: the ❯ glyph is emitted immediately
-        // before the option it marks, and the LAST ❯ is the current render.
-        const flat = stripAnsi(getRecent()).replace(/\s+/g, ' ');
+        // Incremental redraws can move only the cursor glyph, leaving the
+        // option text in place. Read the rendered grid, not raw ANSI history.
+        const screen = await this.screenMirror?.plainScreen();
+        const flat = (screen ?? stripAnsi(getRecent())).replace(/\s+/g, ' ');
         const dialog = /trust/i.test(flat) && /folder/i.test(flat);
         if (dialog) {
           const cursor = flat.lastIndexOf('❯');

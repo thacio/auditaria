@@ -81,6 +81,19 @@ export class ClaudeTurnObserver extends ProviderTurnObserver {
     super(host, 'Claude');
   }
 
+  protected override claimMatches(text: string): boolean {
+    // The terminal can wrap pasted text in both the acceptance hook and the
+    // transcript. A paced paste may be wrapped mid-word; remove only paired
+    // transport markers and their padding, preserving all pasted content.
+    const unwrapped = text
+      .replace(/\r\n/g, '\n')
+      .replace(
+        /\n{0,2}<pasted_content id="([^"\n]+)">\n([\s\S]*?)\n<\/pasted_content id="\1">\n{0,2}/g,
+        '$2',
+      );
+    return super.claimMatches(text) || super.claimMatches(unwrapped);
+  }
+
   protected override turnLooksFinished(t: TurnState): boolean {
     return (
       t.stopHookSeen ||

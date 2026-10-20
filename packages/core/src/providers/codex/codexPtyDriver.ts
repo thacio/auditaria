@@ -59,6 +59,7 @@ import {
   type ObservedTurn,
 } from '../terminal/turnObserver.js';
 import { resolveCodexExecutable } from './codexExecutable.js';
+import { buildCodexMcpArgs, tomlString } from './codexMcpConfig.js';
 
 const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
 function dbg(...args: unknown[]): void {
@@ -156,13 +157,8 @@ export function classifyCodexScreen(screen: string): CodexScreenState {
     /Working|Running|Booting|Thinking/i.test(s)
   )
     return 'working';
-  if (/Ask Codex to do anything/i.test(s)) return 'input';
+  if (/Ask Codex to do anything|› \[Pasted Content\b/i.test(s)) return 'input';
   return 'unknown';
-}
-
-/** TOML basic string with backslashes/quotes escaped. */
-function tomlString(v: string): string {
-  return `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
 /** Windows path as TOML literal string key: `projects.'C:\dir'` */
@@ -704,36 +700,7 @@ export class CodexPtyDriver
       );
     }
     // Tool bridge + Auditaria-configured MCP servers, session-scoped.
-    if (this.config.toolBridgePort && this.config.toolBridgeScript) {
-      const bridgeArgs = [
-        this.config.toolBridgeScript,
-        '--port',
-        String(this.config.toolBridgePort),
-      ];
-      for (const name of this.config.toolBridgeExclude ?? [])
-        bridgeArgs.push('--exclude', name);
-      args.push(
-        '-c',
-        `mcp_servers.auditaria-tools={command=${tomlString(process.execPath)},args=[${bridgeArgs.map(tomlString).join(',')}]}`,
-      );
-    }
-    for (const [name, server] of Object.entries(this.config.mcpServers ?? {})) {
-      if (!server.command) continue;
-      const parts = [`command=${tomlString(server.command)}`];
-      if (server.args?.length)
-        parts.push(`args=[${server.args.map(tomlString).join(',')}]`);
-      if (server.env && Object.keys(server.env).length) {
-        parts.push(
-          `env={${Object.entries(server.env)
-            .map(([k, v]) => `${tomlString(k)}=${tomlString(String(v))}`)
-            .join(',')}}`,
-        );
-      }
-      args.push(
-        '-c',
-        `mcp_servers.${name.replace(/[^A-Za-z0-9_-]/g, '_')}={${parts.join(',')}}`,
-      );
-    }
+    args.push(...buildCodexMcpArgs(this.config));
     // System context (audit rules, memory, skills) as the model instructions.
     if (this.lastSystemContext) {
       this.instructionsPath ??= join(this.hookDir!, 'instructions.md');
@@ -912,7 +879,9 @@ export class CodexPtyDriver
   private async refreshScreen(): Promise<void> {
     if (!this.screenMirror) return;
     try {
-      this.lastScreen = await this.screenMirror.plainScreen();
+      this.lastScreen = await this.screenMirror.plainScreen({
+        throughCursor: true,
+      });
     } catch {
       /* keep the previous snapshot */
       return;

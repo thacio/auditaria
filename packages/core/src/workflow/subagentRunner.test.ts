@@ -33,6 +33,15 @@ import type { AgentCall } from './hostApi.js';
 import type { WorkflowRunRecord } from './taskRegistry.js';
 import { WorkflowTaskRegistry } from './taskRegistry.js';
 import type { WorkflowService } from './workflowService.js';
+import {
+  getCachedAgyModels,
+  refreshAgyModelsCache,
+} from '../providers/agy/agyModelCatalog.js';
+
+vi.mock('../providers/agy/agyModelCatalog.js', () => ({
+  getCachedAgyModels: vi.fn(() => []),
+  refreshAgyModelsCache: vi.fn(async () => null),
+}));
 
 function fakeDriver(
   events: ProviderEvent[],
@@ -127,6 +136,34 @@ function makeCall(
 }
 
 describe('runSubagent — external leaves', () => {
+  it('loads the Antigravity catalog before resolving a model on a cold start', async () => {
+    const models = [
+      { id: 'gemini-3.8-flash-low', displayName: 'Gemini 3.8 Flash (Low)' },
+    ];
+    vi.mocked(getCachedAgyModels).mockReturnValueOnce([]);
+    vi.mocked(refreshAgyModelsCache).mockImplementationOnce(async () => {
+      vi.mocked(getCachedAgyModels).mockReturnValue(models);
+      return models;
+    });
+    const captured: { spec?: DriverSpec } = {};
+    const { ctx } = makeContext(
+      'agy',
+      [{ type: ProviderEventType.Content, text: 'done' }],
+      captured,
+    );
+    try {
+      const result = await runSubagent(
+        ctx,
+        makeCall('task', { model: 'haiku' }),
+        () => undefined,
+      );
+      expect(result.kind).toBe('ok');
+      expect(captured.spec?.model).toBe('gemini-3.8-flash-low');
+    } finally {
+      vi.mocked(getCachedAgyModels).mockReturnValue([]);
+    }
+  });
+
   it('does not treat partial text followed by a provider error as success', async () => {
     const { ctx } = makeContext(
       'claude',

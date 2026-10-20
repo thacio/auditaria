@@ -237,6 +237,80 @@ describe('CodexTurnObserver — Codex preambles', () => {
 });
 
 describe('CodexTurnObserver — chat turns (claimed)', () => {
+  it.each(['hook', 'rollout'] as const)(
+    'claims a completion notification with omitted spaced em dashes (%s first)',
+    async (firstChannel) => {
+      const h = new Harness();
+      const notification = [
+        '[Auditaria background task event — not typed by the user.]',
+        '<task-notification>',
+        '<task-id>wv8zzra6l</task-id>',
+        '<status>completed</status>',
+        '<result>{"verified":true}</result>',
+        '<diagnostics>journal.jsonl — one result per completed agent.',
+        'Read this file BEFORE diagnosing — do not assume non-empty results.',
+        'Resume the workflow — unchanged agents replay from cache.</diagnostics>',
+        '</task-notification>',
+      ].join('\n');
+      const accepted = notification.replace(/—/g, '');
+      const claim = h.observer.claimNextTurn(notification);
+      h.line(meta());
+      h.line(taskStarted());
+      const hook = () =>
+        h.hook('UserPromptSubmit', {
+          ...hookBase,
+          turn_id: TURN,
+          prompt: accepted,
+        });
+      const rollout = () => h.line(userMsg(accepted));
+      (firstChannel === 'hook' ? hook : rollout)();
+      await h.tick();
+      expect(claim.accepted).toBe(true);
+      (firstChannel === 'hook' ? rollout : hook)();
+      await h.tick();
+      h.line(assistant('Workflow completed: {"verified":true}.'));
+      h.line(taskComplete('Workflow completed: {"verified":true}.'));
+      await h.tick();
+      h.idlePrompt = true;
+      await h.tick(1_000);
+      expect(claim.done).toBe(true);
+      await h.tick(61_000);
+      h.observer.releaseClaim('timeout');
+      expect(await drained(claim.events)).toEqual([
+        {
+          type: ProviderEventType.Content,
+          text: 'Workflow completed: {"verified":true}.',
+        },
+        expect.objectContaining({ type: ProviderEventType.Finished }),
+      ]);
+      expect(h.accepted).toBe(1);
+      expect(h.externalTurns).toHaveLength(0);
+      expect(h.notices.filter((n) => n.kind === 'user_message')).toHaveLength(
+        0,
+      );
+      expect(h.observer.isTurnActive()).toBe(false);
+    },
+  );
+
+  it.each([
+    ['Completion — result 24', 'Completion  result 42'],
+    ['Résultat — vérifié', 'Rsultat  vrifi'],
+    ['Completion — value a—b', 'Completion  value ab'],
+  ])('does not claim changed content: %s', async (claimed, accepted) => {
+    const h = new Harness();
+    const claim = h.observer.claimNextTurn(claimed);
+    h.hook('UserPromptSubmit', {
+      ...hookBase,
+      turn_id: TURN,
+      prompt: accepted,
+    });
+    await h.tick();
+    expect(claim.accepted).toBe(false);
+    expect(h.externalTurns).toHaveLength(1);
+    h.observer.releaseClaim('dispose');
+    h.observer.dispose();
+  });
+
   it('a text turn: prompt accepted by the hook, text from the rollout, Stop closes it', async () => {
     const h = new Harness();
     const claim = h.observer.claimNextTurn('Reply with exactly the word: PONG');

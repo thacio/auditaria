@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { classifyCodexScreen } from './codexPtyDriver.js';
+import { ProviderScreenMirror } from '../terminal/screenMirror.js';
 
 // Screens captured from Codex CLI 0.153.4 (scratchpad codex-probes), stripped.
 const INPUT = `╭──────────────────────────────╮
@@ -40,6 +41,31 @@ const WORKING = `• Running the requested command now and waiting for it to fin
 › Ask Codex to do anything`;
 
 describe('classifyCodexScreen', () => {
+  it('recognizes a pending paste without stale working rows below the active composer', async () => {
+    const mirror = new ProviderScreenMirror(200, 50);
+    try {
+      mirror.write(
+        '\x1b[43;1H• Working (0s • esc to interrupt)' +
+          '\x1b[46;1H› Ask Codex to do anything' +
+          '\x1b[H• Started.\r\n' +
+          '\x1b[10;1H› [Pasted Content 1688 chars]\x1b[10;30H',
+      );
+      expect(classifyCodexScreen(await mirror.plainScreen())).toBe('working');
+      expect(
+        classifyCodexScreen(await mirror.plainScreen({ throughCursor: true })),
+      ).toBe('input');
+      mirror.write(
+        '\x1b[9;1H• Working (1s • esc to interrupt)' +
+          '\x1b[10;1H\x1b[2K› Ask Codex to do anything',
+      );
+      expect(
+        classifyCodexScreen(await mirror.plainScreen({ throughCursor: true })),
+      ).toBe('working');
+    } finally {
+      mirror.dispose();
+    }
+  });
+
   it('recognises the idle input prompt', () => {
     expect(classifyCodexScreen(INPUT)).toBe('input');
   });

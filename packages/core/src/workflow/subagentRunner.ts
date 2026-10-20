@@ -55,6 +55,10 @@ import {
 } from '../providers/driverFactory.js';
 import { clampEffort, resolveLeafModel } from './modelAliases.js';
 import {
+  getCachedAgyModels,
+  refreshAgyModelsCache,
+} from '../providers/agy/agyModelCatalog.js';
+import {
   StructuredOutputTool,
   registerStructuredOutput,
   releaseStructuredOutput,
@@ -640,6 +644,9 @@ async function runExternalLeaf(
   const custom = opts.agentType
     ? config.getAgentRegistry().getDefinition(opts.agentType)
     : undefined;
+  if (family === 'agy' && !getCachedAgyModels()?.length) {
+    await refreshAgyModelsCache();
+  }
   const resolved = resolveLeafModel(
     family,
     opts.model ??

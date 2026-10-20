@@ -8,18 +8,45 @@
  * These mirror behavior validated empirically against the live agy binary.
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
+  AgyCLIDriver,
   AGY_MODEL_DISPLAY,
   getAgyModelDisplayName,
   cleanAgyOutput,
   mapAgyEntry,
 } from './agyCLIDriver.js';
-import { AGY_MODEL_IDS, ProviderEventType } from '../types.js';
+import {
+  AGY_MODEL_IDS,
+  ProviderEventType,
+  type ProviderEvent,
+} from '../types.js';
 import type { AgyTranscriptEntry } from './types.js';
 import { agyTokenLimit } from '../../core/tokenLimits.js';
+import { getCachedAgyModels } from './agyModelCatalog.js';
+import { getPty } from '../../utils/getPty.js';
+
+vi.mock('node:fs', () => ({
+  readFileSync: vi.fn(() => ''),
+  writeFileSync: vi.fn(),
+  existsSync: vi.fn(() => true),
+  mkdirSync: vi.fn(),
+  readdirSync: vi.fn(() => []),
+  statSync: vi.fn(),
+  unlinkSync: vi.fn(),
+}));
+vi.mock('../../utils/getPty.js', () => ({ getPty: vi.fn() }));
+
+vi.mock('./agyModelCatalog.js', () => ({
+  getCachedAgyModels: vi.fn(),
+}));
 
 describe('getAgyModelDisplayName', () => {
+  beforeEach(() => {
+    vi.mocked(getCachedAgyModels).mockReturnValue(undefined);
+  });
+
   it('returns undefined for auto / undefined (omit --model)', () => {
     expect(getAgyModelDisplayName(undefined)).toBeUndefined();
     expect(getAgyModelDisplayName('auto')).toBeUndefined();
@@ -37,6 +64,19 @@ describe('getAgyModelDisplayName', () => {
   it('passes through unknown ids unchanged', () => {
     expect(getAgyModelDisplayName('some-future-model')).toBe(
       'some-future-model',
+    );
+  });
+
+  it('uses the live catalog for new ids and updated display names', () => {
+    vi.mocked(getCachedAgyModels).mockReturnValue([
+      { id: 'gemini-3.8-flash-low', displayName: 'Gemini 3.8 Flash (Low)' },
+      { id: 'claude-sonnet-4.6', displayName: 'Updated Sonnet name' },
+    ]);
+    expect(getAgyModelDisplayName('gemini-3.8-flash-low')).toBe(
+      'Gemini 3.8 Flash (Low)',
+    );
+    expect(getAgyModelDisplayName('claude-sonnet-4.6')).toBe(
+      'Updated Sonnet name',
     );
   });
 
@@ -179,5 +219,109 @@ describe('mapAgyEntry', () => {
       type: ProviderEventType.ToolResult,
       toolId: 'agy-9',
     });
+  });
+});
+
+describe('AgyCLIDriver process results', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.mocked(readFileSync).mockReturnValue('');
+    vi.mocked(getCachedAgyModels).mockReturnValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function runTurn(
+    output: string,
+    exitCode: number,
+    partialTranscript?: string,
+  ): Promise<ProviderEvent[]> {
+    const disposable = { dispose: vi.fn() };
+    vi.mocked(getPty).mockResolvedValue({
+      name: 'node-pty',
+      module: {
+        spawn: () => ({
+          pid: 0,
+          write: vi.fn(),
+          kill: vi.fn(),
+          onData: (callback: (data: string) => void) => {
+            callback(output);
+            return disposable;
+          },
+          onExit: (callback: (event: { exitCode: number }) => void) => {
+            callback({ exitCode });
+            return disposable;
+          },
+        }),
+      },
+    });
+    const driver = new AgyCLIDriver({ cwd: '.', model: 'auto' });
+    if (partialTranscript) {
+      driver.setSessionId('existing');
+      vi.mocked(readFileSync)
+        .mockReturnValue(partialTranscript)
+        .mockReturnValueOnce('');
+    }
+    const result = (async () => {
+      const events: ProviderEvent[] = [];
+      for await (const event of driver.sendMessage(
+        'Return the result',
+        new AbortController().signal,
+      )) {
+        events.push(event);
+      }
+      return events;
+    })();
+    try {
+      await vi.runAllTimersAsync();
+      return await result;
+    } finally {
+      driver.dispose();
+    }
+  }
+
+  it.each([0, 1])(
+    'reports startup errors as failures instead of content (exit %s)',
+    async (exitCode) => {
+      const events = await runTurn(
+        '\x1b[31merror: invalid model selection: retired-model\x1b[0m\r\n',
+        exitCode,
+      );
+      expect(events).toEqual([
+        {
+          type: ProviderEventType.Error,
+          message: 'error: invalid model selection: retired-model',
+        },
+        { type: ProviderEventType.Finished },
+      ]);
+    },
+  );
+
+  it('reports a nonzero exit after emitting partial transcript content', async () => {
+    const events = await runTurn(
+      '',
+      7,
+      JSON.stringify({
+        step_index: 1,
+        source: 'MODEL',
+        type: 'PLANNER_RESPONSE',
+        status: 'DONE',
+        content: 'Partial answer',
+      }),
+    );
+    expect(events).toEqual([
+      { type: ProviderEventType.Content, text: 'Partial answer' },
+      { type: ProviderEventType.Error, message: 'agy exited with code 7.' },
+      { type: ProviderEventType.Finished },
+    ]);
+  });
+
+  it('keeps successful terminal fallback content', async () => {
+    expect(await runTurn('Completed result', 0)).toEqual([
+      { type: ProviderEventType.Content, text: 'Completed result' },
+      { type: ProviderEventType.Finished },
+    ]);
   });
 });

@@ -102,6 +102,19 @@ export class CodexTurnObserver extends ProviderTurnObserver {
     super(host, 'Codex');
   }
 
+  protected override claimMatches(text: string): boolean {
+    if (super.claimMatches(text)) return true;
+    if (!this.claim) return false;
+    // Codex terminal input can omit em dashes surrounded by whitespace.
+    // Compare the full remaining text so other content changes stay distinct.
+    const normalize = (value: string) =>
+      value
+        .replace(/(?<=\s)\u2014(?=\s)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return normalize(this.claim.prompt) === normalize(text);
+  }
+
   protected override turnLooksFinished(t: TurnState): boolean {
     return t.stopHookSeen || t.completionSeenAt !== undefined;
   }

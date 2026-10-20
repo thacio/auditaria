@@ -45,6 +45,7 @@ import type {
   CodexDriverConfig,
   CodexItem,
 } from './types.js';
+import { buildCodexMcpArgs } from './codexMcpConfig.js';
 
 const DEBUG = false; // AUDITARIA_CODEX_PROVIDER: Debug logging disabled
 function dbg(...args: unknown[]) {
@@ -101,11 +102,6 @@ export class CodexCLIDriver implements ProviderDriver {
     systemContext?: string,
     attachmentFiles?: AttachmentFile[], // AUDITARIA_ATTACHMENTS: Image temp files
   ): AsyncGenerator<ProviderEvent> {
-    // AUDITARIA_CODEX_PROVIDER: Inject MCP servers into ~/.codex/config.toml before spawning.
-    // Windows shell invocation can mangle -c flag values with TOML arrays (strips double quotes),
-    // so we write to the config file directly where TOML syntax is preserved.
-    this.injectMcpConfig();
-
     const args = this.buildArgs();
 
     // AUDITARIA_CODEX_PROVIDER: Write system context to instructions file, pass via -c flag
@@ -144,9 +140,19 @@ export class CodexCLIDriver implements ProviderDriver {
     };
     // AUDITARIA_PROVIDER_AVAILABILITY: spawn the resolved target directly
     // (no PowerShell — blocked on some corporate PCs); shell only as fallback.
-    const proc =
-      spawnWithoutShell('codex', args, spawnOptions) ??
-      spawn('codex', args, { ...spawnOptions, shell: getShellOption() });
+    const mcpArgs = buildCodexMcpArgs(this.config);
+    const directArgs = mcpArgs.length
+      ? [...args, ...mcpArgs, '-c', 'tool_output_token_limit=10000']
+      : args;
+    let proc = spawnWithoutShell('codex', directArgs, spawnOptions);
+    if (!proc) {
+      // Shell fallback uses the file because shells can strip TOML quotes.
+      this.injectMcpConfig();
+      proc = spawn('codex', args, {
+        ...spawnOptions,
+        shell: getShellOption(),
+      });
+    }
     this.activeProcess = proc;
     const spawnedPid = proc.pid;
     if (spawnedPid) trackChildProcess(spawnedPid);

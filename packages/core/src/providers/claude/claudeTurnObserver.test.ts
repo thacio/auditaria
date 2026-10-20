@@ -163,6 +163,62 @@ const toolResultLine = (
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('ClaudeTurnObserver — chat turns (claimed)', () => {
+  it.each(['hook', 'transcript'])(
+    'attributes a wrapped workflow notification from the %s to its pending claim',
+    async (channel) => {
+      const h = new Harness();
+      const prompt =
+        'Workflow completed\n<result>{"word":"ALPHA"}</result>\n<usage>20</usage>';
+      const accepted =
+        'Workflow complete\n\n<pasted_content id="e711">\nd\n' +
+        '<result>{"word":"ALPHA"}</res\n</pasted_content id="e711">\n\n' +
+        'ult>\n<usage>20</usage>';
+      const claim = h.observer.claimNextTurn(prompt);
+      if (channel === 'hook') {
+        h.hook('UserPromptSubmit', {
+          prompt: accepted,
+          prompt_id: 'completed-workflow',
+        });
+      } else {
+        h.line(userLine('completed-workflow', accepted));
+      }
+      await h.tick();
+      expect(claim.accepted).toBe(true);
+      expect(h.externalTurns).toHaveLength(0);
+      h.line(
+        assistantBlock('summary', 'end_turn', {
+          type: 'text',
+          text: 'Workflow completed: ALPHA.',
+        }),
+      );
+      h.hook('Stop', { prompt_id: 'completed-workflow' });
+      await h.tick();
+      expect(await drained(claim.events)).toEqual(
+        expect.arrayContaining([
+          {
+            type: ProviderEventType.Content,
+            text: 'Workflow completed: ALPHA.',
+          },
+          expect.objectContaining({ type: ProviderEventType.Finished }),
+        ]),
+      );
+    },
+  );
+
+  it('does not claim different pasted content with the same transport markers', async () => {
+    const h = new Harness();
+    const claim = h.observer.claimNextTurn('Workflow completed ALPHA');
+    h.hook('UserPromptSubmit', {
+      prompt:
+        '\n\n<pasted_content id="e711">\nWorkflow completed BETA\n</pasted_content id="e711">\n\n',
+      prompt_id: 'unrelated',
+    });
+    await h.tick();
+    expect(claim.accepted).toBe(false);
+    expect(h.externalTurns).toHaveLength(1);
+    h.observer.releaseClaim('aborted');
+  });
+
   it('attributes the accepted prompt to the claim and streams text→tool→text in transcript order', async () => {
     const h = new Harness();
     const claim = h.observer.claimNextTurn('say starting, run echo, say done');

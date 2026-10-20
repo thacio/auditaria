@@ -80,14 +80,19 @@ export class ProviderScreenMirror {
    * per row, trailing whitespace trimmed) — what a CLI-only terminal hand-off
    * shows, and what dialog/idle classification should look at instead of
    * ANSI history. Sequenced after pending writes like snapshot().
+   * throughCursor omits rows below the active input, where inline TUIs can
+   * leave older frames after their visible content shrinks.
    */
-  plainScreen(): Promise<string> {
+  plainScreen(options?: { throughCursor?: boolean }): Promise<string> {
     if (this.disposed) return Promise.resolve('');
     return new Promise((resolve) => {
       this.term.write('', () => {
         const buffer = this.term.buffer.active;
         const lines: string[] = [];
-        for (let i = 0; i < this.term.rows; i++) {
+        const rows = options?.throughCursor
+          ? Math.min(this.term.rows, buffer.cursorY + 1)
+          : this.term.rows;
+        for (let i = 0; i < rows; i++) {
           lines.push(
             buffer.getLine(buffer.viewportY + i)?.translateToString(true) ?? '',
           );

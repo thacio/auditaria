@@ -12,6 +12,7 @@
 
 import type { WorkflowProviderFamily } from './types.js';
 import { getCodexModelIds } from '../providers/types.js';
+import { getProviderModelIds } from '../providers/providerModelIds.js';
 
 export type ModelTier = 'small' | 'medium' | 'large';
 
@@ -29,25 +30,18 @@ const GEMINI_TIERS: Record<string, ModelTier> = {
   pro: 'large',
 };
 
-const AGY_TIERS: Record<string, ModelTier> = {
-  'gemini-3.5-flash-low': 'small',
-  'gemini-3.5-flash-medium': 'small',
-  'gemini-3.5-flash-high': 'medium',
-  'gemini-3.1-pro-low': 'medium',
-  'gemini-3.1-pro-high': 'large',
-  'claude-sonnet-4.6': 'medium',
-  'claude-opus-4.6': 'large',
-};
-
 /** The tier a foreign alias means, or undefined when it is not a known alias. */
 export function tierOfAlias(model: string): ModelTier | undefined {
   const key = model.toLowerCase();
   if (CLAUDE_TIERS[key]) return CLAUDE_TIERS[key];
   if (GEMINI_TIERS[key]) return GEMINI_TIERS[key];
-  if (AGY_TIERS[key]) return AGY_TIERS[key];
+  if (/^claude-haiku-/.test(key)) return 'small';
+  if (/^claude-sonnet-/.test(key)) return 'medium';
+  if (/^claude-opus-/.test(key)) return 'large';
+  if (/^gemini-.*(?:flash-high|pro-low)$/.test(key)) return 'medium';
   if (/gemini-.*flash/.test(key)) return 'small';
   if (/gemini-.*pro/.test(key)) return 'large';
-  if (/mini|nano/.test(key)) return 'small';
+  if (/(?:^|[-_])(?:mini|nano)(?:$|[-_])/.test(key)) return 'small';
   return undefined;
 }
 
@@ -70,9 +64,8 @@ export function isNativeModel(
         getCodexModelIds().includes(key)
       );
     case 'copilot':
-      return key === 'auto';
     case 'agy':
-      return key in AGY_TIERS || key === 'auto';
+      return key === 'auto' || getProviderModelIds(family).includes(key);
     default:
       return false;
   }
@@ -99,12 +92,23 @@ export function modelForTier(
     }
     case 'copilot':
       return 'auto';
-    case 'agy':
-      return tier === 'small'
-        ? 'gemini-3.5-flash-low'
-        : tier === 'medium'
-          ? 'gemini-3.5-flash-high'
-          : 'gemini-3.1-pro-high';
+    case 'agy': {
+      // Use the same catalog as the model menu. Prefer the newest matching
+      // Gemini tier so aliases keep working as provider model versions change.
+      const ids = getProviderModelIds('agy').sort((a, b) =>
+        b.localeCompare(a, undefined, { numeric: true }),
+      );
+      const preferred =
+        tier === 'small'
+          ? /^gemini-.*flash-low$/
+          : tier === 'medium'
+            ? /^gemini-.*flash-high$/
+            : /^gemini-.*pro-high$/;
+      return (
+        ids.find((id) => preferred.test(id)) ??
+        ids.find((id) => tierOfAlias(id) === tier)
+      );
+    }
     default:
       return undefined;
   }

@@ -17,7 +17,6 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { resolveAgyExecutable } from './agyCLIDriver.js';
 
 export interface AgyModelEntry {
   id: string;
@@ -82,7 +81,8 @@ export function refreshAgyModelsCache(
   return inFlight;
 }
 
-function runList(): Promise<AgyModelEntry[] | null> {
+async function runList(): Promise<AgyModelEntry[] | null> {
+  const { resolveAgyExecutable } = await import('./agyCLIDriver.js');
   return new Promise((resolve) => {
     let child;
     try {

@@ -23,6 +23,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -332,7 +333,7 @@ export class ClaudeCLIDriverPrint implements ProviderDriver {
     const configObj = { mcpServers: claudeMcpServers };
     this.mcpConfigPath = join(
       tmpdir(),
-      `auditaria-mcp-${process.pid}-${Date.now()}.json`,
+      `auditaria-mcp-${process.pid}-${randomUUID()}.json`,
     );
     writeFileSync(this.mcpConfigPath, JSON.stringify(configObj, null, 2));
     dbg('wrote MCP config', {

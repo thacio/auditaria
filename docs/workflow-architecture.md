@@ -31,11 +31,22 @@ OS security boundary or provide comprehensive CPU and memory containment.
 
 Gemini agents use `LocalAgentExecutor`. External providers use their headless
 drivers and the Auditaria tool bridge. Codex, Copilot, and Antigravity leaves
-are serialized to protect shared provider state.
+are serialized within each Auditaria process to protect shared provider state.
 
 Each custom Gemini agent retains its supported prompt, model, run, and tool
 configuration. Model aliases are unique per leaf so concurrent runs cannot
 replace each other's settings. Custom MCP configuration requires Gemini.
+Antigravity aliases and display names use the provider's cached model catalog; a
+cold start refreshes it before selecting a workflow model. Explicit models
+listed by Antigravity or Copilot pass through unchanged.
+
+Concurrent bridge requests share one startup operation. The session manager
+closes listeners it owns, including a startup that finishes after disposal, and
+leaves borrowed listeners with their owner. Claude leaves use unique MCP
+configuration files so simultaneous launches keep their schemas separate. Codex
+launches pass MCP configuration as process arguments when the executable can run
+directly. Its legacy shell fallback still uses the provider's shared
+configuration file.
 
 Schema-mode calls register a per-call `StructuredOutput` schema. Gemini returns
 the captured validated object. External providers submit through the MCP bridge,
@@ -108,6 +119,9 @@ unavailable, or partial rather than displayed as a measured zero.
 
 ## Current limitations
 
+- Antigravity uses MCP configuration and transcript discovery shared within its
+  provider home. The in-process queue doesn't isolate separate Auditaria
+  instances using that same home.
 - Worktree and remote isolation are rejected because provider processes and
   bridged tools do not yet share a per-leaf execution directory.
 - Nonempty shell-command clamps are rejected until all native and bridged shell
@@ -139,11 +153,14 @@ unavailable, or partial rather than displayed as a measured zero.
 
 Regression tests cover the parser, VM boundary, host API, cancellation, replay,
 recovery, leases, discovery, structured results, and research voting. Provider
-fakes test orchestration without making paid model requests.
+fakes test orchestration without making paid model requests. Additional
+regressions cover bridge startup and disposal races, per-call MCP configuration,
+model catalog changes, terminal paste handling, completion delivery, and
+subprocess failures after partial output.
 
 | Check                                   | Result                                     |
 | --------------------------------------- | ------------------------------------------ |
-| Core workflow suite                     | 130 tests passed across 15 files           |
+| Core workflow and provider regressions  | Passed                                     |
 | CLI interaction suite                   | 23 tests passed                            |
 | Web feature and manager protocol suites | 9 tests passed                             |
 | Browser interaction fixtures            | 17 checks passed                           |
@@ -151,8 +168,25 @@ fakes test orchestration without making paid model requests.
 | TypeScript                              | `tsc -b packages/core packages/cli` passed |
 | Build                                   | Bundle generation and asset copying passed |
 
-Live checks used isolated project records and transcripts. They verified desktop
-and mobile layouts, native clipboard access, full transcript display,
-save-collision handling, and coexistence with CLI dialogs. No model requests or
-changes to the user's settings and history were needed. Live execution across
-every provider remains outside this coverage.
+Interface checks used isolated project records and transcripts. They verified
+desktop and mobile layouts, native clipboard access, full transcript display,
+save-collision handling, and coexistence with CLI dialogs.
+
+Live provider checks on October 20, 2026, used separate test projects and
+provider profiles:
+
+- Claude Haiku returned two distinct parallel structured results. A cached
+  resume verified completion delivery without rerunning the agents.
+- Codex GPT-6 Luna completed a two-stage structured pipeline and a fresh
+  `StructuredOutput` bridge call. A cached resume verified completion delivery
+  without rerunning the agent.
+- Antigravity Gemini 3.8 Flash Low read a local proof file and completed a
+  separate `StructuredOutput` bridge call. The file read used native tools; the
+  structured-result check verified an actual Auditaria MCP invocation.
+
+Final checks used the rebuilt executable and verified automatic completion
+summaries, return to idle, live web status transitions, and result details
+without browser errors. Completion checks continued beyond the prompt-acceptance
+timeout to catch delayed failures. Provider tests don't yet include live Gemini
+or Copilot calls. Antigravity's missing usage and partially reported
+interrupted-leaf usage remain labeled unavailable or partial.

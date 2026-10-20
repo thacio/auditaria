@@ -151,6 +151,9 @@ export class AgentSessionManager {
   // ToolExecutorServer state — shared with ProviderManager if one exists
   private toolExecutorServer?: ToolExecutorServer;
   private bridgeScriptPath?: string;
+  private ownsToolExecutorServer = false;
+  private bridgeInitialization?: Promise<void>;
+  private disposed = false;
 
   constructor(
     private readonly cwd: string,
@@ -171,8 +174,13 @@ export class AgentSessionManager {
 
   // Allow external injection of an already-running ToolExecutorServer
   setToolBridgeInfo(server: ToolExecutorServer, scriptPath: string): void {
+    if (this.disposed) return;
+    if (this.ownsToolExecutorServer && this.toolExecutorServer !== server) {
+      this.toolExecutorServer?.stop();
+    }
     this.toolExecutorServer = server;
     this.bridgeScriptPath = scriptPath;
+    this.ownsToolExecutorServer = false;
   }
 
   // -------------------------------------------------------------------
@@ -180,6 +188,7 @@ export class AgentSessionManager {
   // -------------------------------------------------------------------
 
   async createSession(opts: CreateSessionOpts): Promise<SessionInfo> {
+    this.assertNotDisposed();
     const { provider, model, systemContext } = opts;
     const mode = opts.mode ?? 'work';
     const allowSubAgents = opts.allowSubAgents ?? false;
@@ -238,6 +247,7 @@ export class AgentSessionManager {
     if (provider !== 'auditaria-cli') {
       await this.ensureToolExecutorServer();
     }
+    this.assertNotDisposed();
 
     // Build exclude list for MCP bridge
     const excludeTools: string[] = [...ALWAYS_EXCLUDED_TOOLS];
@@ -294,6 +304,9 @@ export class AgentSessionManager {
         readOnly: mode === 'consult',
       });
     }
+
+    if (this.disposed) driver.dispose();
+    this.assertNotDisposed();
 
     // AUDITARIA_AGENT_SESSION: Resume a stored native CLI session if requested.
     // Must run BEFORE the first sendMessage so the driver emits --resume <id>
@@ -508,6 +521,7 @@ export class AgentSessionManager {
   }
 
   disposeAll(): void {
+    this.disposed = true;
     for (const [id] of this.sessions) {
       try {
         this.killSession(id);
@@ -516,6 +530,9 @@ export class AgentSessionManager {
       }
     }
     this.sessions.clear();
+    if (this.ownsToolExecutorServer) this.toolExecutorServer?.stop();
+    this.toolExecutorServer = undefined;
+    this.ownsToolExecutorServer = false;
     dbg('disposed all sessions');
   }
 
@@ -535,27 +552,40 @@ export class AgentSessionManager {
   }
 
   private async ensureToolExecutorServer(): Promise<void> {
-    if (this.toolExecutorServer) return;
+    if (this.disposed || this.toolExecutorServer?.getPort()) return;
+    this.bridgeInitialization ??= this.startToolExecutorServer().finally(() => {
+      this.bridgeInitialization = undefined;
+    });
+    await this.bridgeInitialization;
+  }
+
+  private async startToolExecutorServer(): Promise<void> {
     if (!this.toolRegistry) {
       dbg('no tool registry, skipping tool bridge');
       return;
     }
 
-    // Resolve bridge script path
-    if (!this.bridgeScriptPath) {
-      this.bridgeScriptPath = await resolveBridgeScriptPath();
-      if (!this.bridgeScriptPath) {
-        dbg('could not resolve bridge script path');
-        return;
-      }
+    const scriptPath =
+      this.bridgeScriptPath ?? (await resolveBridgeScriptPath());
+    if (this.disposed || this.toolExecutorServer?.getPort()) return;
+    if (!scriptPath) {
+      dbg('could not resolve bridge script path');
+      return;
     }
 
     const server = new ToolExecutorServer(this.toolRegistry);
     try {
       await server.start();
+      if (this.disposed || this.toolExecutorServer?.getPort()) {
+        server.stop();
+        return;
+      }
       this.toolExecutorServer = server;
+      this.bridgeScriptPath = scriptPath;
+      this.ownsToolExecutorServer = true;
       dbg('tool executor server started', { port: server.getPort() });
     } catch (e) {
+      server.stop();
       dbg('failed to start tool executor server', e);
     }
   }
@@ -563,6 +593,10 @@ export class AgentSessionManager {
   // -------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------
+
+  private assertNotDisposed(): void {
+    if (this.disposed) throw new Error('Agent session manager is disposed.');
+  }
 
   private generateId(prefix: string): string {
     const count = (this.counters.get(prefix) ?? 0) + 1;
