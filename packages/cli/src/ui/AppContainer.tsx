@@ -814,6 +814,10 @@ export const AppContainer = (props: AppContainerProps) => {
     }
   }, [authState, authContext, setAuthState]);
 
+  const handleShowAuthSelection = useCallback(() => {
+    setAuthState(AuthState.Updating);
+  }, [setAuthState]);
+
   const {
     proQuotaRequest,
     handleProQuotaChoice,
@@ -831,7 +835,7 @@ export const AppContainer = (props: AppContainerProps) => {
     paidTier,
     settings,
     setModelSwitchedFromQuotaError,
-    onShowAuthSelection: () => setAuthState(AuthState.Updating),
+    onShowAuthSelection: handleShowAuthSelection,
     errorVerbosity: settings.merged.ui.errorVerbosity,
   });
 
