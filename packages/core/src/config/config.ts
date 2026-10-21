@@ -270,6 +270,7 @@ export interface TelemetrySettings {
   target?: TelemetryTarget;
   otlpEndpoint?: string;
   otlpProtocol?: 'grpc' | 'http';
+  otlpHeaders?: Record<string, string>;
   logPrompts?: boolean;
   outfile?: string;
   useCollector?: boolean;
@@ -1193,6 +1194,7 @@ export class Config implements McpContext, AgentLoopContext {
       target: params.telemetry?.target ?? DEFAULT_TELEMETRY_TARGET,
       otlpEndpoint: params.telemetry?.otlpEndpoint ?? DEFAULT_OTLP_ENDPOINT,
       otlpProtocol: params.telemetry?.otlpProtocol,
+      otlpHeaders: params.telemetry?.otlpHeaders,
       logPrompts: params.telemetry?.logPrompts ?? true,
       outfile: params.telemetry?.outfile,
       useCollector: params.telemetry?.useCollector,
@@ -3083,6 +3085,10 @@ export class Config implements McpContext, AgentLoopContext {
 
   getTelemetryOtlpProtocol(): 'grpc' | 'http' {
     return this.telemetrySettings.otlpProtocol ?? 'grpc';
+  }
+
+  getTelemetryOtlpHeaders(): Record<string, string> {
+    return this.telemetrySettings.otlpHeaders ?? {};
   }
 
   getTelemetryTarget(): TelemetryTarget {

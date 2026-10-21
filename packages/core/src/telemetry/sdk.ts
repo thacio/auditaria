@@ -19,6 +19,7 @@ import { OTLPTraceExporter as _OTLPTraceExporterHttp } from '@opentelemetry/expo
 import { OTLPLogExporter as _OTLPLogExporterHttp } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPMetricExporter as _OTLPMetricExporterHttp } from '@opentelemetry/exporter-metrics-otlp-http';
 import { CompressionAlgorithm as _CompressionAlgorithm } from '@opentelemetry/otlp-exporter-base';
+import type { Metadata as _Metadata } from '@grpc/grpc-js';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { resourceFromAttributes } from '@opentelemetry/resources';
@@ -301,6 +302,9 @@ export async function initializeTelemetry(
       exportIntervalMillis: 30000,
     });
   } else if (useOtlp) {
+    const otlpHeaders = config.getTelemetryOtlpHeaders?.() ?? {};
+    const hasHeaders = Object.keys(otlpHeaders).length > 0;
+
     if (otlpProtocol === 'http') {
       const buildUrl = (path: string) => {
         const url = new URL(parsedEndpoint);
@@ -310,30 +314,55 @@ export async function initializeTelemetry(
       };
       spanExporter = new OTLPTraceExporterHttp({
         url: buildUrl('v1/traces'),
+        headers: hasHeaders ? otlpHeaders : undefined,
       });
       logExporter = new OTLPLogExporterHttp({
         url: buildUrl('v1/logs'),
+        headers: hasHeaders ? otlpHeaders : undefined,
       });
       metricReader = new PeriodicExportingMetricReader({
         exporter: new OTLPMetricExporterHttp({
           url: buildUrl('v1/metrics'),
+          headers: hasHeaders ? otlpHeaders : undefined,
         }),
         exportIntervalMillis: 10000,
       });
     } else {
       // grpc
+      let metadata: Metadata | undefined;
+      if (hasHeaders) {
+        const candidateMetadata = new Metadata();
+        let validCount = 0;
+        for (const [key, value] of Object.entries(otlpHeaders)) {
+          try {
+            candidateMetadata.set(key, value);
+            validCount++;
+          } catch (error) {
+            debugLogger.warn(
+              `[Telemetry] Skipping invalid gRPC metadata key "${key}":`,
+              error,
+            );
+          }
+        }
+        if (validCount > 0) {
+          metadata = candidateMetadata;
+        }
+      }
       spanExporter = new OTLPTraceExporter({
         url: parsedEndpoint,
         compression: CompressionAlgorithm.GZIP,
+        ...(metadata && { metadata }),
       });
       logExporter = new OTLPLogExporter({
         url: parsedEndpoint,
         compression: CompressionAlgorithm.GZIP,
+        ...(metadata && { metadata }),
       });
       metricReader = new PeriodicExportingMetricReader({
         exporter: new OTLPMetricExporter({
           url: parsedEndpoint,
           compression: CompressionAlgorithm.GZIP,
+          ...(metadata && { metadata }),
         }),
         exportIntervalMillis: 10000,
       });
