@@ -87,8 +87,14 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
     maxLinesLimit: maxLines,
   });
 
-  const combinedPaddingAndBorderWidth = 4;
-  const childWidth = terminalWidth - combinedPaddingAndBorderWidth;
+  const totalContainerWidth = terminalWidth || 0;
+  const borderSpace = 4;
+  const scrollbarBuffer = isAlternateBuffer ? 1 : 0;
+  const childWidth = Math.max(0, totalContainerWidth - borderSpace);
+  const safeContentWidth = Math.max(
+    0,
+    totalContainerWidth - borderSpace - scrollbarBuffer,
+  );
 
   const keyExtractor = React.useCallback(
     (_: AnsiLine, index: number) => index.toString(),
@@ -138,47 +144,53 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
     } else if (formattedJSON) {
       // Render pretty-printed JSON
       content = (
-        <Text wrap="wrap" color={theme.text.primary}>
-          {formattedJSON}
-        </Text>
+        <Box width={safeContentWidth} flexDirection="column">
+          <Text wrap="wrap" color={theme.text.primary}>
+            {formattedJSON}
+          </Text>
+        </Box>
       );
     } else if (isSubagentProgress(contentData)) {
       content = (
         <SubagentProgressDisplay
           progress={contentData}
-          terminalWidth={childWidth}
+          terminalWidth={safeContentWidth}
         />
       );
     } else if (typeof contentData === 'string' && renderOutputAsMarkdown) {
       content = (
         <MarkdownDisplay
           text={contentData}
-          terminalWidth={childWidth}
+          terminalWidth={safeContentWidth}
           renderMarkdown={renderMarkdown}
           isPending={false}
         />
       );
     } else if (typeof contentData === 'string' && !renderOutputAsMarkdown) {
       content = (
-        <Text wrap="wrap" color={theme.text.primary}>
-          {contentData}
-        </Text>
+        <Box width={safeContentWidth} flexDirection="column">
+          <Text wrap="wrap" color={theme.text.primary}>
+            {contentData}
+          </Text>
+        </Box>
       );
     } else if (isStructuredToolResult(contentData)) {
       if (renderOutputAsMarkdown) {
         content = (
           <MarkdownDisplay
             text={contentData.summary}
-            terminalWidth={childWidth}
+            terminalWidth={safeContentWidth}
             renderMarkdown={renderMarkdown}
             isPending={false}
           />
         );
       } else {
         content = (
-          <Text wrap="wrap" color={theme.text.primary}>
-            {contentData.summary}
-          </Text>
+          <Box width={safeContentWidth} flexDirection="column">
+            <Text wrap="wrap" color={theme.text.primary}>
+              {contentData.summary}
+            </Text>
+          </Box>
         );
       }
     } else if (isFileDiffResult(contentData)) {
@@ -190,7 +202,7 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
             contentData.isBuildFile && !isLockFile(contentData.fileName)
           }
           availableTerminalHeight={availableHeight}
-          terminalWidth={childWidth}
+          terminalWidth={safeContentWidth}
         />
       );
     } else if (Array.isArray(contentData)) {
@@ -205,7 +217,7 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
           availableTerminalHeight={
             isAlternateBuffer ? undefined : availableHeight
           }
-          width={childWidth}
+          width={safeContentWidth}
           maxLines={isAlternateBuffer ? undefined : maxLines}
           disableTruncation={shouldDisableTruncation}
         />
@@ -213,9 +225,11 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
     } else if (typeof contentData === 'object' && contentData !== null) {
       // Render as JSON for other non-null objects
       content = (
-        <Text wrap="wrap" color={theme.text.primary}>
-          {JSON.stringify(contentData, null, 2)}
-        </Text>
+        <Box width={safeContentWidth} flexDirection="column">
+          <Text wrap="wrap" color={theme.text.primary}>
+            {JSON.stringify(contentData, null, 2)}
+          </Text>
+        </Box>
       );
     } else {
       content = null;
