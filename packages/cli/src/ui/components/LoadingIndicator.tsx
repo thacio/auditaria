@@ -5,8 +5,7 @@
  */
 
 import type { ThoughtSummary } from '@google/gemini-cli-core';
-import type React from 'react';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { useStreamingContext } from '../contexts/StreamingContext.js';
@@ -38,131 +37,88 @@ interface LoadingIndicatorProps {
   isHookActive?: boolean;
 }
 
-export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
-  currentLoadingPhrase,
-  statusPhrase,
-  wittyPhrase,
-  showWit = false,
-  elapsedTime,
-  inline = false,
-  rightContent,
-  thought,
-  thoughtLabel,
-  showCancelAndTimer = true,
-  forceRealStatusOnly = false,
-  spinnerIcon,
-  isHookActive = false,
-}) => {
-  const streamingState = useStreamingContext();
-  const { columns: terminalWidth } = useTerminalSize();
-  const isNarrow = isNarrowWidth(terminalWidth);
+export const LoadingIndicator: React.FC<LoadingIndicatorProps> = React.memo(
+  ({
+    currentLoadingPhrase,
+    statusPhrase,
+    wittyPhrase,
+    showWit = false,
+    elapsedTime,
+    inline = false,
+    rightContent,
+    thought,
+    thoughtLabel,
+    showCancelAndTimer = true,
+    forceRealStatusOnly = false,
+    spinnerIcon,
+    isHookActive = false,
+  }: LoadingIndicatorProps) => {
+    const streamingState = useStreamingContext();
+    const { columns: terminalWidth } = useTerminalSize();
+    const isNarrow = isNarrowWidth(terminalWidth);
 
-  // WEB_INTERFACE_START: Loading state context for broadcasting to web interface
-  const loadingStateContext = useLoadingState();
+    // WEB_INTERFACE_START: Loading state context for broadcasting to web interface
+    const loadingStateContext = useLoadingState();
 
-  // Update loading state for web interface
-  useEffect(() => {
-    if (loadingStateContext) {
-      const loadingStateData = {
-        isLoading: streamingState !== StreamingState.Idle,
-        streamingState,
-        currentLoadingPhrase,
-        elapsedTime,
-        thought: thought?.subject || null,
-        thoughtObject: thought,
-      };
+    // Update loading state for web interface
+    useEffect(() => {
+      if (loadingStateContext) {
+        const loadingStateData = {
+          isLoading: streamingState !== StreamingState.Idle,
+          streamingState,
+          currentLoadingPhrase,
+          elapsedTime,
+          thought: thought?.subject || null,
+          thoughtObject: thought,
+        };
 
-      loadingStateContext.updateLoadingState(loadingStateData);
+        loadingStateContext.updateLoadingState(loadingStateData);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- loadingStateContext is stable from context
+    }, [streamingState, currentLoadingPhrase, elapsedTime, thought]);
+    // WEB_INTERFACE_END
+
+    if (
+      streamingState === StreamingState.Idle &&
+      !currentLoadingPhrase &&
+      !statusPhrase &&
+      !thought
+    ) {
+      return null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadingStateContext is stable from context
-  }, [streamingState, currentLoadingPhrase, elapsedTime, thought]);
-  // WEB_INTERFACE_END
 
-  if (
-    streamingState === StreamingState.Idle &&
-    !currentLoadingPhrase &&
-    !statusPhrase &&
-    !thought
-  ) {
-    return null;
-  }
+    // Prioritize active operational status (e.g. retries) or interactive shell waiting
+    // over thought subject, while keeping cosmetic tips/witty phrases subordinate to thoughts.
+    const primaryText =
+      statusPhrase ??
+      (currentLoadingPhrase === INTERACTIVE_SHELL_WAITING_PHRASE
+        ? currentLoadingPhrase
+        : thought?.subject
+          ? (thoughtLabel ?? thought.subject)
+          : currentLoadingPhrase ||
+            (streamingState === StreamingState.Responding
+              ? 'Thinking...'
+              : undefined));
 
-  // Prioritize active operational status (e.g. retries) or interactive shell waiting
-  // over thought subject, while keeping cosmetic tips/witty phrases subordinate to thoughts.
-  const primaryText =
-    statusPhrase ??
-    (currentLoadingPhrase === INTERACTIVE_SHELL_WAITING_PHRASE
-      ? currentLoadingPhrase
-      : thought?.subject
-        ? (thoughtLabel ?? thought.subject)
-        : currentLoadingPhrase ||
-          (streamingState === StreamingState.Responding
-            ? 'Thinking...'
-            : undefined));
+    const cancelAndTimerContent =
+      showCancelAndTimer && streamingState === StreamingState.Responding
+        ? `(esc to cancel, ${elapsedTime < 60 ? `${elapsedTime}s` : formatDuration(elapsedTime * 1000)})`
+        : null;
 
-  const cancelAndTimerContent =
-    showCancelAndTimer && streamingState === StreamingState.Responding
-      ? `(esc to cancel, ${elapsedTime < 60 ? `${elapsedTime}s` : formatDuration(elapsedTime * 1000)})`
-      : null;
-
-  const wittyPhraseNode =
-    !forceRealStatusOnly &&
-    showWit &&
-    wittyPhrase &&
-    primaryText === 'Thinking...' ? (
-      <Box marginLeft={1}>
-        <Text color={theme.text.secondary} dimColor italic>
-          {wittyPhrase}
-        </Text>
-      </Box>
-    ) : null;
-
-  if (inline) {
-    return (
-      <Box>
-        <Box marginRight={1}>
-          <GeminiRespondingSpinner
-            nonRespondingDisplay={
-              spinnerIcon ??
-              (streamingState === StreamingState.WaitingForConfirmation
-                ? '⠏'
-                : '')
-            }
-            isHookActive={isHookActive}
-          />
+    const wittyPhraseNode =
+      !forceRealStatusOnly &&
+      showWit &&
+      wittyPhrase &&
+      primaryText === 'Thinking...' ? (
+        <Box marginLeft={1}>
+          <Text color={theme.text.secondary} dimColor italic>
+            {wittyPhrase}
+          </Text>
         </Box>
-        {primaryText && (
-          <Box flexShrink={1}>
-            <Text color={theme.text.primary} italic wrap="truncate-end">
-              {primaryText}
-            </Text>
-            {primaryText === INTERACTIVE_SHELL_WAITING_PHRASE && (
-              <Text color={theme.ui.active} italic>
-                {' '}
-                (press tab to focus)
-              </Text>
-            )}
-          </Box>
-        )}
-        {cancelAndTimerContent && (
-          <>
-            <Box flexShrink={0} width={1} />
-            <Text color={theme.text.secondary}>{cancelAndTimerContent}</Text>
-          </>
-        )}
-        {wittyPhraseNode}
-      </Box>
-    );
-  }
+      ) : null;
 
-  return (
-    <Box paddingLeft={0} flexDirection="column">
-      {/* Main loading line */}
-      <Box
-        width="100%"
-        flexDirection={isNarrow ? 'column' : 'row'}
-        alignItems={isNarrow ? 'flex-start' : 'center'}
-      >
+    if (inline) {
+      return (
         <Box>
           <Box marginRight={1}>
             <GeminiRespondingSpinner
@@ -188,24 +144,72 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
               )}
             </Box>
           )}
-          {!isNarrow && cancelAndTimerContent && (
+          {cancelAndTimerContent && (
             <>
               <Box flexShrink={0} width={1} />
               <Text color={theme.text.secondary}>{cancelAndTimerContent}</Text>
             </>
           )}
-          {!isNarrow && wittyPhraseNode}
+          {wittyPhraseNode}
         </Box>
-        {!isNarrow && <Box flexGrow={1}>{/* Spacer */}</Box>}
-        {!isNarrow && rightContent && <Box>{rightContent}</Box>}
+      );
+    }
+
+    return (
+      <Box paddingLeft={0} flexDirection="column">
+        {/* Main loading line */}
+        <Box
+          width="100%"
+          flexDirection={isNarrow ? 'column' : 'row'}
+          alignItems={isNarrow ? 'flex-start' : 'center'}
+        >
+          <Box>
+            <Box marginRight={1}>
+              <GeminiRespondingSpinner
+                nonRespondingDisplay={
+                  spinnerIcon ??
+                  (streamingState === StreamingState.WaitingForConfirmation
+                    ? '⠏'
+                    : '')
+                }
+                isHookActive={isHookActive}
+              />
+            </Box>
+            {primaryText && (
+              <Box flexShrink={1}>
+                <Text color={theme.text.primary} italic wrap="truncate-end">
+                  {primaryText}
+                </Text>
+                {primaryText === INTERACTIVE_SHELL_WAITING_PHRASE && (
+                  <Text color={theme.ui.active} italic>
+                    {' '}
+                    (press tab to focus)
+                  </Text>
+                )}
+              </Box>
+            )}
+            {!isNarrow && cancelAndTimerContent && (
+              <>
+                <Box flexShrink={0} width={1} />
+                <Text color={theme.text.secondary}>
+                  {cancelAndTimerContent}
+                </Text>
+              </>
+            )}
+            {!isNarrow && wittyPhraseNode}
+          </Box>
+          {!isNarrow && <Box flexGrow={1}>{/* Spacer */}</Box>}
+          {!isNarrow && rightContent && <Box>{rightContent}</Box>}
+        </Box>
+        {isNarrow && cancelAndTimerContent && (
+          <Box>
+            <Text color={theme.text.secondary}>{cancelAndTimerContent}</Text>
+          </Box>
+        )}
+        {isNarrow && wittyPhraseNode}
+        {isNarrow && rightContent && <Box>{rightContent}</Box>}
       </Box>
-      {isNarrow && cancelAndTimerContent && (
-        <Box>
-          <Text color={theme.text.secondary}>{cancelAndTimerContent}</Text>
-        </Box>
-      )}
-      {isNarrow && wittyPhraseNode}
-      {isNarrow && rightContent && <Box>{rightContent}</Box>}
-    </Box>
-  );
-};
+    );
+  },
+);
+LoadingIndicator.displayName = 'LoadingIndicator';
