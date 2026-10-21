@@ -49,8 +49,11 @@ export const Composer = ({ isFocused = true }: { isFocused?: boolean }) => {
   const hideContextSummary =
     suggestionsVisible && suggestionsPosition === 'above';
 
-  const { hasPendingActionRequired, shouldCollapseDuringApproval } =
-    useComposerStatus();
+  const {
+    hasPendingActionRequired,
+    hasPendingToolConfirmation,
+    shouldCollapseDuringApproval,
+  } = useComposerStatus();
 
   const isPassiveShortcutsHelpState =
     uiState.isInputActive &&
@@ -60,10 +63,10 @@ export const Composer = ({ isFocused = true }: { isFocused?: boolean }) => {
   const { setShortcutsHelpVisible } = uiActions;
 
   useEffect(() => {
-    if (hasPendingActionRequired) {
+    if (hasPendingActionRequired && !hasPendingToolConfirmation) {
       appEvents.emit(AppEvent.ScrollToBottom);
     }
-  }, [hasPendingActionRequired]);
+  }, [hasPendingActionRequired, hasPendingToolConfirmation]);
 
   useEffect(() => {
     if (uiState.shortcutsHelpVisible && !isPassiveShortcutsHelpState) {

@@ -114,6 +114,7 @@ export const useComposerStatus = () => {
 
   return {
     hasPendingActionRequired,
+    hasPendingToolConfirmation,
     shouldCollapseDuringApproval,
     isInteractiveShellWaiting,
     showLoadingIndicator,
