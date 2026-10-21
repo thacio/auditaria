@@ -188,6 +188,27 @@ describe('BuiltinCommandLoader', () => {
     });
   });
 
+  it('updates checkpoint suggestions when switching between external and local providers', async () => {
+    mockConfig.getProviderConfig = vi.fn(() => ({
+      type: 'claude-cli' as const,
+    }));
+    const loader = new BuiltinCommandLoader(mockConfig);
+    const external = await loader.loadCommands(new AbortController().signal);
+    for (const name of ['chat', 'resume']) {
+      const children = external.find((c) => c.name === name)!.subCommands!;
+      expect(children.find((c) => c.name === 'save')?.hidden).toBe(true);
+      expect(children.find((c) => c.name === 'resume')?.hidden).toBe(true);
+      expect(children.find((c) => c.name === 'share')?.hidden).not.toBe(true);
+    }
+    mockConfig.getProviderConfig = vi.fn(() => ({ type: 'gemini' as const }));
+    const local = await loader.loadCommands(new AbortController().signal);
+    expect(
+      local
+        .find((c) => c.name === 'resume')
+        ?.subCommands?.find((c) => c.name === 'save')?.hidden,
+    ).not.toBe(true);
+  });
+
   it('should include upgrade command when authType is login_with_google', async () => {
     const { AuthType } = await import('@google/gemini-cli-core');
     (mockConfig.getContentGeneratorConfig as Mock).mockReturnValue({

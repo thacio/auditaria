@@ -7,8 +7,24 @@
 import { describe, expect, it } from 'vitest';
 import { resumeCommand } from './resumeCommand.js';
 import type { CommandContext } from './types.js';
+import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 
 describe('resumeCommand', () => {
+  it.each(['copilot-cli', 'agy-cli'] as const)(
+    'offers native controls for %s without loading a local recording',
+    async (type) => {
+      const context = createMockCommandContext({
+        services: {
+          agentContext: { config: { getProviderConfig: () => ({ type }) } },
+        },
+      });
+      expect(await resumeCommand.action!(context, '')).toMatchObject({
+        type: 'message',
+        content: expect.stringContaining('native session controls'),
+      });
+      expect(context.ui.loadHistory).not.toHaveBeenCalled();
+    },
+  );
   it('should open the session browser for bare /resume', async () => {
     const result = await resumeCommand.action?.({} as CommandContext, '');
     expect(result).toEqual({

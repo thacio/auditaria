@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getContextUsageSource } from './utils/contextUsage.js';
 import {
   useMemo,
   useState,
@@ -3083,6 +3084,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       contextUsedTokens,
       contextMaxTokens,
       contextLeftTokens,
+      contextUsageSource: getContextUsageSource(config),
       hideContextPercentage:
         settings.merged.ui.footer.hideContextPercentage !== false,
       sandboxStatus,

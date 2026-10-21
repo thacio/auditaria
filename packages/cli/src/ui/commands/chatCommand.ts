@@ -18,6 +18,7 @@ import {
   decodeTagName,
   type MessageActionReturn,
   INITIAL_HISTORY_LENGTH,
+  getProviderCapabilities,
 } from '@google/gemini-cli-core';
 import path from 'node:path';
 import type {
@@ -28,8 +29,45 @@ import type {
 import { MessageType } from '../types.js';
 import { exportHistoryToFile } from '../utils/historyExportUtils.js';
 import { convertToRestPayload } from '@google/gemini-cli-core';
+import { createResumeExternalCommand } from './resumeExternalCommand.js';
 
 const CHECKPOINT_MENU_GROUP = 'checkpoints';
+
+// AUDITARIA: Restoring a local transcript must never masquerade as native resume.
+function checkpointUnavailable(
+  context: CommandContext,
+): MessageActionReturn | undefined {
+  const capabilities = getProviderCapabilities(
+    context.services.agentContext?.config.getProviderConfig?.()?.type,
+  );
+  if (capabilities.contextOwner !== 'provider') return undefined;
+  return {
+    type: 'message',
+    messageType: 'info',
+    content: `${capabilities.name} owns this session. Use /resume for native session controls, /resume share <file> to export the current transcript, or /resume export <tag> to export an old Auditaria checkpoint.`,
+  };
+}
+
+export async function browseConversations(
+  context: CommandContext,
+  args: string,
+): Promise<SlashCommandActionReturn | void> {
+  const capabilities = getProviderCapabilities(
+    context.services?.agentContext?.config.getProviderConfig?.()?.type,
+  );
+  if (capabilities.contextOwner === 'auditaria') {
+    return { type: 'dialog', dialog: 'sessionBrowser' };
+  }
+  if (capabilities.nativeSessionBrowser) {
+    return createResumeExternalCommand(capabilities.nativeSessionBrowser)
+      .action!(context, args);
+  }
+  return {
+    type: 'message',
+    messageType: 'info',
+    content: `Use ${capabilities.name}'s native session controls to resume a conversation. You can open its terminal with /provider terminal. Auditaria's session browser is not available for this provider.`,
+  };
+}
 
 const getSavedChatTags = async (
   context: CommandContext,
@@ -95,6 +133,8 @@ const saveCommand: SlashCommand = {
   kind: CommandKind.BUILT_IN,
   autoExecute: false,
   action: async (context, args): Promise<SlashCommandActionReturn | void> => {
+    const unavailable = checkpointUnavailable(context);
+    if (unavailable) return unavailable;
     const tag = args.trim();
     if (!tag) {
       return {
@@ -165,6 +205,8 @@ const resumeCheckpointCommand: SlashCommand = {
   kind: CommandKind.BUILT_IN,
   autoExecute: true,
   action: async (context, args) => {
+    const unavailable = checkpointUnavailable(context);
+    if (unavailable) return unavailable;
     const tag = args.trim();
     if (!tag) {
       return {
@@ -381,12 +423,47 @@ export const debugCommand: SlashCommand = {
   },
 };
 
+// AUDITARIA: Archived checkpoints remain useful as exports, without changing
+// the active model's history or the provider's session.
+const exportCheckpointCommand: SlashCommand = {
+  name: 'export',
+  description:
+    'Export a saved checkpoint as a transcript. Usage: /resume export <tag>',
+  kind: CommandKind.BUILT_IN,
+  action: async (context, args) => {
+    if (!args.trim())
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: 'Missing tag. Usage: /resume export <tag>',
+      };
+    const { logger } = context.services;
+    await logger.initialize();
+    const { history } = await logger.loadCheckpoint(args.trim());
+    if (!history.length)
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: 'No saved checkpoint found with that tag.',
+      };
+    const filePath = path.resolve(`auditaria-checkpoint-${Date.now()}.json`);
+    await exportHistoryToFile({ history, filePath });
+    return {
+      type: 'message',
+      messageType: 'info',
+      content: `Checkpoint transcript exported to ${filePath}`,
+    };
+  },
+  completion: resumeCheckpointCommand.completion,
+};
+
 export const checkpointSubCommands: SlashCommand[] = [
   listCommand,
   saveCommand,
   resumeCheckpointCommand,
   deleteCommand,
   shareCommand,
+  exportCheckpointCommand,
 ];
 
 const checkpointCompatibilityCommand: SlashCommand = {
@@ -421,10 +498,7 @@ export const chatCommand: SlashCommand = {
         return parsed.commandToExecute.action(context, parsed.args);
       }
     }
-    return {
-      type: 'dialog',
-      dialog: 'sessionBrowser',
-    };
+    return browseConversations(context, args);
   },
   subCommands: chatResumeSubCommands,
 };

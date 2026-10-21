@@ -645,3 +645,7 @@ export {
 export { loadCodexSessionAsContent } from './providers/codex/codexSessionLoader.js';
 // AUDITARIA_WORKFLOW: Detail shared by the terminal picker and web panel.
 export type { WorkflowAgentDetail } from './workflow/agentTranscript.js';
+
+// AUDITARIA: Shared context/session ownership for core and UI.
+export { getProviderCapabilities } from './providers/providerCapabilities.js';
+export type { ProviderCapabilities } from './providers/providerCapabilities.js';

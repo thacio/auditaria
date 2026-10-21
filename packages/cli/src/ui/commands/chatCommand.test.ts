@@ -104,7 +104,49 @@ describe('chatCommand', () => {
       'Browse auto-saved conversations and manage chat checkpoints',
     );
     expect(chatCommand.autoExecute).toBe(true);
-    expect(chatCommand.subCommands).toHaveLength(6);
+    expect(chatCommand.subCommands).toHaveLength(7);
+  });
+
+  it.each(['claude-cli', 'codex-cli', 'copilot-cli', 'agy-cli'] as const)(
+    'does not save or load a local checkpoint over a %s session',
+    async (type) => {
+      mockContext.services.agentContext!.config.getProviderConfig = vi.fn(
+        () => ({ type }),
+      );
+      for (const command of ['save', 'resume'] as const) {
+        expect(
+          await getSubCommand(command).action!(mockContext, 'tag'),
+        ).toMatchObject({
+          type: 'message',
+          content: expect.stringContaining('owns this session'),
+        });
+      }
+      expect(mockSaveCheckpoint).not.toHaveBeenCalled();
+      expect(mockLoadCheckpoint).not.toHaveBeenCalled();
+      expect(mockGetChat).not.toHaveBeenCalled();
+    },
+  );
+
+  it('exports an archived checkpoint while an external session is active', async () => {
+    mockContext.services.agentContext!.config.getProviderConfig = vi.fn(() => ({
+      type: 'agy-cli' as const,
+    }));
+    const history = [
+      { role: 'user', parts: [{ text: 'Archived conversation' }] },
+    ];
+    mockLoadCheckpoint.mockResolvedValue({ history });
+    const command = chatCommand.subCommands!.find(
+      (cmd) => cmd.name === 'export',
+    )!;
+    expect(await command.action!(mockContext, 'old-tag')).toMatchObject({
+      messageType: 'info',
+      content: expect.stringContaining('transcript exported'),
+    });
+    expect(mockExport).toHaveBeenCalledWith({
+      history,
+      filePath: expect.stringContaining('auditaria-checkpoint-'),
+    });
+    expect(mockGetChat).not.toHaveBeenCalled();
   });
 
   describe('list subcommand', () => {

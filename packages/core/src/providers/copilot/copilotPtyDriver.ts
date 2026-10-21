@@ -200,6 +200,7 @@ export class CopilotPtyDriver
     ProviderRecoveryCapableDriver
 {
   readonly canResume = true;
+  readonly supportsNativeCompact = true;
   private session: PtySession | null = null;
   private sessionId: string | undefined;
   /** True once the current sessionId exists on disk → respawns use --resume. */

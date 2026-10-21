@@ -65,6 +65,7 @@ import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import { getCurrentLanguage } from '../i18n/index.js'; // AUDITARIA_LANGUAGE - Auditaria Custom Feature
 import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 import { preflightActiveProvider } from '../providers/providerPreflight.js'; // AUDITARIA_PROVIDER_ONLY
+import { getProviderCapabilities } from '../providers/providerCapabilities.js'; // AUDITARIA: context ownership
 import { recordWorkflowBudget } from '../workflow/workflowBudget.js'; // AUDITARIA_WORKFLOW
 import {
   applyModelSelection,
@@ -347,6 +348,12 @@ export class GeminiClient {
     history: ReadonlyArray<Content | HistoryTurn>,
     resumedSessionData?: ResumedSessionData,
   ): Promise<void> {
+    // AUDITARIA: A transcript cannot resume a provider-owned conversation.
+    if (this.config.getProviderManager()?.isExternalProviderActive()) {
+      throw new Error(
+        "Use /resume to restore the active provider's native session. Auditaria recordings can be exported as transcripts.",
+      );
+    }
     if (resumedSessionData?.filePath) {
       const previousRecordingService = this.chat?.getChatRecordingService?.();
       if (
@@ -1304,42 +1311,33 @@ export class GeminiClient {
     force: boolean = false,
     abortSignal?: AbortSignal,
   ): Promise<ChatCompressionInfo> {
-    // AUDITARIA_CLAUDE_PROVIDER_START: Route to provider-native compaction
-    // when available. Saves a Gemini API call, preserves the provider's
-    // session (no fresh spawn), and uses the provider's own summarizer
-    // (which has the full conversation context already loaded).
-    //
-    // Safety fallback: if native compaction fails (driver didn't detect the
-    // expected Compacted+CompactionSummary signal), drop through to the
-    // Gemini-side path so the user still gets compression. NOOP (no session
-    // yet) returns immediately — nothing to compact.
+    // AUDITARIA: External programs own their context. Automatic calls are
+    // no-ops; explicit requests may use only a supported native operation.
     const providerManager = this.config.getProviderManager();
-    if (
-      providerManager?.isExternalProviderActive() &&
-      providerManager.supportsNativeCompact()
-    ) {
-      const signal = abortSignal ?? new AbortController().signal;
-      const result = await providerManager.compactNative(
-        this.getChat(),
-        signal,
-      );
-      if (
-        result.status === CompressionStatus.COMPRESSED ||
-        result.status === CompressionStatus.NOOP
-      ) {
-        // Provider's session is alive on the compacted context, the mirror
-        // was updated in-place. No onHistoryModified() call.
+    if (providerManager?.isExternalProviderActive()) {
+      const provider = getProviderCapabilities(
+        this.config.getProviderConfig()?.type,
+      ).name;
+      if (!force) {
         return {
-          originalTokenCount: result.originalTokenCount,
-          newTokenCount: result.newTokenCount,
-          compressionStatus: result.status,
+          originalTokenCount: 0,
+          newTokenCount: 0,
+          compressionStatus: CompressionStatus.NOOP,
+          provider,
         };
       }
-      // Native compaction failed — fall through to Gemini-side path. The
-      // user still gets a working /compress; downside is a fresh provider
-      // spawn on next turn (loses session continuity for this one case).
+      const result = await providerManager.compactNative(
+        this.getChat(),
+        abortSignal ?? new AbortController().signal,
+      );
+      return {
+        originalTokenCount: result.originalTokenCount,
+        newTokenCount: result.newTokenCount,
+        compressionStatus: result.status,
+        provider,
+        detail: result.detail,
+      };
     }
-    // AUDITARIA_CLAUDE_PROVIDER_END
 
     // If the model is 'auto', we will use a placeholder model to check.
     // Compression occurs before we choose a model, so calling `count_tokens`

@@ -201,12 +201,20 @@ export enum CompressionStatus {
 
   /** The compression was skipped due to previous failure, but content was truncated to budget */
   CONTENT_TRUNCATED,
+
+  /** AUDITARIA: The active driver cannot request native compaction. */
+  NATIVE_COMPRESSION_UNSUPPORTED,
+  /** AUDITARIA: Native compaction was not confirmed; the session is retained. */
+  NATIVE_COMPRESSION_UNCONFIRMED,
 }
 
 export interface ChatCompressionInfo {
   originalTokenCount: number;
   newTokenCount: number;
   compressionStatus: CompressionStatus;
+  /** AUDITARIA: Native compaction counts must not be inferred from the mirror. */
+  provider?: string;
+  detail?: string;
 }
 
 export type ServerGeminiChatCompressedEvent = {

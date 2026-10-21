@@ -10,6 +10,8 @@ import type { ReactElement } from 'react';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import { resumeClaudeCommand } from './resumeClaudeCommand.js';
 import { resumeCodexCommand } from './resumeCodexCommand.js';
+import { resumeCommand } from './resumeCommand.js';
+import { chatCommand } from './chatCommand.js';
 
 vi.mock('../components/ExternalSessionPicker.js', () => ({
   ExternalSessionPicker: () => null,
@@ -82,6 +84,18 @@ describe.each([
       { type: 'gemini', id: 2, text: 'Hi' },
     ]);
   });
+
+  it.each([resumeCommand, chatCommand])(
+    'routes /$name to the active native session',
+    async (entry) => {
+      const ctx = context();
+      await entry.action!(ctx, session.sessionId);
+      expect(pm.setPendingResumeSessionId).toHaveBeenCalledWith(
+        session.sessionId,
+      );
+      expect(ctx.ui.loadHistory).toHaveBeenCalled();
+    },
+  );
   it('reports terminal startup failures without claiming success', async () => {
     pm.startPendingResumeSession.mockRejectedValue(
       new Error('Terminal could not start'),

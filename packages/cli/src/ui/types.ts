@@ -153,6 +153,10 @@ export interface CompressionProps {
   originalTokenCount: number | null;
   newTokenCount: number | null;
   compressionStatus: CompressionStatus | null;
+  provider?: string;
+  detail?: string;
+  /** AUDITARIA: Same native status text in the terminal and web transcript. */
+  message?: string;
 }
 
 export interface ExportSessionProps {

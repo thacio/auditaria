@@ -16,6 +16,7 @@ import {
   isNightly,
   startupProfiler,
   getAdminErrorMessage,
+  getProviderCapabilities,
   AuthType,
 } from '@google/gemini-cli-core';
 import { aboutCommand } from '../ui/commands/aboutCommand.js';
@@ -108,7 +109,14 @@ export class BuiltinCommandLoader implements ICommandLoader {
 
       const withNestedCompatibility = subCommands.map((subCommand) => {
         if (subCommand.name !== 'checkpoints') {
-          return subCommand;
+          return {
+            ...subCommand,
+            hidden:
+              subCommand.hidden ||
+              (getProviderCapabilities(this.config?.getProviderConfig?.()?.type)
+                .contextOwner === 'provider' &&
+                ['save', 'resume'].includes(subCommand.name)),
+          };
         }
 
         return {

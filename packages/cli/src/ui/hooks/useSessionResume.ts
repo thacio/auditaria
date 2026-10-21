@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   coreEvents,
   convertSessionToClientHistory,
+  getProviderCapabilities,
 } from '@google/gemini-cli-core';
 import type {
   HistoryTurn,
@@ -69,6 +70,15 @@ export function useSessionResume({
 
       setIsResuming(true);
       try {
+        // AUDITARIA: Reject transcript resume before changing the visible chat.
+        if (
+          getProviderCapabilities(config.getProviderConfig?.()?.type)
+            .contextOwner === 'provider'
+        ) {
+          throw new Error(
+            "Use /resume for the active provider's native session controls.",
+          );
+        }
         // Now that we have the client, load the history into the UI and the client.
         setQuittingMessages(null);
         historyManagerRef.current.clearItems();
@@ -93,7 +103,9 @@ export function useSessionResume({
       } catch (error) {
         coreEvents.emitFeedback(
           'error',
-          'Failed to resume session. Please try again.',
+          error instanceof Error
+            ? error.message
+            : 'Failed to resume session. Please try again.',
           error,
         );
       } finally {

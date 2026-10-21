@@ -11,8 +11,12 @@ import { useSettings } from '../contexts/SettingsContext.js';
 import { CoreToolCallStatus, ApprovalMode } from '@google/gemini-cli-core';
 import { type HistoryItemToolGroup, StreamingState } from '../types.js';
 import { INTERACTIVE_SHELL_WAITING_PHRASE } from './usePhraseCycler.js';
-import { isContextUsageHigh } from '../utils/contextUsage.js';
+import {
+  isContextUsageHigh,
+  getContextUsageSource,
+} from '../utils/contextUsage.js';
 import { theme } from '../semantic-colors.js';
+import { useConfig } from '../contexts/ConfigContext.js';
 
 /**
  * A hook that encapsulates complex status and action-required logic for the Composer.
@@ -21,6 +25,7 @@ export const useComposerStatus = () => {
   const uiState = useUIState();
   const quotaState = useQuotaState();
   const settings = useSettings();
+  const contextSource = getContextUsageSource(useConfig());
 
   const hasPendingToolConfirmation = useMemo(
     () =>
@@ -87,10 +92,13 @@ export const useComposerStatus = () => {
   // unless the user opted in.
   const showMinimalContext =
     settings.merged.ui.footer.hideContextPercentage === false &&
+    contextSource !== 'unknown' &&
     isContextUsageHigh(
       uiState.sessionStats.lastPromptTokenCount,
       uiState.currentModel,
-      settings.merged.model?.compressionThreshold,
+      contextSource === 'local'
+        ? settings.merged.model?.compressionThreshold
+        : 0.9,
     );
 
   const loadingPhrases = settings.merged.ui.loadingPhrases;

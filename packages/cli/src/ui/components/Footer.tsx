@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getContextUsageSource } from '../utils/contextUsage.js';
 import type React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
@@ -253,6 +254,7 @@ export const Footer: React.FC = () => {
       contextUsedTokens,
       contextMaxTokens,
       contextLeftTokens,
+      contextUsageSource: getContextUsageSource(config),
       hideContextPercentage:
         settings.merged.ui.footer.hideContextPercentage !== false,
       sandboxStatus,

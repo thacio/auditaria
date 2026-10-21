@@ -39,7 +39,8 @@ import {
   type SettingsValue,
   TOGGLE_TYPES,
 } from '../../config/settingsSchema.js';
-import { debugLogger } from '@google/gemini-cli-core';
+import { debugLogger, getProviderCapabilities } from '@google/gemini-cli-core';
+import { useConfig } from '../contexts/ConfigContext.js';
 
 import { useSearchBuffer } from '../hooks/useSearchBuffer.js';
 import {
@@ -102,6 +103,21 @@ export function SettingsDialog({
   onRestartRequest,
   availableTerminalHeight,
 }: SettingsDialogProps): React.JSX.Element {
+  const config = useConfig();
+  const contextOwner = getProviderCapabilities(
+    config.getProviderConfig?.()?.type,
+  ).contextOwner;
+  const availableSettingKeys = useMemo(
+    () =>
+      getDialogSettingKeys().filter(
+        (key) =>
+          contextOwner === 'auditaria' ||
+          (key !== 'model.compressionThreshold' &&
+            !key.startsWith('contextManagement.') &&
+            key !== 'experimental.contextManagement'),
+      ),
+    [contextOwner],
+  );
   // Reactive settings from store (re-renders on any settings change)
   const { settings, setSetting } = useSettingsStore();
 
@@ -136,11 +152,11 @@ export function SettingsDialog({
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredKeys, setFilteredKeys] = useState<string[]>(() =>
-    getDialogSettingKeys(),
+  const [filteredKeys, setFilteredKeys] = useState<string[]>(
+    () => availableSettingKeys,
   );
   const { fzfInstance, searchMap } = useMemo(() => {
-    const keys = getDialogSettingKeys();
+    const keys = availableSettingKeys;
     const map = new Map<string, string>();
     const searchItems: string[] = [];
 
@@ -157,13 +173,13 @@ export function SettingsDialog({
       casing: 'case-insensitive',
     });
     return { fzfInstance: fzf, searchMap: map };
-  }, []);
+  }, [availableSettingKeys]);
 
   // Perform search
   useEffect(() => {
     let active = true;
     if (!searchQuery.trim() || !fzfInstance) {
-      setFilteredKeys(getDialogSettingKeys());
+      setFilteredKeys(availableSettingKeys);
       return;
     }
 
@@ -187,7 +203,7 @@ export function SettingsDialog({
     return () => {
       active = false;
     };
-  }, [searchQuery, fzfInstance, searchMap]);
+  }, [searchQuery, fzfInstance, searchMap, availableSettingKeys]);
 
   // Track whether a restart is required to apply the changes in the Settings json file
   // This does not care for inheritance

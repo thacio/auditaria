@@ -3119,6 +3119,39 @@ describe('useGeminiStream', () => {
       });
     });
 
+    it('attributes provider compaction without local threshold advice or estimates', async () => {
+      mockSendMessageStream.mockReturnValue(
+        (async function* () {
+          yield {
+            type: ServerGeminiEventType.ChatCompressed,
+            value: {
+              provider: 'Claude Code',
+              originalTokenCount: 1000,
+              newTokenCount: 500,
+              compressionStatus: 'compressed',
+            },
+          };
+        })(),
+      );
+      const { result } = await renderHookWithDefaults();
+      await act(async () => {
+        await result.current.submitQuery('Continue');
+      });
+      await waitFor(() => {
+        expect(mockAddItem).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: MessageType.INFO,
+            text: 'Claude Code compacted its context.',
+          }),
+          expect.any(Number),
+        );
+      });
+      const notice = mockAddItem.mock.calls.find(
+        ([item]) => item.text === 'Claude Code compacted its context.',
+      )?.[0];
+      expect(notice).not.toHaveProperty('secondaryText');
+    });
+
     it('should add informational messages when ChatCompressed event is received', async () => {
       vi.mocked(tokenLimit).mockReturnValue(10000);
       // Setup mock to return a stream with ChatCompressed event

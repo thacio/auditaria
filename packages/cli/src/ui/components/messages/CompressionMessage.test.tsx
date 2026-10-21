@@ -27,6 +27,33 @@ describe('<CompressionMessage />', () => {
   });
 
   describe('pending state', () => {
+    it('attributes confirmed native compaction without presenting mirror token counts', async () => {
+      const props = createCompressionProps({
+        provider: 'Claude Code',
+        originalTokenCount: 12345,
+        newTokenCount: 6789,
+      });
+      const { lastFrame, unmount } = await renderWithProviders(
+        <CompressionMessage {...props} />,
+      );
+      expect(lastFrame()).toContain('Claude Code compacted its context.');
+      expect(lastFrame()).not.toContain('12345');
+      expect(lastFrame()).not.toContain('6789');
+      unmount();
+    });
+
+    it('reports unconfirmed compaction without claiming a token reduction', async () => {
+      const props = createCompressionProps({
+        provider: 'Codex',
+        compressionStatus: CompressionStatus.NATIVE_COMPRESSION_UNCONFIRMED,
+      });
+      const { lastFrame, unmount } = await renderWithProviders(
+        <CompressionMessage {...props} />,
+      );
+      expect(lastFrame()).toContain('did not confirm compaction');
+      expect(lastFrame()).toContain('native session was retained');
+      unmount();
+    });
     it('renders pending message when compression is in progress', async () => {
       const props = createCompressionProps({ isPending: true });
       const { lastFrame, unmount } = await renderWithProviders(

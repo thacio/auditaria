@@ -27,6 +27,7 @@ export interface FooterData {
   contextUsedTokens: number;
   contextMaxTokens: number;
   contextLeftTokens: number;
+  contextUsageSource?: 'local' | 'reported' | 'estimated' | 'unknown';
   /**
    * Mirrors `ui.footer.hideContextPercentage` (default: true) so the web
    * footer hides the context pill by default, matching the CLI footer.

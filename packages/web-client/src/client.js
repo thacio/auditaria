@@ -1835,7 +1835,11 @@ class AuditariaWebClient {
     const contextPercentageSafe = Number.isFinite(contextPercentage)
       ? contextPercentage
       : 0;
-    const contextDisplay = `${contextPercentageSafe.toFixed(0)}% context left`;
+    const contextSource = footerData.contextUsageSource;
+    const contextDisplay =
+      contextSource === 'unknown'
+        ? 'Context managed by provider'
+        : `${contextSource === 'estimated' ? '~' : ''}${contextPercentageSafe.toFixed(0)}% context left${contextSource === 'estimated' ? ' (estimate)' : ''}`;
     // The context pill mirrors the CLI's `ui.footer.hideContextPercentage`
     // setting, which defaults to hidden.
     const showContextPill = footerData.hideContextPercentage === false;
@@ -1903,7 +1907,7 @@ class AuditariaWebClient {
             this.createFooterPill({
               text: contextDisplay,
               extraClass: 'web-footer-pill-context',
-              title: `${contextPercentageSafe.toFixed(2)}% context left`,
+              title: contextDisplay,
             }),
           ]
         : []),

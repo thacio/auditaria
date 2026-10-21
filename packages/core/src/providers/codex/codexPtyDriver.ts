@@ -173,6 +173,7 @@ export class CodexPtyDriver
     ProviderRecoveryCapableDriver
 {
   readonly canResume = true;
+  readonly supportsNativeCompact = true;
   private session: PtySession | null = null;
   private sessionId: string | undefined;
   private hookDir: string | null = null;

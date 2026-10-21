@@ -85,6 +85,7 @@ export function getMessageContent(historyItem) {
             return `Session ended after ${historyItem.duration || 'unknown time'}`;
         case 'compression':
             const comp = historyItem.compression;
+            if (comp?.message) return comp.message;
             if (comp) {
                 return `Context compressed: ${comp.originalTokenCount || 'N/A'} → ${comp.newTokenCount || 'N/A'} tokens`;
             }

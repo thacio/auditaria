@@ -4,7 +4,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { tokenLimit } from '@google/gemini-cli-core';
+import {
+  tokenLimit,
+  getProviderCapabilities,
+  type Config,
+} from '@google/gemini-cli-core';
+
+// AUDITARIA: Shared by the terminal and web footer.
+export function getContextUsageSource(
+  config: Config,
+): 'local' | 'reported' | 'estimated' | 'unknown' {
+  if (
+    getProviderCapabilities(config.getProviderConfig?.()?.type).contextOwner ===
+    'auditaria'
+  )
+    return 'local';
+  return config.getProviderManager?.()?.getContextUsageSource?.() ?? 'unknown';
+}
 
 export function getContextUsagePercentage(
   promptTokenCount: number,

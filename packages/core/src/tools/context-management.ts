@@ -12,6 +12,7 @@ import type { Config } from '../config/config.js';
 import { tokenLimit } from '../core/tokenLimits.js';
 import { DEFAULT_COMPRESSION_TOKEN_THRESHOLD } from '../context/chatCompressionService.js';
 import { CONTEXT_MANAGEMENT_TOOL_NAME } from './tool-names.js';
+import { getProviderCapabilities } from '../providers/providerCapabilities.js'; // AUDITARIA: context ownership
 
 // ============================================
 // Configuration Constants
@@ -475,7 +476,9 @@ function describeMessageBefore(content: Content): string {
   return `[${role}] (${partsCount} parts): ${partDescriptions.join(', ')}`;
 }
 
-function extractFunctionResponses(history: readonly Content[]): ForgettableItem[] {
+function extractFunctionResponses(
+  history: readonly Content[],
+): ForgettableItem[] {
   const items: ForgettableItem[] = [];
   let messageIndex = 0;
 
@@ -857,6 +860,13 @@ class ContextManagementToolInvocation extends BaseToolInvocation<
   }
 
   async execute(_options: ExecuteOptions): Promise<ToolResult> {
+    const capabilities = getProviderCapabilities(
+      this.config.getProviderConfig?.()?.type,
+    );
+    if (capabilities.contextOwner === 'provider') {
+      const message = `${capabilities.name} manages its own context. Auditaria's mirrored transcript cannot inspect or change that context. Use the provider's native context controls; the current session has not been changed.`;
+      return { llmContent: message, returnDisplay: message };
+    }
     switch (this.params.action) {
       case 'inspect':
         return this.executeInspect();
@@ -1525,7 +1535,8 @@ export class ContextManagementTool extends BaseDeclarativeTool<
   ToolResult
 > {
   static readonly Name = CONTEXT_MANAGEMENT_TOOL_NAME;
-  static readonly Bridgeable = true; // AUDITARIA_CLAUDE_PROVIDER: auto-bridge to external providers via MCP
+  // AUDITARIA: A bridged call edits the host's mirror, not the caller's context.
+  static readonly Bridgeable = false;
 
   constructor(
     private readonly config: Config,

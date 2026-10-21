@@ -207,6 +207,8 @@ describe('Gemini Client (client.ts)', () => {
       authType: AuthType.USE_GEMINI,
     };
     mockConfig = {
+      getProviderManager: vi.fn().mockReturnValue(undefined),
+      getProviderConfig: vi.fn().mockReturnValue(undefined),
       getRequestTimeoutMs: vi.fn().mockReturnValue(undefined),
       getContentGeneratorConfig: vi
         .fn()
@@ -352,6 +354,18 @@ describe('Gemini Client (client.ts)', () => {
   });
 
   describe('resumeChat', () => {
+    it('rejects local transcript resume without changing an external session', async () => {
+      const original = client.getChat();
+      vi.mocked(mockConfig.getProviderManager).mockReturnValue({
+        isExternalProviderActive: () => true,
+      } as unknown as ReturnType<Config['getProviderManager']>);
+      await expect(
+        client.resumeChat([
+          { role: 'user', parts: [{ text: 'unrelated history' }] },
+        ]),
+      ).rejects.toThrow('native session');
+      expect(client.getChat()).toBe(original);
+    });
     it('should update telemetry token count when a chat is resumed', async () => {
       const history: Content[] = [
         { role: 'user', parts: [{ text: 'resumed message' }] },
@@ -434,7 +448,8 @@ describe('Gemini Client (client.ts)', () => {
     const mockGetHistory = vi.fn();
 
     beforeEach(() => {
-      vi.mock('./tokenLimits', () => ({
+      vi.mock('./tokenLimits', async (importOriginal) => ({
+        ...(await importOriginal<typeof import('./tokenLimits.js')>()),
         tokenLimit: vi.fn(),
       }));
 
@@ -505,6 +520,40 @@ describe('Gemini Client (client.ts)', () => {
         estimatedNewTokenCount: newTokenCount,
       };
     }
+
+    it.each(['claude-cli', 'codex-cli', 'copilot-cli', 'agy-cli'] as const)(
+      'never invokes local compression or resets %s, even after native failure',
+      async (type) => {
+        const { mockOriginalChat } = setup();
+        const manager = {
+          isExternalProviderActive: () => true,
+          compactNative: vi.fn().mockResolvedValue({
+            status: CompressionStatus.NATIVE_COMPRESSION_UNCONFIRMED,
+            originalTokenCount: 100,
+            newTokenCount: 100,
+          }),
+          onHistoryModified: vi.fn(),
+        };
+        vi.spyOn(mockConfig, 'getProviderManager').mockReturnValue(
+          manager as unknown as ReturnType<Config['getProviderManager']>,
+        );
+        vi.spyOn(mockConfig, 'getProviderConfig').mockReturnValue({ type });
+        const automatic = await client.tryCompressChat('auto', false);
+        expect(automatic.compressionStatus).toBe(CompressionStatus.NOOP);
+        expect(manager.compactNative).not.toHaveBeenCalled();
+        const manual = await client.tryCompressChat('manual', true);
+        expect(manual.compressionStatus).toBe(
+          CompressionStatus.NATIVE_COMPRESSION_UNCONFIRMED,
+        );
+        expect(manager.compactNative).toHaveBeenCalledOnce();
+        expect(
+          ChatCompressionService.prototype.compress,
+        ).not.toHaveBeenCalled();
+        expect(client.startChat).not.toHaveBeenCalled();
+        expect(mockOriginalChat.setHistory).not.toHaveBeenCalled();
+        expect(manager.onHistoryModified).not.toHaveBeenCalled();
+      },
+    );
 
     describe('when compression inflates the token count', () => {
       it('allows compression to be forced/manual after a failure', async () => {

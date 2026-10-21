@@ -42,6 +42,7 @@ import {
   ProviderEventType,
 } from './types.js';
 import { adaptProviderEvent } from './eventAdapter.js';
+import { getProviderCapabilities } from './providerCapabilities.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
 import { resolveBridgeScriptPath } from './mcp-bridge/toolBridgeService.js'; // AUDITARIA_EXPOSE_MCP
@@ -294,6 +295,11 @@ function isExternalTurnCapableDriver(
 }
 
 export class ProviderManager {
+  // AUDITARIA: A local transcript estimate is not native context telemetry.
+  private contextUsageSource: 'reported' | 'estimated' | 'unknown' = 'unknown';
+  getContextUsageSource(): 'reported' | 'estimated' | 'unknown' {
+    return this.contextUsageSource;
+  }
   private driver: ProviderDriver | null = null;
   private callCount = 0;
   // AUDITARIA_HIVE_FEATURE: True while a chat-initiated provider turn (or a
@@ -498,6 +504,7 @@ export class ProviderManager {
    *  in step with what Claude actually holds) and forwards everything. */
   private dispatchNotice(notice: ProviderNotice): void {
     if (notice.kind === 'session') {
+      this.contextUsageSource = 'unknown';
       const client = (() => {
         try {
           return this.appConfig?.getGeminiClient();
@@ -562,6 +569,7 @@ export class ProviderManager {
   // it for display); if not, getOrCreateDriver() applies it after construction.
   // Overwrites any prior intent (resume > resetWithSummary — latest wins).
   setPendingResumeSessionId(id: string): void {
+    this.contextUsageSource = 'unknown';
     this.nextTurn = { kind: 'resume', sessionId: id };
     if (this.driver?.setSessionId) {
       this.driver.setSessionId(id);
@@ -666,6 +674,7 @@ export class ProviderManager {
   // a fresh session with the modified/existing conversation history.
   // Overwrites any prior intent (resetWithSummary > resume — latest wins).
   onHistoryModified(): void {
+    this.contextUsageSource = 'unknown';
     this.nextTurn = { kind: 'resetWithSummary' };
     dbg(
       'onHistoryModified: scheduled resetWithSummary for next call | called from:\n' +
@@ -747,19 +756,9 @@ export class ProviderManager {
   // summarizer — cheaper (no extra API call), smarter (the provider
   // summarizes its own context), and keeps the provider's session alive.
   supportsNativeCompact(): boolean {
-    // Claude:   PostCompact hook fires; CompactionSummary from transcript.
-    // Codex:    contextCompaction item event in exec --json stream;
-    //           CompactionSummary from the next agent_message text.
-    // Copilot:  ACP doesn't surface compaction in session/update events.
-    //           copilotCLIDriver synthesizes a Compacted (no summary) when
-    //           the /compact prompt completes successfully, plus
-    //           CompactionSummary if any agent text was streamed. The
-    //           mirror falls back to a generic <context_compacted> tag
-    //           when no summary is available.
     return (
-      this.config.type === 'claude-cli' ||
-      this.config.type === 'codex-cli' ||
-      this.config.type === 'copilot-cli'
+      getProviderCapabilities(this.config.type).nativeCompact &&
+      (!this.driver || this.driver.supportsNativeCompact === true)
     );
   }
 
@@ -775,15 +774,30 @@ export class ProviderManager {
     originalTokenCount: number;
     newTokenCount: number;
     status: CompressionStatus;
+    detail?: string;
   }> {
     if (!this.supportsNativeCompact()) {
       return {
         originalTokenCount: 0,
         newTokenCount: 0,
-        status: CompressionStatus.NOOP,
+        status: CompressionStatus.NATIVE_COMPRESSION_UNSUPPORTED,
       };
     }
+    if (this.isTurnActive()) {
+      throw new Error(
+        'Wait for the current provider turn to finish before compacting.',
+      );
+    }
     const driver = await this.getOrCreateDriver();
+    // Headless transports must opt in explicitly; sending text is not proof
+    // that a native slash command is supported.
+    if (driver.supportsNativeCompact !== true) {
+      return {
+        originalTokenCount: 0,
+        newTokenCount: 0,
+        status: CompressionStatus.NATIVE_COMPRESSION_UNSUPPORTED,
+      };
+    }
     // Nothing to compact yet — provider has no live session.
     if (!driver.getSessionId?.()) {
       return {
@@ -823,8 +837,8 @@ export class ProviderManager {
     }
 
     if (!sawCompacted) {
-      // The provider did not signal compaction. For Claude/Codex this is a
-      // hard fail. caller will fall back to Gemini-side compression.
+      // Preserve the native session, including after cancellation or a lost
+      // notification. Never replace it with a locally summarized conversation.
       dbg('compactNative: no Compacted event seen', {
         hasSummary: !!summary,
         lastError,
@@ -832,7 +846,8 @@ export class ProviderManager {
       return {
         originalTokenCount,
         newTokenCount: originalTokenCount,
-        status: CompressionStatus.COMPRESSION_FAILED_INFLATED_TOKEN_COUNT,
+        status: CompressionStatus.NATIVE_COMPRESSION_UNCONFIRMED,
+        detail: lastError,
       };
     }
 
@@ -842,6 +857,7 @@ export class ProviderManager {
       dbg('compactNative: Compacted without summary — using generic tag');
     }
     compactMirroredHistory(chat, summary);
+    this.contextUsageSource = 'unknown';
     const newTokenCount = estimateTokenCountSync(
       chat.getHistory().flatMap((c) => c.parts || []),
     );
@@ -1230,6 +1246,8 @@ export class ProviderManager {
           flushModelParts(chat, modelParts, accumulatedText);
           accumulatedText = '';
           compactionPreTokens = event.preTokens;
+          this.contextUsageSource = 'unknown';
+          codexActualTokens = undefined;
           awaitingCompactionSummary = true;
           continue;
         }
@@ -1252,6 +1270,7 @@ export class ProviderManager {
               originalTokenCount: compactionPreTokens,
               newTokenCount: newTokens,
               compressionStatus: CompressionStatus.COMPRESSED,
+              provider: getProviderCapabilities(this.config.type).name,
             },
           };
           awaitingCompactionSummary = false;
@@ -1294,6 +1313,7 @@ export class ProviderManager {
             originalTokenCount: compactionPreTokens,
             newTokenCount: newTokens,
             compressionStatus: CompressionStatus.COMPRESSED,
+            provider: getProviderCapabilities(this.config.type).name,
           },
         };
         awaitingCompactionSummary = false;
@@ -1303,11 +1323,13 @@ export class ProviderManager {
       // This is the most accurate source: last_token_usage.input + output - reasoning.
       // Falls back to heuristic estimation for Claude or when session data is unavailable.
       if (this.config.type === 'codex-cli' && codexActualTokens !== undefined) {
+        this.contextUsageSource = 'reported';
         dbg(
           `[TOKEN_ESTIMATION] Codex actual from session JSONL: ${codexActualTokens}T`,
         );
         chat.setLastPromptTokenCount(codexActualTokens);
       } else {
+        this.contextUsageSource = 'estimated';
         // AUDITARIA_CLAUDE_PROVIDER: Heuristic estimation for Claude (or Codex fallback).
         // Strips the initial env context message (already injected separately).
         // When CLAUDE_INCLUDE_OVERHEAD is true, includes base overhead (system prompt + CLAUDE.md).
@@ -1403,6 +1425,7 @@ export class ProviderManager {
       this.driver.dispose();
       this.driver = null;
     }
+    this.contextUsageSource = 'unknown';
     this.config = config;
   }
 
@@ -1410,6 +1433,7 @@ export class ProviderManager {
   setMcpServers(
     mcpServers: Record<string, ExternalMCPServerConfig> | undefined,
   ): void {
+    this.contextUsageSource = 'unknown';
     this.mcpServers = mcpServers;
     // Force driver recreation on next call so it picks up new MCP config
     if (this.driver) {
@@ -1497,6 +1521,7 @@ export class ProviderManager {
   }
 
   dispose(): void {
+    this.contextUsageSource = 'unknown';
     // AUDITARIA_CLAUDE_PROVIDER: tear down external-turn forwarders before
     // we dispose the driver they're subscribed to.
     for (const off of this.externalUnsubscribers) {

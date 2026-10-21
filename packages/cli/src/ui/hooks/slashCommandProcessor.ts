@@ -31,6 +31,8 @@ import {
   Storage,
   IdeClient,
   coreEvents,
+  CoreEvent,
+  getProviderCapabilities,
   addMCPStatusChangeListener,
   removeMCPStatusChangeListener,
   MCPDiscoveryState,
@@ -333,6 +335,8 @@ export const useSlashCommandProcessor = (
     };
     coreEvents.on('extensionsStarting', extensionEventListener);
     coreEvents.on('extensionsStopping', extensionEventListener);
+    // AUDITARIA: Refresh capability-dependent menus after a provider switch.
+    coreEvents.on(CoreEvent.ModelChanged, reloadCommands);
 
     return () => {
       isActive = false;
@@ -340,6 +344,7 @@ export const useSlashCommandProcessor = (
       removeMCPStatusChangeListener(listener);
       coreEvents.off('extensionsStarting', extensionEventListener);
       coreEvents.off('extensionsStopping', extensionEventListener);
+      coreEvents.off(CoreEvent.ModelChanged, reloadCommands);
     };
   }, [config, reloadCommands]);
 
@@ -572,6 +577,16 @@ export const useSlashCommandProcessor = (
                   }
                 }
                 case 'load_history': {
+                  if (
+                    getProviderCapabilities(config?.getProviderConfig?.()?.type)
+                      .contextOwner === 'provider'
+                  ) {
+                    fullCommandContext.ui.addItem({
+                      type: MessageType.INFO,
+                      text: "Use /resume to restore the active provider's native session. Local checkpoints can be exported with /resume export <tag>.",
+                    });
+                    return { type: 'handled' };
+                  }
                   config?.getGeminiClient()?.setHistory(result.clientHistory);
                   fullCommandContext.ui.clear();
                   result.history.forEach((item, index) => {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Content } from '@google/genai';
 import {
   buildConversationSummary,
@@ -65,6 +65,76 @@ function createMockDriver(events: ProviderEvent[]): ProviderDriver {
 }
 
 // ─── buildConversationSummary ─────────────────────────────────────────────────
+
+describe('native compaction ownership', () => {
+  async function compact(
+    events: ProviderEvent[],
+    supported = true,
+    busy = false,
+  ) {
+    const manager = new ProviderManager({ type: 'copilot-cli' }, '/tmp/test');
+    const driver = {
+      ...createMockDriver(events),
+      supportsNativeCompact: supported,
+    };
+    const send = vi.spyOn(driver, 'sendMessage');
+    const reset = vi.spyOn(driver, 'resetSession');
+    Object.assign(manager, { driver, turnActive: busy });
+    const chat = createMockChat();
+    chat.addHistory({
+      role: 'user',
+      parts: [{ text: 'Keep this conversation' }],
+    });
+    const before = chat.getHistory();
+    const result = manager.compactNative(
+      chat as never,
+      new AbortController().signal,
+    );
+    return { manager, driver, send, reset, chat, before, result };
+  }
+
+  it('does not treat successful ordinary output as proof of compaction', async () => {
+    const h = await compact([
+      { type: ProviderEventType.Content, text: 'Done' },
+      { type: ProviderEventType.Finished },
+    ]);
+    expect(await h.result).toMatchObject({
+      status: CompressionStatus.NATIVE_COMPRESSION_UNCONFIRMED,
+    });
+    expect(h.reset).not.toHaveBeenCalled();
+    expect(h.driver.getSessionId()).toBe('test-session-123');
+    expect(h.chat.getHistory()).toEqual(h.before);
+  });
+
+  it('rejects a transport without verified native command support', async () => {
+    const h = await compact([], false);
+    expect(await h.result).toMatchObject({
+      status: CompressionStatus.NATIVE_COMPRESSION_UNSUPPORTED,
+    });
+    expect(h.send).not.toHaveBeenCalled();
+    expect(h.reset).not.toHaveBeenCalled();
+  });
+
+  it('preserves the native session on a confirmed compaction', async () => {
+    const h = await compact([
+      { type: ProviderEventType.Compacted, preTokens: 1000, trigger: 'manual' },
+      { type: ProviderEventType.Finished },
+    ]);
+    expect(await h.result).toMatchObject({
+      status: CompressionStatus.COMPRESSED,
+    });
+    expect(h.driver.getSessionId()).toBe('test-session-123');
+    expect(h.manager.getContextUsageSource()).toBe('unknown');
+  });
+
+  it('does not send /compact into a busy native session', async () => {
+    const h = await compact([], true, true);
+    await expect(h.result).rejects.toThrow(
+      'Wait for the current provider turn',
+    );
+    expect(h.send).not.toHaveBeenCalled();
+  });
+});
 
 describe('buildConversationSummary', () => {
   it('should serialize simple user/model text exchange', () => {
@@ -1154,6 +1224,7 @@ describe('ProviderManager compaction handling', () => {
     ).value;
     expect(info.originalTokenCount).toBe(150000);
     expect(info.compressionStatus).toBe(CompressionStatus.COMPRESSED);
+    expect(info).toHaveProperty('provider', 'Claude Code');
 
     // History should contain state_snapshot with summary (not context_compacted)
     const firstEntry = mockChat._raw[0];

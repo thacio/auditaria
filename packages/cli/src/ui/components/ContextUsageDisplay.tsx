@@ -6,7 +6,11 @@
 
 import { Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { getContextUsagePercentage } from '../utils/contextUsage.js';
+import {
+  getContextUsagePercentage,
+  getContextUsageSource,
+} from '../utils/contextUsage.js';
+import { useConfig } from '../contexts/ConfigContext.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import {
   MIN_TERMINAL_WIDTH_FOR_FULL_LABEL,
@@ -23,12 +27,16 @@ export const ContextUsageDisplay = ({
   terminalWidth: number;
 }) => {
   const settings = useSettings();
+  const config = useConfig();
+  const source = getContextUsageSource(config);
   const percentage = getContextUsagePercentage(promptTokenCount, model);
   const percentageUsed = (percentage * 100).toFixed(0);
 
   const threshold =
-    settings.merged.model?.compressionThreshold ??
-    DEFAULT_COMPRESSION_THRESHOLD;
+    source === 'local'
+      ? (settings.merged.model?.compressionThreshold ??
+        DEFAULT_COMPRESSION_THRESHOLD)
+      : 0.9;
 
   let textColor = theme.text.secondary;
   if (percentage >= 1.0) {
@@ -41,9 +49,10 @@ export const ContextUsageDisplay = ({
     terminalWidth < MIN_TERMINAL_WIDTH_FOR_FULL_LABEL ? '%' : '% used';
 
   return (
-    <Text color={textColor}>
-      {percentageUsed}
-      {label}
+    <Text color={source === 'unknown' ? theme.text.secondary : textColor}>
+      {source === 'unknown'
+        ? 'provider managed'
+        : `${source === 'estimated' ? '~' : ''}${percentageUsed}${label}${source === 'estimated' && terminalWidth >= MIN_TERMINAL_WIDTH_FOR_FULL_LABEL ? ' (estimate)' : ''}`}
     </Text>
   );
 };

@@ -57,6 +57,36 @@ describe('useSessionResume', () => {
   });
 
   describe('loadHistoryForResume', () => {
+    it('leaves both histories intact when an external provider is active', async () => {
+      const config = {
+        ...mockConfig,
+        getProviderConfig: () => ({ type: 'claude-cli' }),
+      } as unknown as Config;
+      const { result, unmount } = await renderHook(() =>
+        useSessionResume({ ...getDefaultProps(), config }),
+      );
+      await act(async () => {
+        await result.current.loadHistoryForResume(
+          [{ type: 'user', text: 'Old transcript' }],
+          [{ role: 'user', parts: [{ text: 'Old transcript' }] }],
+          {
+            filePath: '/archive.json',
+            conversation: {
+              sessionId: 'old',
+              projectHash: 'project',
+              startTime: '',
+              lastUpdated: '',
+              messages: [],
+            },
+          },
+        );
+      });
+      expect(mockHistoryManager.clearItems).not.toHaveBeenCalled();
+      expect(mockHistoryManager.addItem).not.toHaveBeenCalled();
+      expect(mockGeminiClient.resumeChat).not.toHaveBeenCalled();
+      unmount();
+    });
+
     it('should return a loadHistoryForResume callback', async () => {
       const { result } = await renderHook(() =>
         useSessionResume(getDefaultProps()),

@@ -297,6 +297,8 @@ export interface ProviderDriver {
   startSession?(signal: AbortSignal, systemContext?: string): Promise<void>;
   /** Whether this driver supports cross-restart resume */
   readonly canResume: boolean;
+  /** Native /compact is supported and completion can be observed reliably. */
+  readonly supportsNativeCompact?: boolean;
   // AUDITARIA_SESSION_MANAGEMENT_END
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Phase-1 interactive-prompt response

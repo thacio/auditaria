@@ -275,6 +275,7 @@ export class ClaudeCLIDriver
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   readonly canResume = true;
+  readonly supportsNativeCompact = true;
 
   getSessionId(): string | undefined {
     return this.sessionManager.getSessionId();
