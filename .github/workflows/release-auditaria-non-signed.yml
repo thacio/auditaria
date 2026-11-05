@@ -22,6 +22,12 @@ on:
         default: false
         type: boolean
 
+env:
+  # Build/bundle never launch a browser; skip the @playwright/browser-chromium
+  # postinstall download (fails on runner images Playwright does not know yet,
+  # e.g. ubuntu-latest = Ubuntu 26.04 with Playwright < 1.64).
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
 jobs:
   build-npm-package:
     runs-on: ubuntu-latest
